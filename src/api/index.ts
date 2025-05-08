@@ -1,6 +1,6 @@
 
 import { DeviceStatus, TelemetryData } from "@/types/telemetry";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 
 // Simulated in-memory database for demonstration
 let deviceDatabase: DeviceStatus[] = [];
@@ -77,7 +77,7 @@ export async function handleTelemetryApi(request: Request): Promise<Response> {
 
   try {
     // Parse JSON body
-    const data = await request.json();
+    const data: any = await request.json();
     
     // Extract device information
     const deviceId = data?.android_id || data?.device_info?.android_id;
@@ -172,7 +172,7 @@ export async function handleTelemetryApi(request: Request): Promise<Response> {
       deviceDatabase.push(deviceData);
       
       // Show toast for new device (if in browser context)
-      if (typeof window !== "undefined") {
+      if (typeof window !== 'undefined') {
         toast({
           title: "New Device Connected",
           description: `${deviceData.name} (${deviceData.model}) has connected`,

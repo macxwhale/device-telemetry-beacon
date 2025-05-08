@@ -53,6 +53,7 @@ const sampleTelemetry: TelemetryData = {
 // Sample history data for charts
 const sampleHistory: DeviceHistory[] = [
   {
+    id: "e03c18c36f70be06-1",
     device_id: "e03c18c36f70be06",
     timestamp: Date.now() - 24 * 60 * 60 * 1000,
     telemetry: {
@@ -62,6 +63,7 @@ const sampleHistory: DeviceHistory[] = [
     }
   },
   {
+    id: "e03c18c36f70be06-2",
     device_id: "e03c18c36f70be06",
     timestamp: Date.now() - 18 * 60 * 60 * 1000,
     telemetry: {
@@ -71,6 +73,7 @@ const sampleHistory: DeviceHistory[] = [
     }
   },
   {
+    id: "e03c18c36f70be06-3",
     device_id: "e03c18c36f70be06",
     timestamp: Date.now() - 12 * 60 * 60 * 1000,
     telemetry: {
@@ -80,6 +83,7 @@ const sampleHistory: DeviceHistory[] = [
     }
   },
   {
+    id: "e03c18c36f70be06-4",
     device_id: "e03c18c36f70be06",
     timestamp: Date.now() - 6 * 60 * 60 * 1000,
     telemetry: {
@@ -89,6 +93,7 @@ const sampleHistory: DeviceHistory[] = [
     }
   },
   {
+    id: "e03c18c36f70be06-5",
     device_id: "e03c18c36f70be06",
     timestamp: Date.now(),
     telemetry: {

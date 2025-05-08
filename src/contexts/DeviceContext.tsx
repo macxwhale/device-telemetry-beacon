@@ -2,7 +2,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { DeviceStatus } from "@/types/telemetry";
 import { getAllDevices } from "@/services/telemetryService";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 
 interface DeviceContextType {
   devices: DeviceStatus[];

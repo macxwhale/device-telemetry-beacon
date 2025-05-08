@@ -15,22 +15,22 @@ export interface DeviceInfo {
 export interface SystemInfo {
   android_version: string;
   sdk_int: number;
-  base_version: number;
-  fingerprint: string;
   build_number: string;
-  kernel_version: string;
   bootloader: string;
-  build_tags: string;
-  build_type: string;
   board: string;
   hardware: string;
-  host: string;
-  user: string;
-  uptime_millis: number;
-  boot_time: number;
   cpu_cores: number;
   language: string;
   timezone: string;
+  uptime_millis: number;
+  fingerprint: string;
+  base_version?: number;
+  kernel_version?: string;
+  build_tags?: string;
+  build_type?: string;
+  host?: string;
+  user?: string;
+  boot_time?: number;
 }
 
 export interface BatteryInfo {
@@ -66,10 +66,10 @@ export interface TelemetryData {
   display_info: DisplayInfo;
   security_info: SecurityInfo;
   app_info: AppInfo;
-  timestamp: number;
-  android_id: string;
   os_type: string;
-  device_id: string;
+  timestamp?: number;
+  android_id?: string;
+  device_id?: string;
 }
 
 export interface DeviceStatus {
@@ -92,4 +92,5 @@ export interface DeviceHistory {
   id: string;
   timestamp: number;
   telemetry: TelemetryData;
+  device_id?: string; // Added to match implementation
 }
