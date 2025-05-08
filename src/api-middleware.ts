@@ -1,5 +1,5 @@
 
-import { handleTelemetryApi } from './api';
+import { handleTelemetryApi } from './api/api-interface';
 
 // This is the main entry point for API requests without JSX dependencies
 export async function handleApiRequest(request: Request): Promise<Response | undefined> {
