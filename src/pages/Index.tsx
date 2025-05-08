@@ -8,6 +8,7 @@ import { useDevices } from "@/contexts/DeviceContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 const Index = () => {
   const { devices, loading, error, refreshDevices } = useDevices();
@@ -94,24 +95,3 @@ const Index = () => {
 };
 
 export default Index;
-
-// Card component used above
-const Card = ({ className, ...props }: React.ComponentProps<typeof import("@/components/ui/card").Card>) => {
-  const { Card } = require("@/components/ui/card");
-  return <Card className={className} {...props} />;
-};
-
-const CardHeader = (props: React.ComponentProps<typeof import("@/components/ui/card").CardHeader>) => {
-  const { CardHeader } = require("@/components/ui/card");
-  return <CardHeader {...props} />;
-};
-
-const CardTitle = (props: React.ComponentProps<typeof import("@/components/ui/card").CardTitle>) => {
-  const { CardTitle } = require("@/components/ui/card");
-  return <CardTitle {...props} />;
-};
-
-const CardContent = (props: React.ComponentProps<typeof import("@/components/ui/card").CardContent>) => {
-  const { CardContent } = require("@/components/ui/card");
-  return <CardContent {...props} />;
-};
