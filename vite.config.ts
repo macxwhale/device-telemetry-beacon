@@ -2,14 +2,15 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { componentTagger } from "lovable-tagger";
 import { handleApiRequest } from "./src/middleware";
 
 // Custom middleware for API requests
 function apiMiddleware() {
   return {
     name: 'vite-plugin-api-middleware',
-    configureServer(server) {
-      server.middlewares.use(async (req, res, next) => {
+    configureServer(server: any) {
+      server.middlewares.use(async (req: any, res: any, next: any) => {
         if (!req.url) {
           next();
           return;
@@ -78,14 +79,19 @@ function apiMiddleware() {
 }
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [react(), apiMiddleware()],
+export default defineConfig(({ mode }) => ({
+  plugins: [
+    react(),
+    mode === 'development' && componentTagger(),
+    apiMiddleware()
+  ].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
   server: {
-    port: 8080
+    port: 8080,
+    host: "::"
   }
-});
+}));

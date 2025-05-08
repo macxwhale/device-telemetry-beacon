@@ -92,5 +92,5 @@ export interface DeviceHistory {
   id: string;
   timestamp: number;
   telemetry: TelemetryData;
-  device_id?: string; // Added to match implementation
+  device_id: string; // Changed from optional to required
 }

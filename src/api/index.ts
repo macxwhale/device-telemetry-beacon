@@ -1,6 +1,5 @@
 
-import { DeviceStatus, TelemetryData } from "@/types/telemetry";
-import { toast } from "@/hooks/use-toast";
+import { DeviceStatus, TelemetryData } from "../types/telemetry";
 
 // Simulated in-memory database for demonstration
 let deviceDatabase: DeviceStatus[] = [];
@@ -28,7 +27,15 @@ const defaultTelemetry: TelemetryData = {
     language: "Unknown",
     timezone: "Unknown",
     uptime_millis: 0,
-    fingerprint: "Unknown"
+    fingerprint: "Unknown",
+    // Optional fields included to satisfy TypeScript
+    base_version: undefined,
+    kernel_version: undefined,
+    build_tags: undefined,
+    build_type: undefined,
+    host: undefined,
+    user: undefined,
+    boot_time: undefined
   },
   battery_info: {
     battery_level: 0,
@@ -116,7 +123,15 @@ export async function handleTelemetryApi(request: Request): Promise<Response> {
         language: data?.system_info?.language || "Unknown",
         timezone: data?.system_info?.timezone || "Unknown",
         uptime_millis: data?.system_info?.uptime_millis || 0,
-        fingerprint: data?.system_info?.fingerprint || "Unknown"
+        fingerprint: data?.system_info?.fingerprint || "Unknown",
+        // Optional fields
+        base_version: data?.system_info?.base_version,
+        kernel_version: data?.system_info?.kernel_version,
+        build_tags: data?.system_info?.build_tags,
+        build_type: data?.system_info?.build_type,
+        host: data?.system_info?.host,
+        user: data?.system_info?.user,
+        boot_time: data?.system_info?.boot_time
       },
       battery_info: {
         battery_level: data?.battery_info?.battery_level || 0,
@@ -172,12 +187,18 @@ export async function handleTelemetryApi(request: Request): Promise<Response> {
       deviceDatabase.push(deviceData);
       
       // Show toast for new device (if in browser context)
-      if (typeof window !== 'undefined') {
-        toast({
-          title: "New Device Connected",
-          description: `${deviceData.name} (${deviceData.model}) has connected`,
-          variant: "default",
-        });
+      if (typeof globalThis !== 'undefined' && globalThis.document) {
+        // This will only run in browser environments
+        try {
+          const { toast } = require("../hooks/use-toast");
+          toast({
+            title: "New Device Connected",
+            description: `${deviceData.name} (${deviceData.model}) has connected`,
+            variant: "default",
+          });
+        } catch (e) {
+          console.log("Toast notification not available");
+        }
       }
     }
     

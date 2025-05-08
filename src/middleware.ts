@@ -1,20 +1,16 @@
 
-import { handleTelemetryApi } from "./api";
+import { handleTelemetryApi } from './api';
 
-// API route pattern to match
-const API_ROUTES = {
-  TELEMETRY: /^\/api\/telemetry(\/.*)?$/
-};
-
-export async function handleApiRequest(request: Request): Promise<Response | null> {
+// This is the main entry point for API requests
+export async function handleApiRequest(request: Request): Promise<Response | undefined> {
   const url = new URL(request.url);
   const path = url.pathname;
-  
-  // Check if the request is for an API route
-  if (API_ROUTES.TELEMETRY.test(path)) {
+
+  // Handle different API routes
+  if (path.startsWith("/api/telemetry")) {
     return handleTelemetryApi(request);
   }
-  
-  // Not an API request, return null to continue normal processing
-  return null;
+
+  // If no route matched, return undefined to let the default handler process it
+  return undefined;
 }
