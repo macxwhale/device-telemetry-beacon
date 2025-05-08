@@ -9,17 +9,20 @@ export async function handleApiRequest(request: Request): Promise<Response | und
   console.log(`API middleware processing: ${path} (${request.method})`);
   console.log(`Request headers:`, Object.fromEntries(request.headers.entries()));
 
+  // CORS headers to use consistently
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Max-Age': '86400'
+  };
+
   // Handle CORS preflight
   if (request.method === 'OPTIONS') {
     console.log("Handling CORS preflight request");
     return new Response(null, {
       status: 204,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Access-Control-Max-Age': '86400'
-      }
+      headers: corsHeaders
     });
   }
 
@@ -51,7 +54,7 @@ export async function handleApiRequest(request: Request): Promise<Response | und
         status: 500,
         headers: { 
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
+          ...corsHeaders
         }
       });
     }

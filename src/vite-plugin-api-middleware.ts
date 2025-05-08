@@ -14,9 +14,23 @@ export function apiMiddleware(): Plugin {
         
         // Only process if it's an API request
         if (req.url.startsWith('/api/')) {
+          console.log(`API middleware received: ${req.method} ${req.url}`);
+          
+          // Set CORS headers for all API responses
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+          res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+          res.setHeader('Access-Control-Max-Age', '86400');
+          
+          // Handle preflight CORS requests
+          if (req.method === 'OPTIONS') {
+            console.log('Responding to OPTIONS request with CORS headers');
+            res.statusCode = 204;
+            res.end();
+            return;
+          }
+          
           try {
-            console.log(`API middleware received: ${req.method} ${req.url}`);
-            
             // Create a Request object from the incoming request
             const protocol = req.headers.referer?.split('://')[0] || 'http';
             const host = req.headers.host;
@@ -63,7 +77,7 @@ export function apiMiddleware(): Plugin {
               
               // Send response body
               const responseBody = await response.text();
-              console.log("Response body:", responseBody);
+              console.log("Response body:", responseBody.substring(0, 500) + (responseBody.length > 500 ? "..." : ""));
               res.end(responseBody);
               return;
             }

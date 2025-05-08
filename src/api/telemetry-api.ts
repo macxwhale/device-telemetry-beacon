@@ -14,27 +14,35 @@ const API_KEY = "telm_sk_1234567890abcdef";
 export async function handleTelemetryApiImplementation(request: Request): Promise<Response> {
   console.log("Telemetry API implementation: processing request");
   
+  // Add CORS headers for all responses
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Max-Age": "86400"
+  };
+  
   // Add CORS headers for preflight requests
   if (request.method === "OPTIONS") {
+    console.log("Handling OPTIONS preflight request");
     return new Response(null, {
       status: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Max-Age": "86400"
-      }
+      headers: corsHeaders
     });
   }
   
   // Verify it's a POST request
   if (request.method !== "POST") {
     console.error("Method not allowed:", request.method);
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+    return new Response(JSON.stringify({ 
+      error: "Method not allowed", 
+      allowed: "POST",
+      received: request.method 
+    }), {
       status: 405,
       headers: { 
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
+        ...corsHeaders
       }
     });
   }
@@ -45,11 +53,15 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
   
   if (!authHeader || !authHeader.startsWith("Bearer ") || authHeader.split(" ")[1] !== API_KEY) {
     console.error("Unauthorized request. Auth header:", authHeader);
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    return new Response(JSON.stringify({ 
+      error: "Unauthorized",
+      details: "Invalid or missing API key",
+      hint: "Use Authorization: Bearer telm_sk_1234567890abcdef"
+    }), {
       status: 401,
       headers: { 
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
+        ...corsHeaders
       }
     });
   }
@@ -74,7 +86,7 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
         status: 400,
         headers: { 
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
+          ...corsHeaders
         }
       });
     }
@@ -94,13 +106,14 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
       console.error("Missing device identifier in payload");
       return new Response(JSON.stringify({ 
         error: "Missing device identifier",
+        required: "android_id or device_info.android_id must be provided",
         received_keys: Object.keys(data),
         device_info: data.device_info ? JSON.stringify(data.device_info) : "No device_info found"
       }), {
         status: 400,
         headers: { 
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
+          ...corsHeaders
         }
       });
     }
@@ -146,7 +159,8 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
     const response = {
       success: true, 
       message: "Telemetry data received",
-      device_id: deviceId
+      device_id: deviceId,
+      timestamp: timestamp
     };
     
     console.log("Sending response:", JSON.stringify(response));
@@ -155,10 +169,7 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
       status: 200,
       headers: { 
         "Content-Type": "application/json",
-        // Add CORS headers to ensure the API is accessible
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+        ...corsHeaders
       }
     });
     
@@ -172,7 +183,7 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
       status: 500,
       headers: { 
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
+        ...corsHeaders
       }
     });
   }

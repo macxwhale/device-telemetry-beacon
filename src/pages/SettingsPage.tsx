@@ -188,6 +188,16 @@ const SettingsPage = () => {
                 </div>
                 
                 <div className="pt-4">
+                  <h3 className="font-medium mb-2">Content-Type Header</h3>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Make sure to include the Content-Type header in your request:
+                  </p>
+                  <code className="text-xs bg-secondary p-3 rounded block">
+                    Content-Type: application/json
+                  </code>
+                </div>
+                
+                <div className="pt-4">
                   <h3 className="font-medium mb-2">Sample Request</h3>
                   <pre className="text-xs bg-secondary p-3 rounded block overflow-x-auto">
 {`curl -X POST ${apiEndpoint} \\
@@ -259,10 +269,25 @@ const SettingsPage = () => {
                 </div>
 
                 <div className="pt-4">
+                  <h3 className="font-medium mb-2">Common Errors</h3>
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      <strong>401 Unauthorized</strong>: Check your API key is correct
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      <strong>400 Bad Request</strong>: Check your JSON format and required fields
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      <strong>405 Method Not Allowed</strong>: Make sure you're using POST
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-4">
                   <h3 className="font-medium mb-2">Testing Your API</h3>
                   <p className="text-xs text-muted-foreground">
                     You can send a test request to your API endpoint to verify it's working correctly.
-                    Make sure to include the Authorization header with your API key.
+                    Make sure to include the proper headers and at least the required fields in your JSON.
                   </p>
                 </div>
               </div>
