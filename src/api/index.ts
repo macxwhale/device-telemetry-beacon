@@ -1,3 +1,4 @@
+
 import { DeviceStatus, TelemetryData } from "../types/telemetry";
 import { toast } from "../hooks/use-toast";
 
@@ -187,7 +188,7 @@ export async function handleTelemetryApi(request: Request): Promise<Response> {
       deviceDatabase.push(deviceData);
       
       // Show toast for new device (if in browser context)
-      if (typeof globalThis !== 'undefined' && globalThis.document) {
+      if (typeof window !== 'undefined') {
         // This will only run in browser environments
         try {
           toast({
