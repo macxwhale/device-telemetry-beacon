@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -188,13 +187,14 @@ const SettingsPage = () => {
                 </div>
                 
                 <div className="pt-4">
-                  <h3 className="font-medium mb-2">Content-Type Header</h3>
+                  <h3 className="font-medium mb-2">Headers</h3>
                   <p className="text-xs text-muted-foreground mb-2">
-                    Make sure to include the Content-Type header in your request:
+                    Required headers for your API request:
                   </p>
-                  <code className="text-xs bg-secondary p-3 rounded block">
-                    Content-Type: application/json
-                  </code>
+                  <pre className="text-xs bg-secondary p-3 rounded block overflow-x-auto">
+{`Content-Type: application/json
+Authorization: Bearer telm_sk_1234567890abcdef`}
+                  </pre>
                 </div>
                 
                 <div className="pt-4">
@@ -207,44 +207,40 @@ const SettingsPage = () => {
   "device_info": {
     "device_name": "Samsung Galaxy A13",
     "manufacturer": "samsung",
-    "brand": "samsung",
     "model": "SM-A135F",
-    "product": "a13nsxx",
     "android_id": "e03c18c36f70be06"
   },
   "system_info": {
     "android_version": "13",
     "sdk_int": 33,
-    "build_number": "TP1A.220624.014.A135FXXU3CWD1",
-    "bootloader": "A135FXXU3CWD1",
-    "board": "exynos850",
-    "hardware": "exynos850",
-    "cpu_cores": 8,
-    "language": "en_US",
-    "timezone": "Europe/London",
     "uptime_millis": 86400000
   },
   "battery_info": {
     "battery_level": 85,
     "battery_status": "Charging"
   },
-  "display_info": {
-    "screen_resolution": "1080x2408",
-    "screen_orientation": "portrait"
-  },
   "network_info": {
     "ip_address": "192.168.1.155",
-    "network_interface": "WiFi",
-    "carrier": "Vodafone",
-    "wifi_ssid": "Home-WiFi"
+    "network_interface": "WiFi"
   },
-  "security_info": {
-    "is_rooted": false
-  }
+  "android_id": "e03c18c36f70be06"
 }'`}
                   </pre>
                 </div>
                 
+                <div className="pt-4 bg-amber-50 p-3 rounded-md border border-amber-200">
+                  <h3 className="font-medium mb-2 text-amber-800">⚠️ Common JSON Errors</h3>
+                  <p className="text-xs text-amber-700 mb-2">
+                    Make sure your JSON is properly formatted. Common errors include:
+                  </p>
+                  <ul className="list-disc list-inside text-xs text-amber-700 space-y-1">
+                    <li>Extra curly braces (e.g., <code>{{ '{' }}{{ '{' }}...{{ '}' }}{{ '}' }}</code> instead of <code>{{ '{' }}...{{ '}' }}</code>)</li>
+                    <li>Missing or extra commas</li>
+                    <li>Unquoted property names</li>
+                    <li>Single quotes instead of double quotes (JSON requires double quotes for keys and string values)</li>
+                  </ul>
+                </div>
+
                 <div className="pt-4">
                   <h3 className="font-medium mb-2">Response Format</h3>
                   <pre className="text-xs bg-secondary p-3 rounded block overflow-x-auto">
@@ -289,6 +285,20 @@ const SettingsPage = () => {
                     You can send a test request to your API endpoint to verify it's working correctly.
                     Make sure to include the proper headers and at least the required fields in your JSON.
                   </p>
+                  <div className="mt-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        navigator.clipboard.writeText(`curl -X POST ${apiEndpoint} \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer telm_sk_1234567890abcdef" \\\n  -d '{\n  "device_info": {\n    "device_name": "Test Device",\n    "android_id": "test123456789"\n  }}'`);
+                        toast({
+                          title: "Test command copied",
+                          description: "Minimal test curl command copied to clipboard",
+                        });
+                      }}
+                    >
+                      Copy Test Command
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>

@@ -35,16 +35,35 @@ export async function handleApiRequest(request: Request): Promise<Response | und
       const bodyText = await clonedRequest.text();
       console.log("Request body (first 500 chars):", bodyText.substring(0, 500));
       
+      // Fix malformed JSON if needed (handles double curly brace issue)
+      let fixedBodyText = bodyText.trim();
+      if (fixedBodyText.startsWith('{{') && fixedBodyText.endsWith('}}')) {
+        fixedBodyText = fixedBodyText.substring(1, fixedBodyText.length - 1);
+        console.log("Fixed malformed JSON with double curly braces");
+      }
+      
       // Create a new request with the same content for processing
       const newRequest = new Request(request.url, {
         method: request.method,
         headers: request.headers,
-        body: bodyText
+        body: fixedBodyText
       });
       
       const response = await handleTelemetryApi(newRequest);
       console.log("API response status:", response.status);
-      return response;
+      
+      // Ensure the response has the correct content type and CORS headers
+      const responseClone = response.clone();
+      const responseBody = await responseClone.text();
+      
+      return new Response(responseBody, {
+        status: response.status,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+          ...Object.fromEntries(response.headers.entries())
+        }
+      });
     } catch (error) {
       console.error("Error in API handler:", error);
       return new Response(JSON.stringify({ 

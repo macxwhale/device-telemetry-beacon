@@ -74,6 +74,12 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
     // Parse JSON body
     let data;
     try {
+      // Remove any extra curly braces that might be causing JSON parse errors
+      bodyText = bodyText.trim();
+      if (bodyText.startsWith('{{') && bodyText.endsWith('}}')) {
+        bodyText = bodyText.substring(1, bodyText.length - 1);
+      }
+      
       data = JSON.parse(bodyText);
       console.log("Parsed JSON successfully, found keys:", Object.keys(data));
     } catch (parseError) {
@@ -81,7 +87,8 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
       return new Response(JSON.stringify({ 
         error: "Invalid JSON format", 
         details: (parseError as Error).message,
-        received_data: bodyText.substring(0, 100) + "..." // Include part of the raw data for debugging
+        received_data: bodyText.substring(0, 100) + "...", // Include part of the raw data for debugging
+        tip: "Make sure you're sending valid JSON without duplicate curly braces"
       }), {
         status: 400,
         headers: { 
