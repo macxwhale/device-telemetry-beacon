@@ -1,5 +1,5 @@
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { DeviceStatus } from "@/types/telemetry";
 import { getAllDevices } from "@/services/telemetryService";
 import { toast } from "@/components/ui/use-toast";
@@ -18,7 +18,8 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchDevices = async () => {
+  // Fetch devices from API
+  const fetchDevices = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getAllDevices();
@@ -34,10 +35,10 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Check for offline devices every minute
-  const checkOfflineDevices = () => {
+  // Check for offline devices
+  const checkOfflineDevices = useCallback(() => {
     setDevices(prev => 
       prev.map(device => {
         const lastSeenDiff = Date.now() - device.last_seen;
@@ -55,8 +56,9 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
         return { ...device, isOnline };
       })
     );
-  };
+  }, []);
 
+  // Initial data load and interval setup
   useEffect(() => {
     fetchDevices();
     
@@ -65,23 +67,31 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
     }, 60 * 1000);
     
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchDevices, checkOfflineDevices]);
 
+  // Public API for context consumers
   const refreshDevices = async () => {
     await fetchDevices();
   };
 
+  const contextValue = {
+    devices,
+    loading,
+    error,
+    refreshDevices
+  };
+
   return (
-    <DeviceContext.Provider value={{ devices, loading, error, refreshDevices }}>
+    <DeviceContext.Provider value={contextValue}>
       {children}
     </DeviceContext.Provider>
   );
 };
 
-export const useDevices = () => {
+export function useDevices() {
   const context = useContext(DeviceContext);
   if (!context) {
     throw new Error("useDevices must be used within a DeviceProvider");
   }
   return context;
-};
+}
