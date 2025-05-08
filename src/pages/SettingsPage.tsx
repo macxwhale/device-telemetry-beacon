@@ -234,7 +234,7 @@ Authorization: Bearer telm_sk_1234567890abcdef`}
                     Make sure your JSON is properly formatted. Common errors include:
                   </p>
                   <ul className="list-disc list-inside text-xs text-amber-700 space-y-1">
-                    <li>Extra curly braces (e.g., <code>{{ '{' }}{{ '{' }}...{{ '}' }}{{ '}' }}</code> instead of <code>{{ '{' }}...{{ '}' }}</code>)</li>
+                    <li>Extra curly braces (e.g., <code>{"{{"}</code> instead of <code>{"{"}</code>)</li>
                     <li>Missing or extra commas</li>
                     <li>Unquoted property names</li>
                     <li>Single quotes instead of double quotes (JSON requires double quotes for keys and string values)</li>
