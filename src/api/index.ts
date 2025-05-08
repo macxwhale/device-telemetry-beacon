@@ -187,7 +187,7 @@ export async function handleTelemetryApi(request: Request): Promise<Response> {
       deviceDatabase.push(deviceData);
       
       // Show toast for new device (if in browser context)
-      if (typeof window !== 'undefined') {
+      if (typeof document !== 'undefined') {
         // This will only run in browser environments
         try {
           toast({
