@@ -3,7 +3,10 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
-import { handleApiRequest } from "./src/middleware.tsx";
+import { handleApiRequest } from "./src/api-handler";
+
+// Import the Plugin type from Vite for proper type definition
+import type { Plugin } from 'vite';
 
 // Custom middleware for API requests
 function apiMiddleware(): Plugin {
@@ -77,9 +80,6 @@ function apiMiddleware(): Plugin {
     },
   };
 }
-
-// Import the Plugin type from Vite for proper type definition
-import type { Plugin } from 'vite';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({

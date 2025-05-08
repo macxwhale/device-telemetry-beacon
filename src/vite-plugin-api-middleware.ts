@@ -1,6 +1,6 @@
 
 import type { Plugin } from 'vite';
-import { handleApiRequest } from './middleware.tsx';
+import { handleApiRequest } from './api-handler';
 
 export function apiMiddleware(): Plugin {
   return {
