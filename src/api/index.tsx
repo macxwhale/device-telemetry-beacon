@@ -1,3 +1,4 @@
+
 import { DeviceStatus, TelemetryData } from "../types/telemetry";
 import { toast } from "../hooks/use-toast";
 import { handleTelemetryApiImplementation, getAllDevicesFromApiImplementation } from './telemetry-api';
@@ -66,14 +67,16 @@ const API_KEY = "telm_sk_1234567890abcdef";
 
 // Handler for telemetry API requests
 export async function handleTelemetryApi(request: Request): Promise<Response> {
-  // Handle authentication and validation in the non-JSX implementation
+  // Use the non-JSX implementation to handle the request
   const response = await handleTelemetryApiImplementation(request);
   
   // If we got a successful response, we can process the data
   if (response.status === 200) {
     try {
+      // Clone the request to avoid consuming the body
+      const clonedRequest = request.clone();
       // Process the received data and update our database
-      const data: any = await request.json();
+      const data: any = await clonedRequest.json();
       
       // Extract device information
       const deviceId = data?.android_id || data?.device_info?.android_id;
@@ -146,14 +149,14 @@ export async function handleTelemetryApi(request: Request): Promise<Response> {
           name: telemetryData.device_info.device_name,
           model: telemetryData.device_info.model,
           manufacturer: telemetryData.device_info.manufacturer,
-          os_version: telemetryData.system_info.android_version,
-          battery_level: telemetryData.battery_info.battery_level,
-          battery_status: telemetryData.battery_info.battery_status,
-          network_type: telemetryData.network_info.network_interface,
+          os_version: telemetryData.system_info?.android_version || "Unknown",
+          battery_level: telemetryData.battery_info?.battery_level || 0,
+          battery_status: telemetryData.battery_info?.battery_status || "Unknown",
+          network_type: telemetryData.network_info?.network_interface || "Unknown",
           last_seen: timestamp,
           isOnline: true,
-          ip_address: telemetryData.network_info.ip_address,
-          uptime_millis: telemetryData.system_info.uptime_millis,
+          ip_address: telemetryData.network_info?.ip_address || "0.0.0.0",
+          uptime_millis: telemetryData.system_info?.uptime_millis || 0,
           telemetry: telemetryData
         };
         
@@ -170,7 +173,7 @@ export async function handleTelemetryApi(request: Request): Promise<Response> {
           deviceDatabase.push(deviceData);
           
           // Show toast for new device (if in browser context)
-          if (typeof globalThis !== 'undefined' && 'window' in globalThis) {
+          if (typeof window !== 'undefined') {
             // This will only run in browser environments
             try {
               toast({

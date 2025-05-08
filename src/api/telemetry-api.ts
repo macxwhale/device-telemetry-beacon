@@ -30,11 +30,14 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
   }
 
   try {
+    // Clone the request before parsing to avoid consuming the body
+    const clonedRequest = request.clone();
+    
     // Parse JSON body
-    const data: any = await request.json();
+    const data = await clonedRequest.json();
     
     // Extract device information
-    const deviceId = data?.android_id || data?.device_info?.android_id;
+    const deviceId = data?.device_info?.android_id || data?.android_id;
     
     if (!deviceId) {
       return new Response(JSON.stringify({ error: "Missing device identifier" }), {
@@ -43,11 +46,28 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
       });
     }
     
-    // Process telemetry data (simplified for non-JSX version)
-    // This just handles the API response, the actual data processing will be done in the JSX file
+    // Store device data in memory for simplicity
+    const existingDeviceIndex = deviceDatabase.findIndex(device => device.id === deviceId);
+    const timestamp = Date.now();
     
-    // Here we would normally process the data, but for now we'll just pass it to the JSX version
-    // We'll use the dynamic import in the index.tsx file to handle the actual data processing
+    const deviceData = {
+      id: deviceId,
+      name: data?.device_info?.device_name || "Unknown Device",
+      model: data?.device_info?.model || "Unknown Model",
+      last_seen: timestamp,
+      raw_data: data
+    };
+    
+    if (existingDeviceIndex >= 0) {
+      // Update existing device
+      deviceDatabase[existingDeviceIndex] = {
+        ...deviceDatabase[existingDeviceIndex],
+        ...deviceData
+      };
+    } else {
+      // Add new device
+      deviceDatabase.push(deviceData);
+    }
     
     // Return success response
     return new Response(JSON.stringify({ 
@@ -61,7 +81,7 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
     
   } catch (error) {
     console.error("Error processing telemetry data:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
+    return new Response(JSON.stringify({ error: "Internal server error", details: (error as Error).message }), {
       status: 500,
       headers: { "Content-Type": "application/json" }
     });
