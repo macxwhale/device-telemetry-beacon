@@ -15,6 +15,8 @@ export function apiMiddleware(): Plugin {
         // Only process if it's an API request
         if (req.url.startsWith('/api/')) {
           try {
+            console.log(`API middleware received: ${req.method} ${req.url}`);
+            
             // Create a Request object from the incoming request
             const protocol = req.headers.referer?.split('://')[0] || 'http';
             const host = req.headers.host;
@@ -25,6 +27,8 @@ export function apiMiddleware(): Plugin {
               if (value) headers.set(key, Array.isArray(value) ? value.join(', ') : String(value));
             }
             
+            console.log("Request headers:", Object.fromEntries(headers.entries()));
+            
             // Get request body if available
             let body: any = undefined;
             if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
@@ -34,6 +38,7 @@ export function apiMiddleware(): Plugin {
               }
               const bodyBuffer = Buffer.concat(chunks);
               body = bodyBuffer.length > 0 ? bodyBuffer.toString() : undefined;
+              console.log("Request body (partial):", body ? body.substring(0, 100) + "..." : "empty");
             }
             
             const request = new Request(url, {
@@ -46,6 +51,8 @@ export function apiMiddleware(): Plugin {
             const response = await handleApiRequest(request);
             
             if (response) {
+              console.log(`API response: ${response.status}`);
+              
               // Set status code
               res.statusCode = response.status;
               
@@ -56,6 +63,7 @@ export function apiMiddleware(): Plugin {
               
               // Send response body
               const responseBody = await response.text();
+              console.log("Response body:", responseBody);
               res.end(responseBody);
               return;
             }
@@ -63,7 +71,8 @@ export function apiMiddleware(): Plugin {
             console.error('API middleware error:', error);
             res.statusCode = 500;
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ error: 'Internal Server Error' }));
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.end(JSON.stringify({ error: 'Internal Server Error', details: (error as Error).message }));
             return;
           }
         }

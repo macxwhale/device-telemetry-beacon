@@ -24,7 +24,23 @@ export async function handleApiRequest(request: Request): Promise<Response | und
   // Handle different API routes
   if (path.startsWith("/api/telemetry")) {
     console.log("Forwarding to telemetry API handler");
-    return handleTelemetryApi(request);
+    try {
+      const response = await handleTelemetryApi(request);
+      console.log("API response status:", response.status);
+      return response;
+    } catch (error) {
+      console.error("Error in API handler:", error);
+      return new Response(JSON.stringify({ 
+        error: "API handler error", 
+        details: (error as Error).message 
+      }), {
+        status: 500,
+        headers: { 
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        }
+      });
+    }
   }
 
   // If no route matched, return undefined to let the default handler process it

@@ -14,22 +14,43 @@ const API_KEY = "telm_sk_1234567890abcdef";
 export async function handleTelemetryApiImplementation(request: Request): Promise<Response> {
   console.log("Telemetry API request received");
   
+  // Add CORS headers for preflight requests
+  if (request.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Max-Age": "86400"
+      }
+    });
+  }
+  
   // Verify it's a POST request
   if (request.method !== "POST") {
     console.error("Method not allowed:", request.method);
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
-      headers: { "Content-Type": "application/json" }
+      headers: { 
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      }
     });
   }
 
   // Check authentication
   const authHeader = request.headers.get("Authorization");
+  console.log("Auth header received:", authHeader);
+  
   if (!authHeader || !authHeader.startsWith("Bearer ") || authHeader.split(" ")[1] !== API_KEY) {
     console.error("Unauthorized request. Auth header:", authHeader);
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
-      headers: { "Content-Type": "application/json" }
+      headers: { 
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      }
     });
   }
 
@@ -37,13 +58,13 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
     // Clone the request to debug raw body
     const clonedRequest = request.clone();
     const bodyText = await clonedRequest.text();
-    console.log("Raw request body:", bodyText);
+    console.log("Raw request body:", bodyText.substring(0, 200) + "...");
     
     // Parse JSON body
     let data;
     try {
       data = JSON.parse(bodyText);
-      console.log("Parsed JSON successfully");
+      console.log("Parsed JSON successfully, found keys:", Object.keys(data));
     } catch (parseError) {
       console.error("JSON parsing error:", parseError);
       return new Response(JSON.stringify({ 
@@ -51,23 +72,36 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
         details: (parseError as Error).message 
       }), {
         status: 400,
-        headers: { "Content-Type": "application/json" }
+        headers: { 
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        }
       });
     }
     
     console.log("Received telemetry data structure:", Object.keys(data));
     
-    // Extract device identification
-    // Handle all possible patterns from the JSON structure
-    const deviceId = data?.device_info?.android_id || data?.android_id || data?.device_id || "";
+    // Extract device identification - handle all possible paths
+    const deviceId = 
+      data?.android_id || 
+      data?.device_id || 
+      data?.device_info?.android_id || 
+      "";
     
     console.log("Extracted device ID:", deviceId);
     
     if (!deviceId) {
       console.error("Missing device identifier in payload");
-      return new Response(JSON.stringify({ error: "Missing device identifier" }), {
+      return new Response(JSON.stringify({ 
+        error: "Missing device identifier",
+        received_keys: Object.keys(data),
+        device_info_keys: data.device_info ? Object.keys(data.device_info) : "no device_info"
+      }), {
         status: 400,
-        headers: { "Content-Type": "application/json" }
+        headers: { 
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        }
       });
     }
     
@@ -111,7 +145,7 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
       device_id: deviceId
     };
     
-    console.log("Sending response:", response);
+    console.log("Sending response:", JSON.stringify(response));
     
     return new Response(JSON.stringify(response), {
       status: 200,
@@ -126,9 +160,15 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
     
   } catch (error) {
     console.error("Error processing telemetry data:", error);
-    return new Response(JSON.stringify({ error: "Internal server error", details: (error as Error).message }), {
+    return new Response(JSON.stringify({ 
+      error: "Internal server error", 
+      details: (error as Error).message 
+    }), {
       status: 500,
-      headers: { "Content-Type": "application/json" }
+      headers: { 
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      }
     });
   }
 }
