@@ -1,6 +1,6 @@
 
 import type { Plugin } from 'vite';
-import { handleApiRequest } from './middleware';
+import { handleApiRequest } from './middleware.tsx';
 
 export function apiMiddleware(): Plugin {
   return {
@@ -50,7 +50,7 @@ export function apiMiddleware(): Plugin {
               res.statusCode = response.status;
               
               // Set headers
-              response.headers.forEach((value, key) => {
+              response.headers.forEach((value: string, key: string) => {
                 res.setHeader(key, value);
               });
               
