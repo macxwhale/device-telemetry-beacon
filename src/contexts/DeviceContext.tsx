@@ -36,28 +36,32 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Check for offline devices every minute
+  const checkOfflineDevices = () => {
+    setDevices(prev => 
+      prev.map(device => {
+        const lastSeenDiff = Date.now() - device.last_seen;
+        // Mark device as offline if not seen in last 15 minutes
+        const isOnline = lastSeenDiff < 15 * 60 * 1000;
+        
+        if (device.isOnline && !isOnline) {
+          toast({
+            title: "Device Offline",
+            description: `${device.name} (${device.model}) is now offline`,
+            variant: "destructive",
+          });
+        }
+        
+        return { ...device, isOnline };
+      })
+    );
+  };
+
   useEffect(() => {
     fetchDevices();
     
-    // Check for offline devices every minute
     const interval = setInterval(() => {
-      setDevices(prev => 
-        prev.map(device => {
-          const lastSeenDiff = Date.now() - device.last_seen;
-          // Mark device as offline if not seen in last 15 minutes
-          const isOnline = lastSeenDiff < 15 * 60 * 1000;
-          
-          if (device.isOnline && !isOnline) {
-            toast({
-              title: "Device Offline",
-              description: `${device.name} (${device.model}) is now offline`,
-              variant: "destructive",
-            });
-          }
-          
-          return { ...device, isOnline };
-        })
-      );
+      checkOfflineDevices();
     }, 60 * 1000);
     
     return () => clearInterval(interval);
