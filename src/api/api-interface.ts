@@ -7,6 +7,7 @@ import { handleTelemetryApiImplementation, getAllDevicesFromApiImplementation } 
 
 // Re-export only the necessary functions without JSX dependencies
 export function handleTelemetryApi(request: Request): Promise<Response> {
+  console.log("API interface: forwarding telemetry request to implementation");
   return handleTelemetryApiImplementation(request);
 }
 
