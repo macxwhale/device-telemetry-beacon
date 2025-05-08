@@ -12,7 +12,7 @@ const API_KEY = "telm_sk_1234567890abcdef";
  * Handles telemetry API requests without JSX dependencies
  */
 export async function handleTelemetryApiImplementation(request: Request): Promise<Response> {
-  console.log("Telemetry API request received");
+  console.log("Telemetry API implementation: processing request");
   
   // Add CORS headers for preflight requests
   if (request.method === "OPTIONS") {
@@ -55,10 +55,9 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
   }
 
   try {
-    // Clone the request to debug raw body
-    const clonedRequest = request.clone();
-    const bodyText = await clonedRequest.text();
-    console.log("Raw request body:", bodyText.substring(0, 200) + "...");
+    // Get the request body as text
+    let bodyText = await request.text();
+    console.log("Raw request body in telemetry API:", bodyText.substring(0, 500) + "...");
     
     // Parse JSON body
     let data;
@@ -69,7 +68,8 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
       console.error("JSON parsing error:", parseError);
       return new Response(JSON.stringify({ 
         error: "Invalid JSON format", 
-        details: (parseError as Error).message 
+        details: (parseError as Error).message,
+        received_data: bodyText.substring(0, 100) + "..." // Include part of the raw data for debugging
       }), {
         status: 400,
         headers: { 
@@ -79,13 +79,13 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
       });
     }
     
-    console.log("Received telemetry data structure:", Object.keys(data));
+    console.log("Received telemetry data structure:", JSON.stringify(Object.keys(data)));
     
-    // Extract device identification - handle all possible paths
+    // Extract device identification from all possible paths
     const deviceId = 
       data?.android_id || 
       data?.device_id || 
-      data?.device_info?.android_id || 
+      (data?.device_info?.android_id) || 
       "";
     
     console.log("Extracted device ID:", deviceId);
@@ -95,7 +95,7 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
       return new Response(JSON.stringify({ 
         error: "Missing device identifier",
         received_keys: Object.keys(data),
-        device_info_keys: data.device_info ? Object.keys(data.device_info) : "no device_info"
+        device_info: data.device_info ? JSON.stringify(data.device_info) : "No device_info found"
       }), {
         status: 400,
         headers: { 
@@ -109,6 +109,7 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
     const existingDeviceIndex = deviceDatabase.findIndex(device => device.id === deviceId);
     const timestamp = Date.now();
     
+    // Prepare device data object
     const deviceData = {
       id: deviceId,
       name: data?.device_info?.device_name || "Unknown Device",
@@ -122,8 +123,11 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
       uptime_millis: data?.system_info?.uptime_millis || 0,
       last_seen: timestamp,
       isOnline: true,
-      raw_data: data
+      telemetry: data, // Store the entire telemetry data
+      raw_data: data   // Keep raw data for backward compatibility
     };
+    
+    console.log("Processed device data:", JSON.stringify(deviceData, null, 2));
     
     if (existingDeviceIndex >= 0) {
       // Update existing device
@@ -162,7 +166,8 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
     console.error("Error processing telemetry data:", error);
     return new Response(JSON.stringify({ 
       error: "Internal server error", 
-      details: (error as Error).message 
+      details: (error as Error).message,
+      stack: (error as Error).stack
     }), {
       status: 500,
       headers: { 

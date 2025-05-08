@@ -7,9 +7,11 @@ export async function handleApiRequest(request: Request): Promise<Response | und
   const path = url.pathname;
 
   console.log(`API middleware processing: ${path} (${request.method})`);
+  console.log(`Request headers:`, Object.fromEntries(request.headers.entries()));
 
   // Handle CORS preflight
   if (request.method === 'OPTIONS') {
+    console.log("Handling CORS preflight request");
     return new Response(null, {
       status: 204,
       headers: {
@@ -25,7 +27,19 @@ export async function handleApiRequest(request: Request): Promise<Response | und
   if (path.startsWith("/api/telemetry")) {
     console.log("Forwarding to telemetry API handler");
     try {
-      const response = await handleTelemetryApi(request);
+      // Clone the request to inspect its body without consuming it
+      const clonedRequest = request.clone();
+      const bodyText = await clonedRequest.text();
+      console.log("Request body (first 500 chars):", bodyText.substring(0, 500));
+      
+      // Create a new request with the same content for processing
+      const newRequest = new Request(request.url, {
+        method: request.method,
+        headers: request.headers,
+        body: bodyText
+      });
+      
+      const response = await handleTelemetryApi(newRequest);
       console.log("API response status:", response.status);
       return response;
     } catch (error) {

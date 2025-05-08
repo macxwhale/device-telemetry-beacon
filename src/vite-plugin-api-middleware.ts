@@ -27,7 +27,7 @@ export function apiMiddleware(): Plugin {
               if (value) headers.set(key, Array.isArray(value) ? value.join(', ') : String(value));
             }
             
-            console.log("Request headers:", Object.fromEntries(headers.entries()));
+            console.log("Request headers:", JSON.stringify(Object.fromEntries(headers.entries())));
             
             // Get request body if available
             let body: any = undefined;
@@ -72,7 +72,11 @@ export function apiMiddleware(): Plugin {
             res.statusCode = 500;
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Access-Control-Allow-Origin', '*');
-            res.end(JSON.stringify({ error: 'Internal Server Error', details: (error as Error).message }));
+            res.end(JSON.stringify({ 
+              error: 'Internal Server Error', 
+              details: (error as Error).message,
+              stack: (error as Error).stack
+            }));
             return;
           }
         }
