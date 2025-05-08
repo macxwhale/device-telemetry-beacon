@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +30,10 @@ const SettingsPage = () => {
       description: "Your notification preferences have been updated",
     });
   };
+
+  // Get current domain for API endpoint display
+  const currentDomain = window.location.origin;
+  const apiEndpoint = `${currentDomain}/api/telemetry`;
   
   return (
     <Layout>
@@ -156,7 +161,7 @@ const SettingsPage = () => {
                 <div>
                   <Label htmlFor="api-endpoint" className="mb-2 block">API Endpoint</Label>
                   <code className="text-sm bg-secondary p-3 rounded block">
-                    POST https://your-domain.com/api/telemetry
+                    POST {apiEndpoint}
                   </code>
                   <p className="text-xs text-muted-foreground mt-1">
                     Send device telemetry data to this endpoint.
@@ -185,19 +190,48 @@ const SettingsPage = () => {
                 <div className="pt-4">
                   <h3 className="font-medium mb-2">Sample Request</h3>
                   <pre className="text-xs bg-secondary p-3 rounded block overflow-x-auto">
-{`curl -X POST https://your-domain.com/api/telemetry \\
+{`curl -X POST ${apiEndpoint} \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer telm_sk_1234567890abcdef" \\
   -d '{
-    "device_info": {
-      "device_name": "a13",
-      "manufacturer": "samsung",
-      "model": "SM-A135F",
-      "android_id": "e03c18c36f70be06"
-      // ... other device data
-    }
-    // ... rest of telemetry JSON
-  }'`}
+  "device_info": {
+    "device_name": "Samsung Galaxy A13",
+    "manufacturer": "samsung",
+    "brand": "samsung",
+    "model": "SM-A135F",
+    "product": "a13nsxx",
+    "android_id": "e03c18c36f70be06"
+  },
+  "system_info": {
+    "android_version": "13",
+    "sdk_int": 33,
+    "build_number": "TP1A.220624.014.A135FXXU3CWD1",
+    "bootloader": "A135FXXU3CWD1",
+    "board": "exynos850",
+    "hardware": "exynos850",
+    "cpu_cores": 8,
+    "language": "en_US",
+    "timezone": "Europe/London",
+    "uptime_millis": 86400000
+  },
+  "battery_info": {
+    "battery_level": 85,
+    "battery_status": "Charging"
+  },
+  "display_info": {
+    "screen_resolution": "1080x2408",
+    "screen_orientation": "portrait"
+  },
+  "network_info": {
+    "ip_address": "192.168.1.155",
+    "network_interface": "WiFi",
+    "carrier": "Vodafone",
+    "wifi_ssid": "Home-WiFi"
+  },
+  "security_info": {
+    "is_rooted": false
+  }
+}'`}
                   </pre>
                 </div>
                 
@@ -206,10 +240,30 @@ const SettingsPage = () => {
                   <pre className="text-xs bg-secondary p-3 rounded block overflow-x-auto">
 {`{
   "success": true,
-  "message": "Telemetry data received successfully",
+  "message": "Telemetry data received",
+  "device_id": "e03c18c36f70be06",
   "timestamp": 1746723241879
 }`}
                   </pre>
+                </div>
+
+                <div className="pt-4">
+                  <h3 className="font-medium mb-2">Required Fields</h3>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    At minimum, the request must include either:
+                  </p>
+                  <ul className="list-disc list-inside text-xs text-muted-foreground">
+                    <li><code>android_id</code> as a root property, or</li>
+                    <li><code>device_info.android_id</code> inside the device_info object</li>
+                  </ul>
+                </div>
+
+                <div className="pt-4">
+                  <h3 className="font-medium mb-2">Testing Your API</h3>
+                  <p className="text-xs text-muted-foreground">
+                    You can send a test request to your API endpoint to verify it's working correctly.
+                    Make sure to include the Authorization header with your API key.
+                  </p>
                 </div>
               </div>
             </CardContent>
