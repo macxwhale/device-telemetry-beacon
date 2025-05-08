@@ -1,5 +1,5 @@
-
 import { DeviceStatus, TelemetryData } from "../types/telemetry";
+import { toast } from "../hooks/use-toast";
 
 // Simulated in-memory database for demonstration
 let deviceDatabase: DeviceStatus[] = [];
@@ -187,10 +187,9 @@ export async function handleTelemetryApi(request: Request): Promise<Response> {
       deviceDatabase.push(deviceData);
       
       // Show toast for new device (if in browser context)
-      if (typeof globalThis !== 'undefined' && globalThis.document) {
+      if (typeof window !== 'undefined') {
         // This will only run in browser environments
         try {
-          const { toast } = require("../hooks/use-toast");
           toast({
             title: "New Device Connected",
             description: `${deviceData.name} (${deviceData.model}) has connected`,
