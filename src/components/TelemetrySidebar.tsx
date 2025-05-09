@@ -1,7 +1,9 @@
+
 import { useState } from "react";
-import { Activity, BarChart3, PlayCircle, Settings, Smartphone, X } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Activity, BarChart3, LogOut, PlayCircle, Settings, Smartphone } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface SidebarLinkProps {
   to: string;
@@ -64,8 +66,38 @@ function MenuIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
+function X(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
 export function TelemetrySidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const navigate = useNavigate();
+  const userString = localStorage.getItem("user");
+  const user = userString ? JSON.parse(userString) : null;
+  
+  const handleLogout = () => {
+    localStorage.removeItem("isLoggedIn");
+    localStorage.removeItem("user");
+    toast.success("Logged out successfully");
+    navigate("/login");
+  };
   
   return (
     <aside className={cn(
@@ -82,6 +114,14 @@ export function TelemetrySidebar() {
             <Activity className="mr-2 h-6 w-6" />
             <span className="text-lg font-semibold">Telemetry</span>
           </div>
+          
+          {user && (
+            <div className="mb-6 px-4 py-2">
+              <p className="text-sm font-medium text-muted-foreground">Signed in as:</p>
+              <p className="text-sm font-semibold truncate">{user.email}</p>
+            </div>
+          )}
+          
           <nav className="space-y-8">
             <div>
               <h4 className="mb-2 px-4 text-sm font-semibold">Dashboard</h4>
@@ -101,6 +141,16 @@ export function TelemetrySidebar() {
               <SidebarLink to="/settings" icon={<Settings className="h-5 w-5" />}>
                 Preferences
               </SidebarLink>
+            </div>
+            
+            <div className="mt-auto">
+              <button 
+                onClick={handleLogout}
+                className="flex w-full items-center space-x-3 rounded-md px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+              >
+                <LogOut className="h-5 w-5" />
+                <span>Logout</span>
+              </button>
             </div>
           </nav>
         </div>
