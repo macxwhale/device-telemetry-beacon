@@ -125,16 +125,7 @@ const TestApiPage = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <div className="text-sm font-medium">Complete Telemetry Structure</div>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={generateFullJsonTemplate}
-                >
-                  Regenerate
-                </Button>
-              </div>
+              <div className="text-sm font-medium">Complete Telemetry Structure</div>
               <Textarea 
                 value={fullJson} 
                 onChange={(e) => setFullJson(e.target.value)} 
