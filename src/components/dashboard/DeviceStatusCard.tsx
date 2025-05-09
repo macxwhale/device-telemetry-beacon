@@ -4,13 +4,29 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DeviceStatus } from "@/types/telemetry";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
-import { Battery, SignalHigh, SignalLow } from "lucide-react";
+import { Battery, SignalHigh, SignalLow, Wifi, Smartphone, Globe } from "lucide-react";
 
 interface DeviceStatusCardProps {
   device: DeviceStatus;
 }
 
 export const DeviceStatusCard: FC<DeviceStatusCardProps> = ({ device }) => {
+  // Function to determine appropriate network icon
+  const getNetworkIcon = (networkType: string) => {
+    if (!networkType || networkType === "Unknown") {
+      return <Globe className="h-3 w-3" />;
+    } else if (networkType.toLowerCase().includes("wifi")) {
+      return <Wifi className="h-3 w-3" />;
+    } else if (networkType.toLowerCase().includes("mobile")) {
+      return <Smartphone className="h-3 w-3" />;
+    } else {
+      return <Globe className="h-3 w-3" />;
+    }
+  };
+
+  // Make sure network type is never blank
+  const displayNetworkType = device.network_type || "Unknown";
+
   return (
     <Link to={`/devices/${device.id}`}>
       <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
@@ -57,7 +73,10 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = ({ device }) => {
           
           <div className="flex items-center justify-between">
             <div className="text-xs text-muted-foreground">Network</div>
-            <div className="text-xs font-medium">{device.network_type}</div>
+            <div className="text-xs font-medium flex items-center gap-1">
+              {getNetworkIcon(displayNetworkType)}
+              <span>{displayNetworkType}</span>
+            </div>
           </div>
           
           <div className="flex items-center justify-between">

@@ -1,4 +1,3 @@
-
 // Non-JSX implementation of the telemetry API functions
 // This file must not contain any JSX or React imports
 
@@ -515,6 +514,14 @@ export async function getAllDevicesFromApiImplementation(): Promise<DeviceStatus
         safelyGetNestedProperty(telemetryData, ['network_info', 'mobile_ip'], null) || 
         safelyGetNestedProperty(telemetryData, ['network_info', 'ip_address'], "0.0.0.0");
       
+      // Determine network type with more fallbacks
+      const networkType = 
+        safelyGetNestedProperty(telemetryData, ['network_info', 'network_interface'], null) ||
+        (safelyGetNestedProperty(telemetryData, ['network_info', 'wifi_ip'], null) ? "WiFi" : 
+         safelyGetNestedProperty(telemetryData, ['network_info', 'mobile_ip'], null) ? "Mobile" : 
+         safelyGetNestedProperty(telemetryData, ['network_info', 'ethernet_ip'], null) ? "Ethernet" : 
+         "Unknown");
+      
       // Convert database record to DeviceStatus format
       return {
         id: device.android_id,
@@ -524,7 +531,7 @@ export async function getAllDevicesFromApiImplementation(): Promise<DeviceStatus
         os_version: safelyGetNestedProperty(telemetryData, ['system_info', 'android_version'], "Unknown"),
         battery_level: safelyGetNestedProperty(telemetryData, ['battery_info', 'battery_level'], 0),
         battery_status: safelyGetNestedProperty(telemetryData, ['battery_info', 'battery_status'], "Unknown"),
-        network_type: safelyGetNestedProperty(telemetryData, ['network_info', 'network_interface'], "Unknown"),
+        network_type: networkType,
         ip_address: ipAddress,
         uptime_millis: safelyGetNestedProperty(telemetryData, ['system_info', 'uptime_millis'], 0),
         last_seen: new Date(device.last_seen).getTime(),
