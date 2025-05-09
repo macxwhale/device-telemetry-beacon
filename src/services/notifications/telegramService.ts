@@ -13,9 +13,9 @@ export const sendTelegramTestNotification = async (
       return false;
     }
     
-    // Use the Supabase URL and anon key from the supabase client
-    const supabaseUrl = supabase.supabaseUrl;
-    const supabaseAnonKey = supabase.supabaseKey;
+    // Get the Supabase URL directly
+    const supabaseUrl = "https://byvbunvegjwzgytavgkv.supabase.co";
+    const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5dmJ1bnZlZ2p3emd5dGF2Z2t2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3NzM3MzMsImV4cCI6MjA2MjM0OTczM30.JaYx-kQuM2_L2li9I3a0fy9bUIwFP1e40iIRM7gVBFA";
     
     if (!supabaseUrl || !supabaseAnonKey) {
       console.error("Missing Supabase URL or anon key");
