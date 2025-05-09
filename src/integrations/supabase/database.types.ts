@@ -77,14 +77,6 @@ export interface Database {
         };
         Returns: any;
       };
-      check_and_create_telemetry_trigger: {
-        Args: Record<string, never>;
-        Returns: boolean;
-      };
-      enable_realtime_tables: {
-        Args: Record<string, never>;
-        Returns: boolean;
-      };
       process_telemetry_data: {
         Args: Record<string, never>;
         Returns: any;

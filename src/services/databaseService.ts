@@ -9,90 +9,79 @@ const client = supabase as any;
 export const initializeDatabaseConnection = async (): Promise<boolean> => {
   try {
     console.log("Initializing database connection...");
-    const initialToast = toast.loading("Initializing database connection...", {
+    const initialToast = toast.loading("Checking database connection...", {
       duration: 6000,
     });
     
-    // First call the database-functions endpoint to set up the necessary functions
-    console.log("Setting up database functions...");
-    
     try {
-      const { data: dbFunctionsResult, error: dbFunctionsError } = await supabase.functions.invoke('database-functions', {
-        method: 'POST',
-        body: {}
-      });
+      // Check if tables exist
+      const { data: tablesExist, error: tableCheckError } = await client.rpc(
+        'execute_sql', 
+        { 
+          sql: `
+            SELECT 
+              EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'devices') as devices_exist,
+              EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'telemetry_history') as telemetry_exist,
+              EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'device_apps') as apps_exist
+          `
+        }
+      );
       
-      if (dbFunctionsError) {
-        console.error("Error initializing database functions:", dbFunctionsError);
-        toast.error("Failed to initialize database functions", {
-          description: dbFunctionsError.message || "Check the console for more details",
+      if (tableCheckError) {
+        // If we get an error here, the execute_sql function likely doesn't exist yet
+        console.error("Error checking database tables:", tableCheckError);
+        toast.error("Database not properly configured", {
+          description: "Please run the SQL setup script from the documentation",
           id: initialToast,
-          duration: 5000,
+          duration: 8000,
         });
         return false;
       }
       
-      console.log("Database functions initialized:", dbFunctionsResult);
-      toast.success("Database functions created", {
-        description: "Required database functions have been created successfully",
-        duration: 3000,
-      });
-    } catch (error) {
-      console.error("Error initializing database functions:", error);
-      toast.error("Failed to initialize database functions", {
-        description: error instanceof Error ? error.message : "Check the console for more details",
-        id: initialToast,
-        duration: 5000,
-      });
-      return false;
-    }
-    
-    // Now create the tables using the initialize-database function
-    console.log("Initializing database tables...");
-    
-    try {
-      const { data: initResult, error: initError } = await supabase.functions.invoke('initialize-database', {
-        method: 'POST',
-        body: {}
-      });
-      
-      if (initError) {
-        console.error("Error initializing database:", initError);
-        toast.error("Failed to create database tables", {
-          description: initError.message || "Check the console for more details",
+      if (!tablesExist || 
+          !tablesExist[0]?.devices_exist || 
+          !tablesExist[0]?.telemetry_exist || 
+          !tablesExist[0]?.apps_exist) {
+        console.log("Database tables don't exist yet");
+        toast.error("Database tables not found", {
+          description: "Please run the SQL setup script from the documentation",
           id: initialToast,
-          duration: 5000,
+          duration: 8000,
         });
         return false;
       }
       
-      console.log("Database tables initialized:", initResult);
-      toast.success("Database setup complete", {
-        description: "All tables and functions created successfully",
-        id: initialToast,
-        duration: 4000,
-      });
-      
-      // Check if realtime is enabled
+      // Tables exist, check if realtime is enabled
       try {
         // Try to execute a simple query to check if the function exists
-        const { error: fnCheckError } = await client.rpc('enable_realtime_tables');
-        if (!fnCheckError) {
-          console.log("Realtime tables enabled or verified");
-          toast.success("Realtime tables enabled", {
-            description: "You'll receive live telemetry updates as they come in",
-            duration: 3000,
+        const { error: fnCheckError } = await client.rpc('execute_sql', {
+          sql: `SELECT 1`
+        });
+        
+        if (fnCheckError) {
+          console.error("Error with execute_sql function:", fnCheckError);
+        } else {
+          console.log("Database connection verified");
+          toast.success("Database connection verified", {
+            description: "All required tables are properly configured",
+            id: initialToast,
+            duration: 4000,
           });
         }
-      } catch (realtimeError) {
-        console.error("Error enabling realtime (non-critical):", realtimeError);
-        // Non-critical error, don't show toast
+      } catch (error) {
+        console.error("Error checking database functions:", error);
+        // Non-critical error, continue with warning
+        toast.warning("Database connected but functions may not be fully configured", {
+          description: "Some features may be limited",
+          id: initialToast,
+          duration: 5000,
+        });
       }
       
       return true;
     } catch (error) {
-      console.error("Error initializing database:", error);
-      toast.error("Failed to create database tables", {
+      console.error("Error checking database tables:", error);
+      toast.error("Failed to check database tables", {
         description: error instanceof Error ? error.message : "Check the console for more details",
         id: initialToast,
         duration: 5000,
@@ -186,7 +175,7 @@ export const getDatabaseStats = async (): Promise<{
   }
 };
 
-// Create a new execute_sql function to allow for safe SQL execution
+// Execute SQL function to allow for safe SQL execution
 export const executeSQL = async (sql: string): Promise<any> => {
   try {
     const { data, error } = await client.rpc('execute_sql', { sql });
