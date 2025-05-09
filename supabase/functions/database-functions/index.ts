@@ -15,33 +15,62 @@ serve(async (req: Request) => {
   }
 
   try {
-    // Get the authorization header from the request
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'No authorization header' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 401,
-      })
-    }
-
-    // Create a Supabase client with the auth header
-    const supabaseClient = createClient(
+    console.log("Database functions edge function called")
+    
+    // Create a Supabase client using service role key for admin privileges
+    // This allows us to execute SQL directly
+    const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { global: { headers: { Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` } } }
     )
-
-    // Verify the user has access
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+    
+    console.log("Creating execute_sql function...")
+    
+    // First create the execute_sql function to allow executing arbitrary SQL
+    // This has to be done first since we'll use it for other operations
+    const { error: executeError } = await supabaseAdmin.rpc('execute_sql', {
+      sql: `
+        CREATE OR REPLACE FUNCTION public.execute_sql(sql text)
+        RETURNS json
+        LANGUAGE plpgsql
+        SECURITY DEFINER
+        AS $$
+        BEGIN
+          EXECUTE sql;
+          RETURN '{"success": true}'::json;
+        EXCEPTION
+          WHEN OTHERS THEN
+            RETURN json_build_object(
+              'success', false,
+              'error', SQLERRM
+            );
+        END;
+        $$;
+      `
+    }).catch(error => {
+      // If function already exists, that's fine
+      if (error && !error.message.includes('already exists')) {
+        return { error }
+      }
+      return { error: null }
+    })
+    
+    if (executeError) {
+      console.error("Error creating execute_sql function:", executeError)
+      return new Response(JSON.stringify({ error: executeError.message }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 401,
+        status: 500,
       })
     }
-
-    // Create the check_and_create_telemetry_trigger function if it doesn't exist
-    const { error: createFunctionError } = await supabaseClient.rpc('execute_sql', {
+    
+    console.log("execute_sql function created or already exists")
+    
+    // Now we can use execute_sql for the remaining functions
+    
+    // Create the check_and_create_telemetry_trigger function
+    console.log("Creating telemetry trigger function...")
+    const { data: triggerFnData, error: triggerFnError } = await supabaseAdmin.rpc('execute_sql', {
       sql: `
         CREATE OR REPLACE FUNCTION public.check_and_create_telemetry_trigger()
         RETURNS boolean
@@ -67,14 +96,17 @@ serve(async (req: Request) => {
         END;
         $$;
       `
-    }).catch(error => ({ error }));
+    })
 
-    if (createFunctionError) {
-      console.error('Error creating check_and_create_telemetry_trigger function:', createFunctionError);
+    if (triggerFnError) {
+      console.error("Error creating telemetry trigger function:", triggerFnError)
+    } else {
+      console.log("Telemetry trigger function created successfully")
     }
-
-    // Create the enable_realtime_tables function if it doesn't exist
-    const { error: createRealtimeFunctionError } = await supabaseClient.rpc('execute_sql', {
+    
+    // Create the enable_realtime_tables function
+    console.log("Creating realtime tables function...")
+    const { data: realtimeFnData, error: realtimeFnError } = await supabaseAdmin.rpc('execute_sql', {
       sql: `
         CREATE OR REPLACE FUNCTION public.enable_realtime_tables()
         RETURNS boolean
@@ -88,80 +120,73 @@ serve(async (req: Request) => {
           ALTER TABLE IF EXISTS public.device_apps REPLICA IDENTITY FULL;
           
           -- Add tables to the supabase_realtime publication if not already added
-          IF NOT EXISTS (
-            SELECT 1 FROM pg_publication_tables 
-            WHERE pubname = 'supabase_realtime' 
-            AND schemaname = 'public' 
-            AND tablename = 'devices'
-          ) THEN
-            ALTER PUBLICATION supabase_realtime ADD TABLE public.devices;
-          END IF;
-          
-          IF NOT EXISTS (
-            SELECT 1 FROM pg_publication_tables 
-            WHERE pubname = 'supabase_realtime' 
-            AND schemaname = 'public' 
-            AND tablename = 'telemetry_history'
-          ) THEN
-            ALTER PUBLICATION supabase_realtime ADD TABLE public.telemetry_history;
-          END IF;
-          
-          IF NOT EXISTS (
-            SELECT 1 FROM pg_publication_tables 
-            WHERE pubname = 'supabase_realtime' 
-            AND schemaname = 'public' 
-            AND tablename = 'device_apps'
-          ) THEN
-            ALTER PUBLICATION supabase_realtime ADD TABLE public.device_apps;
+          IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+            -- Check if tables are already in the publication
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_publication_tables 
+              WHERE pubname = 'supabase_realtime' 
+              AND schemaname = 'public' 
+              AND tablename = 'devices'
+            ) THEN
+              ALTER PUBLICATION supabase_realtime ADD TABLE public.devices;
+            END IF;
+            
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_publication_tables 
+              WHERE pubname = 'supabase_realtime' 
+              AND schemaname = 'public' 
+              AND tablename = 'telemetry_history'
+            ) THEN
+              ALTER PUBLICATION supabase_realtime ADD TABLE public.telemetry_history;
+            END IF;
+            
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_publication_tables 
+              WHERE pubname = 'supabase_realtime' 
+              AND schemaname = 'public' 
+              AND tablename = 'device_apps'
+            ) THEN
+              ALTER PUBLICATION supabase_realtime ADD TABLE public.device_apps;
+            END IF;
+          ELSE
+            -- Create the publication and add tables
+            CREATE PUBLICATION supabase_realtime FOR TABLE 
+              public.devices, 
+              public.telemetry_history, 
+              public.device_apps;
           END IF;
           
           RETURN true;
         END;
         $$;
       `
-    }).catch(error => ({ error }));
-
-    if (createRealtimeFunctionError) {
-      console.error('Error creating enable_realtime_tables function:', createRealtimeFunctionError);
+    })
+    
+    if (realtimeFnError) {
+      console.error("Error creating realtime tables function:", realtimeFnError)
+    } else {
+      console.log("Realtime tables function created successfully")
     }
+    
+    console.log("All database functions initialized")
 
-    // Create the execute_sql function to allow executing arbitrary SQL
-    const { error: executeError } = await supabaseClient.rpc('execute_sql', {
-      sql: `
-        CREATE OR REPLACE FUNCTION public.execute_sql(sql text)
-        RETURNS json
-        LANGUAGE plpgsql
-        SECURITY DEFINER
-        AS $$
-        BEGIN
-          EXECUTE sql;
-          RETURN '{"success": true}'::json;
-        EXCEPTION
-          WHEN OTHERS THEN
-            RETURN json_build_object(
-              'success', false,
-              'error', SQLERRM
-            );
-        END;
-        $$;
-      `
-    }).catch(error => ({ error }));
-
-    if (executeError && !executeError.message.includes('already exists')) {
-      return new Response(JSON.stringify({ error: executeError.message }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      });
-    }
-
-    return new Response(JSON.stringify({ success: true, message: 'Database functions initialized successfully' }), {
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: 'Database functions initialized successfully',
+      functions: {
+        execute_sql: !executeError,
+        telemetry_trigger: !triggerFnError,
+        realtime_tables: !realtimeFnError
+      }
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
-    });
+    })
   } catch (error) {
+    console.error("Database functions error:", error)
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
-    });
+    })
   }
 })

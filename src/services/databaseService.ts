@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { DeviceStatus, DeviceHistory, TelemetryData } from "@/types/telemetry";
 import { toast } from "sonner";
@@ -12,7 +11,12 @@ export const initializeDatabaseConnection = async (): Promise<boolean> => {
     console.log("Initializing database connection...");
     
     // First call the database-functions edge function to create the necessary functions
-    const { data: dbFunctionsResult, error: dbFunctionsError } = await supabase.functions.invoke('database-functions');
+    // We don't use authorization here since we've set verify_jwt = false in config.toml
+    console.log("Setting up database functions...")
+    const { data: dbFunctionsResult, error: dbFunctionsError } = await supabase.functions.invoke('database-functions', {
+      method: 'POST',
+      body: {}
+    });
     
     if (dbFunctionsError) {
       console.error("Error initializing database functions:", dbFunctionsError);
@@ -23,7 +27,11 @@ export const initializeDatabaseConnection = async (): Promise<boolean> => {
     console.log("Database functions initialized:", dbFunctionsResult);
     
     // Now call the initialize-database function to create tables if they don't exist
-    const { data: initResult, error: initError } = await supabase.functions.invoke('initialize-database');
+    console.log("Setting up database tables...")
+    const { data: initResult, error: initError } = await supabase.functions.invoke('initialize-database', {
+      method: 'POST',
+      body: {}
+    });
     
     if (initError) {
       console.error("Error initializing database:", initError);
@@ -33,78 +41,81 @@ export const initializeDatabaseConnection = async (): Promise<boolean> => {
     
     console.log("Database tables initialized:", initResult);
     
-    if (initResult?.success) {
-      // Run checks to verify everything was created properly
-      // First check if database tables exist
-      const { data: tablesExist, error: tableCheckError } = await client.rpc(
-        'execute_sql', 
-        { 
-          sql: `
-            SELECT EXISTS (
-              SELECT 1
-              FROM information_schema.tables
-              WHERE table_schema = 'public'
-              AND table_name = 'devices'
-            ) as devices_exist,
-            EXISTS (
-              SELECT 1
-              FROM information_schema.tables
-              WHERE table_schema = 'public'
-              AND table_name = 'telemetry_history'
-            ) as telemetry_exist,
-            EXISTS (
-              SELECT 1
-              FROM information_schema.tables
-              WHERE table_schema = 'public'
-              AND table_name = 'device_apps'
-            ) as apps_exist
-          `
-        }
-      );
-      
-      if (tableCheckError) {
-        console.error("Error checking database tables:", tableCheckError);
-        toast.error("Failed to verify database structure");
-        return false;
+    // Check if database tables exist after initialization
+    console.log("Verifying database structure...")
+    const { data: tablesExist, error: tableCheckError } = await client.rpc(
+      'execute_sql', 
+      { 
+        sql: `
+          SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name = 'devices'
+          ) as devices_exist,
+          EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name = 'telemetry_history'
+          ) as telemetry_exist,
+          EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name = 'device_apps'
+          ) as apps_exist
+        `
       }
-      
-      if (!tablesExist || 
-          !tablesExist.devices_exist || 
-          !tablesExist.telemetry_exist || 
-          !tablesExist.apps_exist) {
-        console.error("Database tables don't exist after initialization attempt");
-        toast.error("Failed to create database tables");
-        return false;
-      }
-      
-      console.log("Database tables exist, proceeding with trigger checks");
-      
-      // Add telemetry trigger if it doesn't exist
-      const { error: triggerError } = await client.rpc('check_and_create_telemetry_trigger');
-      
-      if (triggerError) {
-        console.error("Error creating trigger:", triggerError);
-        toast.error("Failed to initialize database triggers");
-        return false;
-      }
-      
-      // Enable real-time updates
-      const { error: realtimeError } = await client.rpc('enable_realtime_tables');
-      
-      if (realtimeError) {
-        console.error("Error enabling realtime:", realtimeError);
-        toast.error("Failed to enable realtime updates");
-        return false;
-      }
-      
-      console.log("Database connection initialized successfully");
-      toast.success("Database connection initialized successfully");
-      return true;
-    } else {
-      console.error("Database initialization failed:", initResult);
-      toast.error("Failed to initialize database structure");
+    ).catch(error => {
+      console.error("Error checking tables:", error);
+      return { error };
+    });
+    
+    if (tableCheckError) {
+      console.error("Error checking database tables:", tableCheckError);
+      toast.error("Failed to verify database structure");
       return false;
     }
+    
+    if (!tablesExist || 
+        !tablesExist.devices_exist || 
+        !tablesExist.telemetry_exist || 
+        !tablesExist.apps_exist) {
+      console.error("Database tables don't exist after initialization attempt");
+      toast.error("Failed to create database tables");
+      return false;
+    }
+    
+    console.log("Database tables exist, proceeding with trigger checks");
+    
+    // Add telemetry trigger if it doesn't exist
+    const { error: triggerError } = await client.rpc('check_and_create_telemetry_trigger').catch(error => {
+      console.error("Error with trigger:", error);
+      return { error };
+    });
+    
+    if (triggerError) {
+      console.error("Error creating trigger:", triggerError);
+      toast.error("Failed to initialize database triggers");
+      return false;
+    }
+    
+    // Enable real-time updates
+    const { error: realtimeError } = await client.rpc('enable_realtime_tables').catch(error => {
+      console.error("Error with realtime:", error);
+      return { error };
+    });
+    
+    if (realtimeError) {
+      console.error("Error enabling realtime:", realtimeError);
+      toast.error("Failed to enable realtime updates");
+      return false;
+    }
+    
+    console.log("Database connection initialized successfully");
+    toast.success("Database connection initialized successfully");
+    return true;
   } catch (error) {
     console.error("Error initializing database:", error);
     toast.error("Failed to initialize database connection");

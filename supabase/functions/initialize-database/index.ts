@@ -15,24 +15,45 @@ serve(async (req: Request) => {
   }
 
   try {
-    // Get the authorization header from the request
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'No authorization header' }), {
+    console.log("Initialize database edge function called")
+    
+    // Create a Supabase client using service role key for admin privileges
+    // This allows us to execute SQL directly
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { global: { headers: { Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` } } }
+    )
+    
+    // Check if execute_sql function exists first
+    console.log("Checking if execute_sql function exists...")
+    const checkFunctionResult = await supabaseAdmin.rpc('execute_sql', {
+      sql: `
+        SELECT EXISTS (
+          SELECT 1
+          FROM pg_proc
+          WHERE proname = 'execute_sql'
+          AND pronamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+        ) as execute_sql_exists;
+      `
+    }).catch(error => {
+      return { error }
+    })
+    
+    if (checkFunctionResult.error) {
+      console.log("execute_sql function does not exist, cannot continue")
+      return new Response(JSON.stringify({ 
+        error: 'Database functions not initialized', 
+        details: 'Please initialize database functions first' 
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 401,
+        status: 400,
       })
     }
-
-    // Create a Supabase client with the auth header
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    )
-
+    
     // Check if tables exist
-    const { data: tableData, error: tableCheckError } = await supabaseClient.rpc('execute_sql', {
+    console.log("Checking if tables already exist...")
+    const { data: tableData, error: tableCheckError } = await supabaseAdmin.rpc('execute_sql', {
       sql: `
         SELECT EXISTS (
           SELECT 1
@@ -65,6 +86,7 @@ serve(async (req: Request) => {
     const tablesExist = tableData && tableData.devices_exist && tableData.telemetry_exist && tableData.apps_exist
 
     if (tablesExist) {
+      console.log("All tables already exist")
       return new Response(JSON.stringify({ 
         success: true, 
         message: 'Database tables already exist', 
@@ -80,6 +102,7 @@ serve(async (req: Request) => {
     }
 
     // Create tables if they don't exist
+    console.log("Creating database tables...")
     const createTablesSQL = `
       -- Create the devices table
       CREATE TABLE IF NOT EXISTS public.devices (
@@ -109,11 +132,12 @@ serve(async (req: Request) => {
       );
     `
 
-    const { error: createTablesError } = await supabaseClient.rpc('execute_sql', {
+    const { error: createTablesError } = await supabaseAdmin.rpc('execute_sql', {
       sql: createTablesSQL
     })
 
     if (createTablesError) {
+      console.error("Error creating tables:", createTablesError)
       return new Response(JSON.stringify({ error: 'Failed to create tables', details: createTablesError }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
@@ -121,7 +145,8 @@ serve(async (req: Request) => {
     }
 
     // Create the process_telemetry_data function
-    const { error: processFnError } = await supabaseClient.rpc('execute_sql', {
+    console.log("Creating process_telemetry_data function...")
+    const { error: processFnError } = await supabaseAdmin.rpc('execute_sql', {
       sql: `
         CREATE OR REPLACE FUNCTION public.process_telemetry_data()
         RETURNS TRIGGER AS $$
@@ -134,113 +159,26 @@ serve(async (req: Request) => {
     })
 
     if (processFnError) {
-      console.error('Error creating process_telemetry_data function:', processFnError)
-    }
-
-    // Create the check_and_create_telemetry_trigger function
-    const { error: triggerFnError } = await supabaseClient.rpc('execute_sql', {
-      sql: `
-        CREATE OR REPLACE FUNCTION public.check_and_create_telemetry_trigger()
-        RETURNS boolean
-        LANGUAGE plpgsql
-        SECURITY DEFINER
-        AS $$
-        BEGIN
-          -- Check if trigger already exists
-          IF EXISTS (
-            SELECT 1 FROM pg_trigger 
-            WHERE tgname = 'telemetry_data_trigger'
-          ) THEN
-            RETURN true;
-          END IF;
-
-          -- Create the trigger
-          CREATE TRIGGER telemetry_data_trigger
-            BEFORE INSERT ON public.telemetry_history
-            FOR EACH ROW
-            EXECUTE FUNCTION public.process_telemetry_data();
-            
-          RETURN true;
-        END;
-        $$;
-      `
-    })
-
-    if (triggerFnError) {
-      console.error('Error creating check_and_create_telemetry_trigger function:', triggerFnError)
-    }
-
-    // Create the enable_realtime_tables function
-    const { error: realtimeFnError } = await supabaseClient.rpc('execute_sql', {
-      sql: `
-        CREATE OR REPLACE FUNCTION public.enable_realtime_tables()
-        RETURNS boolean
-        LANGUAGE plpgsql
-        SECURITY DEFINER
-        AS $$
-        BEGIN
-          -- Set replica identity to full for the tables
-          ALTER TABLE IF EXISTS public.devices REPLICA IDENTITY FULL;
-          ALTER TABLE IF EXISTS public.telemetry_history REPLICA IDENTITY FULL;
-          ALTER TABLE IF EXISTS public.device_apps REPLICA IDENTITY FULL;
-          
-          -- Add tables to the supabase_realtime publication
-          IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
-            -- Check if tables are already in the publication
-            IF NOT EXISTS (
-              SELECT 1 FROM pg_publication_tables 
-              WHERE pubname = 'supabase_realtime' 
-              AND schemaname = 'public' 
-              AND tablename = 'devices'
-            ) THEN
-              ALTER PUBLICATION supabase_realtime ADD TABLE public.devices;
-            END IF;
-            
-            IF NOT EXISTS (
-              SELECT 1 FROM pg_publication_tables 
-              WHERE pubname = 'supabase_realtime' 
-              AND schemaname = 'public' 
-              AND tablename = 'telemetry_history'
-            ) THEN
-              ALTER PUBLICATION supabase_realtime ADD TABLE public.telemetry_history;
-            END IF;
-            
-            IF NOT EXISTS (
-              SELECT 1 FROM pg_publication_tables 
-              WHERE pubname = 'supabase_realtime' 
-              AND schemaname = 'public' 
-              AND tablename = 'device_apps'
-            ) THEN
-              ALTER PUBLICATION supabase_realtime ADD TABLE public.device_apps;
-            END IF;
-          ELSE
-            -- Create the publication and add tables
-            CREATE PUBLICATION supabase_realtime FOR TABLE 
-              public.devices, 
-              public.telemetry_history, 
-              public.device_apps;
-          END IF;
-          
-          RETURN true;
-        END;
-        $$;
-      `
-    })
-
-    if (realtimeFnError) {
-      console.error('Error creating enable_realtime_tables function:', realtimeFnError)
+      console.error("Error creating process_telemetry_data function:", processFnError)
+    } else {
+      console.log("process_telemetry_data function created successfully")
     }
 
     // Run the functions to setup the database
-    const { error: triggerError } = await supabaseClient.rpc('check_and_create_telemetry_trigger')
-    const { error: realtimeError } = await supabaseClient.rpc('enable_realtime_tables')
+    console.log("Running setup functions...")
+    const { error: triggerError } = await supabaseAdmin.rpc('check_and_create_telemetry_trigger')
+    const { error: realtimeError } = await supabaseAdmin.rpc('enable_realtime_tables')
 
     if (triggerError) {
       console.error('Error running telemetry trigger:', triggerError)
+    } else {
+      console.log("Telemetry trigger created successfully")
     }
 
     if (realtimeError) {
       console.error('Error enabling realtime:', realtimeError)
+    } else {
+      console.log("Realtime tables enabled successfully")
     }
 
     return new Response(JSON.stringify({ 
