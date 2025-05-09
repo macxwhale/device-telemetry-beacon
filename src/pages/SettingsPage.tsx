@@ -1,17 +1,32 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RefreshCw, Database, Save } from "lucide-react";
+import { initializeDatabaseConnection, getDatabaseStats, migrateMemoryDataToDatabase } from "@/services/databaseService";
+import { useDevices } from "@/contexts/DeviceContext";
 
 const SettingsPage = () => {
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [databaseStatus, setDatabaseStatus] = useState<{
+    devices: number;
+    telemetry_records: number;
+    apps: number;
+  } | null>(null);
+  const { devices } = useDevices();
+  
   useEffect(() => {
     // Page title
     document.title = "Settings - Device Telemetry";
+    
+    // Check database status on load
+    checkDatabaseStatus();
   }, []);
   
   const handleSaveGeneral = (e: React.FormEvent) => {
@@ -34,6 +49,45 @@ const SettingsPage = () => {
   const currentDomain = window.location.origin;
   const apiEndpoint = `${currentDomain}/api/telemetry`;
   
+  // Function to check database status
+  const checkDatabaseStatus = async () => {
+    const stats = await getDatabaseStats();
+    if (stats) {
+      setDatabaseStatus(stats);
+    }
+  };
+  
+  // Function to initialize database connection
+  const handleInitializeDatabase = async () => {
+    setIsInitializing(true);
+    try {
+      const success = await initializeDatabaseConnection();
+      
+      if (success) {
+        toast.success("Database connection initialized successfully");
+        checkDatabaseStatus();
+      } else {
+        toast.error("Failed to initialize database connection");
+      }
+    } catch (error) {
+      console.error("Error initializing database:", error);
+      toast.error("Failed to initialize database connection");
+    } finally {
+      setIsInitializing(false);
+    }
+  };
+  
+  // Function to migrate in-memory data to database
+  const handleMigrateData = async () => {
+    setIsMigrating(true);
+    try {
+      await migrateMemoryDataToDatabase(devices);
+      checkDatabaseStatus();
+    } finally {
+      setIsMigrating(false);
+    }
+  };
+  
   return (
     <Layout>
       <div className="flex items-center justify-between mb-6">
@@ -44,6 +98,7 @@ const SettingsPage = () => {
         <TabsList className="mb-4">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="database">Database</TabsTrigger>
           <TabsTrigger value="api">API</TabsTrigger>
         </TabsList>
         
@@ -143,6 +198,92 @@ const SettingsPage = () => {
                 
                 <Button type="submit">Save Notification Settings</Button>
               </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="database">
+          <Card>
+            <CardHeader>
+              <CardTitle>Database Configuration</CardTitle>
+              <CardDescription>
+                Initialize and manage the database connection for telemetry data.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium">Database Status</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-secondary p-4 rounded-md">
+                      <p className="text-sm text-muted-foreground">Devices</p>
+                      <p className="text-2xl font-bold">{databaseStatus?.devices ?? '...'}</p>
+                    </div>
+                    <div className="bg-secondary p-4 rounded-md">
+                      <p className="text-sm text-muted-foreground">Telemetry Records</p>
+                      <p className="text-2xl font-bold">{databaseStatus?.telemetry_records ?? '...'}</p>
+                    </div>
+                    <div className="bg-secondary p-4 rounded-md">
+                      <p className="text-sm text-muted-foreground">App Records</p>
+                      <p className="text-2xl font-bold">{databaseStatus?.apps ?? '...'}</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={checkDatabaseStatus}
+                      className="flex items-center gap-1"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Refresh
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-medium mb-2">Database Operations</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Initialize the connection between the API and database tables.
+                  </p>
+                  
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button 
+                      onClick={handleInitializeDatabase} 
+                      disabled={isInitializing}
+                      className="flex items-center gap-2"
+                    >
+                      <Database className="h-4 w-4" />
+                      {isInitializing ? 'Initializing...' : 'Initialize Database Connection'}
+                    </Button>
+                    
+                    <Button 
+                      variant="outline"
+                      onClick={handleMigrateData} 
+                      disabled={isMigrating || devices.length === 0}
+                      className="flex items-center gap-2"
+                    >
+                      <Save className="h-4 w-4" />
+                      {isMigrating ? 'Migrating...' : `Migrate ${devices.length} Devices to Database`}
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-medium mb-2">About Database Storage</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Device telemetry data is stored in a persistent database to ensure data is not lost.
+                    The database allows for:
+                  </p>
+                  <ul className="list-disc list-inside text-sm text-muted-foreground mt-2 space-y-1">
+                    <li>Long-term data storage and retrieval</li>
+                    <li>Historical trend analysis</li>
+                    <li>Device fleet management</li>
+                    <li>App inventory tracking</li>
+                    <li>Real-time notifications</li>
+                  </ul>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

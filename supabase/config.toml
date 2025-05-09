@@ -1,1 +1,5 @@
+
 project_id = "byvbunvegjwzgytavgkv"
+
+[functions.database-functions]
+verify_jwt = true

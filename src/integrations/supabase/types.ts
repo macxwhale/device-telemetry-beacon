@@ -9,11 +9,64 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      Mon: {
-        Row: {}
-        Insert: {}
-        Update: {}
+      devices: {
+        Row: {
+          android_id: string
+          device_name: string | null
+          first_seen: string
+          id: string
+          last_seen: string
+          manufacturer: string | null
+          model: string | null
+        }
+        Insert: {
+          android_id: string
+          device_name?: string | null
+          first_seen?: string
+          id?: string
+          last_seen?: string
+          manufacturer?: string | null
+          model?: string | null
+        }
+        Update: {
+          android_id?: string
+          device_name?: string | null
+          first_seen?: string
+          id?: string
+          last_seen?: string
+          manufacturer?: string | null
+          model?: string | null
+        }
         Relationships: []
+      }
+      telemetry_history: {
+        Row: {
+          device_id: string
+          id: string
+          telemetry_data: Json
+          timestamp: string
+        }
+        Insert: {
+          device_id: string
+          id?: string
+          telemetry_data: Json
+          timestamp?: string
+        }
+        Update: {
+          device_id?: string
+          id?: string
+          telemetry_data?: Json
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telemetry_history_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -23,7 +76,13 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      battery_status:
+        | "Charging"
+        | "Discharging"
+        | "Full"
+        | "Not Charging"
+        | "Unknown"
+      network_type: "WiFi" | "Mobile" | "Ethernet" | "None" | "Unknown"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -138,6 +197,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      battery_status: [
+        "Charging",
+        "Discharging",
+        "Full",
+        "Not Charging",
+        "Unknown",
+      ],
+      network_type: ["WiFi", "Mobile", "Ethernet", "None", "Unknown"],
+    },
   },
 } as const
