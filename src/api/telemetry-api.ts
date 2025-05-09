@@ -3,6 +3,8 @@
 // This file must not contain any JSX or React imports
 
 import { supabase } from "@/integrations/supabase/client";
+import { DeviceStatus } from "@/types/telemetry";
+import { Json } from "@/integrations/supabase/types";
 
 // API key for simple authentication
 const API_KEY = "telm_sk_1234567890abcdef";
@@ -257,7 +259,7 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
           });
           
         if (appsError) {
-          console.error("Warning: Error storing app data:", appsError);
+          console.error(`Warning: Error storing app data:`, appsError);
           // Continue even if app storage fails
         } else {
           console.log(`Successfully added ${apps.length} apps for device`);
@@ -301,8 +303,25 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
   }
 }
 
+// Helper function to safely access nested properties in JSON
+function safelyGetNestedProperty(obj: Json | null, path: string[], defaultValue: any = null): any {
+  if (!obj) return defaultValue;
+  
+  try {
+    // If obj is a string (which Json type can be), try to parse it
+    const parsedObj = typeof obj === 'string' ? JSON.parse(obj) : obj;
+    
+    return path.reduce((prev: any, curr: string) => {
+      return prev && typeof prev === 'object' ? prev[curr] : defaultValue;
+    }, parsedObj);
+  } catch (e) {
+    console.error(`Error accessing path ${path.join('.')} in JSON:`, e);
+    return defaultValue;
+  }
+}
+
 // Export a function to get all devices from database
-export async function getAllDevicesFromApiImplementation() {
+export async function getAllDevicesFromApiImplementation(): Promise<DeviceStatus[]> {
   try {
     // Get all devices from database
     const { data: devices, error } = await supabase
@@ -323,7 +342,7 @@ export async function getAllDevicesFromApiImplementation() {
     }
     
     // For each device, get the latest telemetry data
-    const result = await Promise.all(devices.map(async (device) => {
+    const result: DeviceStatus[] = await Promise.all(devices.map(async (device) => {
       // Get latest telemetry record
       const { data: telemetryRecords, error: telemetryError } = await supabase
         .from('telemetry_history')
@@ -332,9 +351,11 @@ export async function getAllDevicesFromApiImplementation() {
         .order('timestamp', { ascending: false })
         .limit(1);
         
-      const telemetry = telemetryRecords && telemetryRecords.length > 0 
-        ? telemetryRecords[0].telemetry_data
-        : null;
+      let telemetryData: any = null;
+      
+      if (telemetryRecords && telemetryRecords.length > 0) {
+        telemetryData = telemetryRecords[0].telemetry_data;
+      }
         
       if (telemetryError) {
         console.error(`Error getting telemetry for device ${device.id}:`, telemetryError);
@@ -346,15 +367,15 @@ export async function getAllDevicesFromApiImplementation() {
         name: device.device_name || "Unknown Device",
         model: device.model || "Unknown Model",
         manufacturer: device.manufacturer || "Unknown Manufacturer",
-        os_version: telemetry?.system_info?.android_version || "Unknown",
-        battery_level: telemetry?.battery_info?.battery_level || 0,
-        battery_status: telemetry?.battery_info?.battery_status || "Unknown",
-        network_type: telemetry?.network_info?.network_interface || "Unknown",
-        ip_address: telemetry?.network_info?.ip_address || "0.0.0.0",
-        uptime_millis: telemetry?.system_info?.uptime_millis || 0,
+        os_version: safelyGetNestedProperty(telemetryData, ['system_info', 'android_version'], "Unknown"),
+        battery_level: safelyGetNestedProperty(telemetryData, ['battery_info', 'battery_level'], 0),
+        battery_status: safelyGetNestedProperty(telemetryData, ['battery_info', 'battery_status'], "Unknown"),
+        network_type: safelyGetNestedProperty(telemetryData, ['network_info', 'network_interface'], "Unknown"),
+        ip_address: safelyGetNestedProperty(telemetryData, ['network_info', 'ip_address'], "0.0.0.0"),
+        uptime_millis: safelyGetNestedProperty(telemetryData, ['system_info', 'uptime_millis'], 0),
         last_seen: new Date(device.last_seen).getTime(),
         isOnline: (new Date().getTime() - new Date(device.last_seen).getTime()) < 5 * 60 * 1000, // 5 min
-        telemetry: telemetry
+        telemetry: telemetryData
       };
     }));
     
@@ -364,4 +385,3 @@ export async function getAllDevicesFromApiImplementation() {
     return [];
   }
 }
-

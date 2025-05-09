@@ -1,4 +1,6 @@
 
+import { DeviceStatus } from "@/types/telemetry";
+
 // Non-JSX interface to the telemetry API
 // This file serves as a bridge between JSX and non-JSX code
 
@@ -11,6 +13,6 @@ export function handleTelemetryApi(request: Request): Promise<Response> {
   return handleTelemetryApiImplementation(request);
 }
 
-export function getAllDevicesFromApi() {
+export async function getAllDevicesFromApi(): Promise<DeviceStatus[]> {
   return getAllDevicesFromApiImplementation();
 }

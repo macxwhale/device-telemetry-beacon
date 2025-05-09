@@ -13,6 +13,17 @@ export async function handleTelemetryApi(request: Request): Promise<Response> {
 }
 
 // Helper function to get all devices (for our frontend)
-export function getAllDevicesFromApi(): DeviceStatus[] {
-  return getAllDevicesFromApiImplementation();
+export async function getAllDevicesFromApi(): Promise<DeviceStatus[]> {
+  try {
+    const devices = await getAllDevicesFromApiImplementation();
+    return devices;
+  } catch (error) {
+    console.error("Error getting devices:", error);
+    toast({
+      title: "Error",
+      description: "Failed to fetch device data from the database",
+      variant: "destructive"
+    });
+    return [];
+  }
 }
