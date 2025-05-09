@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 import { DeviceStatus } from "@/types/telemetry";
 import { getAllDevices } from "@/services/telemetryService";
 import { toast } from "@/hooks/use-toast";
+import { getNotificationSettings } from "@/services/notifications";
 
 interface DeviceContextType {
   devices: DeviceStatus[];
@@ -18,6 +19,21 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [knownDeviceIds, setKnownDeviceIds] = useState<Set<string>>(new Set());
+  const [notificationSettings, setNotificationSettings] = useState<any>(null);
+
+  // Fetch notification settings
+  useEffect(() => {
+    const fetchNotificationSettings = async () => {
+      try {
+        const settings = await getNotificationSettings();
+        setNotificationSettings(settings);
+      } catch (err) {
+        console.error("Failed to fetch notification settings:", err);
+      }
+    };
+    
+    fetchNotificationSettings();
+  }, []);
 
   // Fetch devices from API
   const fetchDevices = useCallback(async () => {
@@ -28,14 +44,16 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
       // Check for new devices by comparing with known device IDs
       const newDevices = data.filter(device => !knownDeviceIds.has(device.id));
       
-      // Show notifications for new devices
-      newDevices.forEach(device => {
-        toast({
-          title: "New Device Added",
-          description: `${device.name} (${device.model}) has been added to your network`,
-          variant: "default",
+      // Show notifications for new devices if the setting is enabled
+      if (notificationSettings?.notify_new_device && newDevices.length > 0) {
+        newDevices.forEach(device => {
+          toast({
+            title: "New Device Added",
+            description: `${device.name} (${device.model}) has been added to your network`,
+            variant: "default",
+          });
         });
-      });
+      }
       
       // Update known device IDs
       setKnownDeviceIds(prevIds => {
@@ -56,17 +74,20 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, []); // Remove knownDeviceIds from the dependency array
+  }, [knownDeviceIds, notificationSettings]); 
 
   // Check for offline devices
   const checkOfflineDevices = useCallback(() => {
+    if (!notificationSettings) return;
+    
     setDevices(prev => 
       prev.map(device => {
         const lastSeenDiff = Date.now() - device.last_seen;
         // Mark device as offline if not seen in last 15 minutes
         const isOnline = lastSeenDiff < 15 * 60 * 1000;
         
-        if (device.isOnline && !isOnline) {
+        // Only show notification if the setting is enabled and device status changed from online to offline
+        if (device.isOnline && !isOnline && notificationSettings.notify_device_offline) {
           toast({
             title: "Device Offline",
             description: `${device.name} (${device.model}) is now offline`,
@@ -74,20 +95,39 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
           });
         }
         
+        // Check for low battery if the device is online and setting is enabled
+        if (isOnline && 
+            device.battery_level !== undefined && 
+            device.battery_level <= 20 && 
+            notificationSettings.notify_low_battery) {
+          toast({
+            title: "Low Battery Warning",
+            description: `${device.name} has ${device.battery_level}% battery remaining`,
+            variant: "warning",
+          });
+        }
+        
         return { ...device, isOnline };
       })
     );
-  }, []);
+  }, [notificationSettings]);
 
   // Initial data load and interval setup
   useEffect(() => {
     fetchDevices();
     
-    const interval = setInterval(() => {
-      checkOfflineDevices();
-    }, 60 * 1000);
+    const fetchInterval = setInterval(() => {
+      fetchDevices();
+    }, 5 * 60 * 1000); // Refresh every 5 minutes
     
-    return () => clearInterval(interval);
+    const checkInterval = setInterval(() => {
+      checkOfflineDevices();
+    }, 60 * 1000); // Check status every minute
+    
+    return () => {
+      clearInterval(fetchInterval);
+      clearInterval(checkInterval);
+    };
   }, [fetchDevices, checkOfflineDevices]);
 
   // Public API for context consumers
