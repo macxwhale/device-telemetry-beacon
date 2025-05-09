@@ -39,10 +39,12 @@ export interface BatteryInfo {
 }
 
 export interface NetworkInfo {
-  ip_address: string;
-  network_interface: string;
+  wifi_ip: string;
+  mobile_ip?: string;
+  network_interface?: string;
   carrier: string;
   wifi_ssid: string;
+  ip_address?: string; // For backward compatibility
 }
 
 export interface DisplayInfo {

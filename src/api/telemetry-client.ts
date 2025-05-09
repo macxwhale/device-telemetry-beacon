@@ -75,6 +75,14 @@ export const TelemetryClient = {
       .sort(() => Math.random() - 0.5)
       .slice(0, Math.floor(Math.random() * 5) + 3);
     
+    // Create network info based on the new structure
+    const networkInfo = {
+      wifi_ip: customData.wifi_ip || customData.ip_address || `192.168.1.${Math.floor(Math.random() * 255)}`,
+      mobile_ip: customData.mobile_ip || `10.0.0.${Math.floor(Math.random() * 255)}`,
+      carrier: customData.carrier || "Test Carrier",
+      wifi_ssid: customData.wifi_ssid || "Test-WiFi"
+    };
+    
     return {
       device_info: {
         device_name: customData.device_name || `Test Device ${deviceId}`,
@@ -114,12 +122,7 @@ export const TelemetryClient = {
         screen_resolution: customData.screen_resolution || "1080x2400",
         screen_orientation: customData.screen_orientation || "portrait"
       },
-      network_info: {
-        ip_address: customData.ip_address || "192.168.1." + Math.floor(Math.random() * 255),
-        network_interface: customData.network_interface || ["WiFi", "Mobile", "Ethernet"][Math.floor(Math.random() * 3)],
-        carrier: customData.carrier || "Test Carrier",
-        wifi_ssid: customData.wifi_ssid || "Test-WiFi"
-      },
+      network_info: networkInfo,
       security_info: {
         is_rooted: customData.is_rooted || false
       },

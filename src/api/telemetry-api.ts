@@ -361,6 +361,12 @@ export async function getAllDevicesFromApiImplementation(): Promise<DeviceStatus
         console.error(`Error getting telemetry for device ${device.id}:`, telemetryError);
       }
       
+      // Get IP address from either wifi_ip or mobile_ip or fallback
+      const ipAddress = 
+        safelyGetNestedProperty(telemetryData, ['network_info', 'wifi_ip'], null) || 
+        safelyGetNestedProperty(telemetryData, ['network_info', 'mobile_ip'], null) || 
+        safelyGetNestedProperty(telemetryData, ['network_info', 'ip_address'], "0.0.0.0");
+      
       // Convert database record to DeviceStatus format
       return {
         id: device.android_id,
@@ -371,7 +377,7 @@ export async function getAllDevicesFromApiImplementation(): Promise<DeviceStatus
         battery_level: safelyGetNestedProperty(telemetryData, ['battery_info', 'battery_level'], 0),
         battery_status: safelyGetNestedProperty(telemetryData, ['battery_info', 'battery_status'], "Unknown"),
         network_type: safelyGetNestedProperty(telemetryData, ['network_info', 'network_interface'], "Unknown"),
-        ip_address: safelyGetNestedProperty(telemetryData, ['network_info', 'ip_address'], "0.0.0.0"),
+        ip_address: ipAddress,
         uptime_millis: safelyGetNestedProperty(telemetryData, ['system_info', 'uptime_millis'], 0),
         last_seen: new Date(device.last_seen).getTime(),
         isOnline: (new Date().getTime() - new Date(device.last_seen).getTime()) < 5 * 60 * 1000, // 5 min
