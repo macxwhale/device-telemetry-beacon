@@ -17,12 +17,33 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
   const [devices, setDevices] = useState<DeviceStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [knownDeviceIds, setKnownDeviceIds] = useState<Set<string>>(new Set());
 
   // Fetch devices from API
   const fetchDevices = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getAllDevices();
+      
+      // Check for new devices by comparing with known device IDs
+      const newDevices = data.filter(device => !knownDeviceIds.has(device.id));
+      
+      // Show notifications for new devices
+      newDevices.forEach(device => {
+        toast({
+          title: "New Device Added",
+          description: `${device.name} (${device.model}) has been added to your network`,
+          variant: "default",
+        });
+      });
+      
+      // Update known device IDs
+      setKnownDeviceIds(prev => {
+        const updated = new Set(prev);
+        data.forEach(device => updated.add(device.id));
+        return updated;
+      });
+      
       setDevices(data);
       setError(null);
     } catch (err) {
@@ -35,7 +56,7 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [knownDeviceIds]);
 
   // Check for offline devices
   const checkOfflineDevices = useCallback(() => {
