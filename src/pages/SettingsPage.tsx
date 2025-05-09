@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, Database, Loader2 } from "lucide-react";
+import { RefreshCw, Database, Loader2, Copy } from "lucide-react";
 import { initializeDatabaseConnection, getDatabaseStats } from "@/services/databaseService";
+import { Textarea } from "@/components/ui/textarea";
 
 const SettingsPage = () => {
   const [isInitializing, setIsInitializing] = useState(false);
@@ -88,6 +89,88 @@ const SettingsPage = () => {
     } finally {
       setIsInitializing(false);
     }
+  };
+
+  // Generate SQL for database setup
+  const getSetupSQL = () => {
+    return `-- Create the execute_sql function for safe SQL execution
+CREATE OR REPLACE FUNCTION execute_sql(sql text)
+RETURNS SETOF json AS $$
+BEGIN
+  RETURN QUERY EXECUTE sql;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create the process_telemetry_data function
+CREATE OR REPLACE FUNCTION process_telemetry_data()
+RETURNS TRIGGER AS $$
+BEGIN
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create devices table
+CREATE TABLE IF NOT EXISTS public.devices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  android_id TEXT NOT NULL UNIQUE,
+  device_name TEXT,
+  manufacturer TEXT,
+  model TEXT,
+  first_seen TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  last_seen TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- Create telemetry_history table
+CREATE TABLE IF NOT EXISTS public.telemetry_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  device_id UUID REFERENCES public.devices(id),
+  timestamp TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  telemetry_data JSONB NOT NULL
+);
+
+-- Create device_apps table
+CREATE TABLE IF NOT EXISTS public.device_apps (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  device_id UUID REFERENCES public.devices(id),
+  app_package TEXT NOT NULL
+);
+
+-- Enable row level security
+ALTER TABLE public.devices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.telemetry_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.device_apps ENABLE ROW LEVEL SECURITY;
+
+-- Create policies
+CREATE POLICY "Allow full access to authenticated users" ON public.devices
+  USING (auth.role() = 'authenticated')
+  WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Allow full access to authenticated users" ON public.telemetry_history
+  USING (auth.role() = 'authenticated')
+  WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Allow full access to authenticated users" ON public.device_apps
+  USING (auth.role() = 'authenticated')
+  WITH CHECK (auth.role() = 'authenticated');
+
+-- Enable realtime for all tables
+ALTER PUBLICATION supabase_realtime ADD TABLE public.devices;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.telemetry_history;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.device_apps;
+
+-- Set replica identity to full for realtime updates
+ALTER TABLE public.devices REPLICA IDENTITY FULL;
+ALTER TABLE public.telemetry_history REPLICA IDENTITY FULL;
+ALTER TABLE public.device_apps REPLICA IDENTITY FULL;`;
+  };
+  
+  // Function to copy SQL to clipboard
+  const copySQL = () => {
+    navigator.clipboard.writeText(getSetupSQL());
+    toast.success("SQL copied to clipboard", {
+      description: "You can now paste it into Supabase SQL editor",
+      duration: 3000
+    });
   };
   
   return (
@@ -292,6 +375,38 @@ const SettingsPage = () => {
                         </>
                       )}
                     </Button>
+                  </div>
+                </div>
+
+                {/* New section for manual SQL setup */}
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-medium mb-2">Manual Database Setup</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    If automatic initialization fails, you can manually set up the required tables and functions.
+                    Copy the SQL below and run it in the Supabase SQL Editor.
+                  </p>
+                  
+                  <div className="mt-4 mb-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={copySQL}
+                      className="flex items-center gap-2 mb-2"
+                    >
+                      <Copy className="h-4 w-4" />
+                      Copy SQL to Clipboard
+                    </Button>
+                    
+                    <div className="relative">
+                      <Textarea 
+                        value={getSetupSQL()}
+                        className="font-mono text-xs h-80 overflow-auto bg-secondary"
+                        readOnly
+                      />
+                    </div>
+                    
+                    <p className="text-xs text-muted-foreground mt-2">
+                      After running the SQL, return here and click "Refresh" to verify the tables were created successfully.
+                    </p>
                   </div>
                 </div>
                 
