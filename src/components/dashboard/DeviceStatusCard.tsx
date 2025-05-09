@@ -29,21 +29,21 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = memo(({ device }) => 
 
   return (
     <Link to={`/devices/${device.id}`}>
-      <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+      <Card className="hover:shadow-md transition-shadow cursor-pointer h-full device-card">
         <CardHeader className="pb-2">
           <div className="flex justify-between items-center">
             <CardTitle className="text-base font-medium">{device.name}</CardTitle>
             <div 
               className={`h-2 w-2 rounded-full ${device.isOnline ? "bg-status-online" : "bg-status-offline"}`} 
               style={{ 
-                animation: device.isOnline ? "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite" : "none"
+                animation: device.isOnline ? "subtle-pulse 3s ease-in-out infinite" : "none"
               }}
             ></div>
           </div>
           <p className="text-xs text-muted-foreground">{device.model} - {device.manufacturer}</p>
         </CardHeader>
         <CardContent className="space-y-2 pb-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between device-status">
             <div className="text-xs text-muted-foreground">Status</div>
             <div className="text-xs font-medium flex items-center gap-1">
               {device.isOnline ? (
@@ -91,6 +91,19 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = memo(({ device }) => 
         </CardContent>
       </Card>
     </Link>
+  );
+}, (prevProps, nextProps) => {
+  // Implement a more precise comparison for memoization
+  const prev = prevProps.device;
+  const next = nextProps.device;
+  
+  return (
+    prev.id === next.id &&
+    prev.isOnline === next.isOnline &&
+    prev.battery_level === next.battery_level &&
+    prev.battery_status === next.battery_status &&
+    prev.last_seen === next.last_seen &&
+    prev.network_type === next.network_type
   );
 });
 

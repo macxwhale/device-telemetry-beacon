@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { DeviceStats } from "@/components/dashboard/DeviceStats";
 import { DeviceOverview } from "@/components/dashboard/DeviceOverview";
@@ -12,6 +12,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 const Index = () => {
   const { devices, loading, error, refreshDevices } = useDevices();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Memoize recent devices to prevent unnecessary re-renders
   const recentDevices = useMemo(() => {
@@ -23,18 +24,32 @@ const Index = () => {
     document.title = "Device Telemetry Dashboard";
   }, []);
   
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refreshDevices();
+    setTimeout(() => setIsRefreshing(false), 500); // Add slight delay for better UX
+  };
+  
+  const currentTime = useMemo(() => new Date().toLocaleString(), []);
+  
   return (
     <Layout>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Device Telemetry Dashboard</h1>
-        <Button variant="outline" size="sm" onClick={refreshDevices}>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleRefresh} 
+          disabled={isRefreshing}
+          className="transition-all"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+          {isRefreshing ? 'Refreshing...' : 'Refresh'}
         </Button>
       </div>
       
       {loading ? (
-        <div className="space-y-4">
+        <div className="space-y-4 fade-in">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {[...Array(5)].map((_, i) => (
               <Skeleton key={i} className="h-20" />
@@ -48,7 +63,7 @@ const Index = () => {
           </div>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-6 fade-in">
           {/* Stats Overview */}
           <DeviceStats devices={devices} />
           
@@ -77,7 +92,7 @@ const Index = () => {
                 <div className="mt-4">
                   <p className="text-sm font-medium">Current Time:</p>
                   <p className="text-sm">
-                    {new Date().toLocaleString()}
+                    {currentTime}
                   </p>
                 </div>
               </CardContent>
@@ -89,7 +104,7 @@ const Index = () => {
             <h2 className="text-lg font-medium mb-3">Recent Devices</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {recentDevices.map(device => (
-                <DeviceStatusCard key={device.id} device={device} />
+                <DeviceStatusCard key={`recent-${device.id}`} device={device} />
               ))}
             </div>
           </div>

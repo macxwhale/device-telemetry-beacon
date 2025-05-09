@@ -21,6 +21,7 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
   const [knownDeviceIds, setKnownDeviceIds] = useState<Set<string>>(new Set());
   const [notificationSettings, setNotificationSettings] = useState<any>(null);
   const [lastCheck, setLastCheck] = useState<number>(Date.now());
+  const [lastNotifiedBatteryDevices, setLastNotifiedBatteryDevices] = useState<Set<string>>(new Set());
 
   // Fetch notification settings
   useEffect(() => {
@@ -36,14 +37,19 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
     fetchNotificationSettings();
   }, []);
 
-  // Fetch devices from API
+  // Fetch devices from API - optimized
   const fetchDevices = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getAllDevices();
       
       // Check for new devices by comparing with known device IDs
-      const newDevices = data.filter(device => !knownDeviceIds.has(device.id));
+      const newDeviceIds = new Set<string>();
+      const newDevices = data.filter(device => {
+        const isNew = !knownDeviceIds.has(device.id);
+        if (isNew) newDeviceIds.add(device.id);
+        return isNew;
+      });
       
       // Show notifications for new devices if the setting is enabled
       if (notificationSettings?.notify_new_device && newDevices.length > 0) {
@@ -60,7 +66,9 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
           await sendTelegramNotification(
             `🆕 New Device Added: ${device.name} (${device.model}) has been added to your network`,
             "new_device"
-          );
+          ).catch(err => {
+            console.error("Failed to send Telegram notification for new device:", err);
+          });
         });
       }
       
@@ -71,12 +79,20 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
         return updated;
       });
       
-      // Process devices and maintain online status
+      // Process devices and maintain online status with minimal state updates
       setDevices(prevDevices => {
         return data.map(newDevice => {
           const prevDevice = prevDevices.find(d => d.id === newDevice.id);
           const lastSeenDiff = Date.now() - newDevice.last_seen;
           const isOnline = lastSeenDiff < 15 * 60 * 1000;
+          
+          // If we have a previous device with the same status, keep its reference
+          if (prevDevice && prevDevice.isOnline === isOnline) {
+            return {
+              ...newDevice,
+              isOnline
+            };
+          }
           
           return {
             ...newDevice,
@@ -98,17 +114,16 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [knownDeviceIds, notificationSettings]);
 
-  // Check for offline devices - optimized to prevent unnecessary re-renders
+  // Check for offline devices - optimized with reduced frequency
   const checkOfflineDevices = useCallback(() => {
     if (!notificationSettings) return;
     
-    // Only run check every 30 seconds instead of every second
+    // Only run check every 60 seconds instead of every 30 seconds
     const now = Date.now();
-    if (now - lastCheck < 30000) return;
+    if (now - lastCheck < 60000) return;
     setLastCheck(now);
     
     setDevices(prev => {
-      // Make a copy to track if anything actually changed
       let hasChanges = false;
       
       const updated = prev.map(device => {
@@ -139,12 +154,22 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
           hasChanges = true;
         }
         
+        // Fix for duplicate low battery notifications
         // Check for low battery if the device is online and setting is enabled
         if (newIsOnline && 
             device.battery_level !== undefined && 
             device.battery_level <= 20 && 
             notificationSettings.notify_low_battery &&
+            !lastNotifiedBatteryDevices.has(device.id) &&
             (device.battery_status !== "Charging" && device.battery_status !== "Full")) {
+          
+          // Add to set of notified devices to prevent duplicate notifications
+          setLastNotifiedBatteryDevices(prev => {
+            const updated = new Set(prev);
+            updated.add(device.id);
+            return updated;
+          });
+          
           // UI Toast notification
           toast({
             title: "Low Battery Warning",
@@ -164,6 +189,15 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
           hasChanges = true;
         }
         
+        // Reset notification if battery is charged again
+        if (device.battery_level > 30 && lastNotifiedBatteryDevices.has(device.id)) {
+          setLastNotifiedBatteryDevices(prev => {
+            const updated = new Set(prev);
+            updated.delete(device.id);
+            return updated;
+          });
+        }
+        
         // Only update if the status actually changed
         if (device.isOnline !== newIsOnline) {
           hasChanges = true;
@@ -177,19 +211,21 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
       // Only return new array if something actually changed
       return hasChanges ? updated : prev;
     });
-  }, [notificationSettings, lastCheck]);
+  }, [notificationSettings, lastCheck, lastNotifiedBatteryDevices]);
 
-  // Initial data load and interval setup
+  // Initial data load and interval setup with adjusted intervals
   useEffect(() => {
     fetchDevices();
     
+    // Reduced frequency: Refresh data every 10 minutes instead of 5
     const fetchInterval = setInterval(() => {
       fetchDevices();
-    }, 5 * 60 * 1000); // Refresh every 5 minutes
+    }, 10 * 60 * 1000);
     
+    // Reduced frequency: Check status every 2 minutes instead of 1
     const checkInterval = setInterval(() => {
       checkOfflineDevices();
-    }, 60 * 1000); // Check status every minute
+    }, 2 * 60 * 1000);
     
     return () => {
       clearInterval(fetchInterval);

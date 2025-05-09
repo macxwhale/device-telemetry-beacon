@@ -50,9 +50,9 @@ export const DeviceStats: FC<DeviceStatsProps> = memo(({ devices }) => {
   }, [devices]);
   
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 fade-in">
       {stats.map((stat) => (
-        <Card key={stat.name}>
+        <Card key={stat.name} className="transition-all">
           <CardHeader className="p-4 pb-2">
             <CardTitle className="text-sm font-medium">{stat.name}</CardTitle>
           </CardHeader>
@@ -66,6 +66,27 @@ export const DeviceStats: FC<DeviceStatsProps> = memo(({ devices }) => {
       ))}
     </div>
   );
+}, (prevProps, nextProps) => {
+  // Enhanced memoization for device status changes
+  if (prevProps.devices.length !== nextProps.devices.length) {
+    return false;
+  }
+  
+  const prevOnlineCount = prevProps.devices.filter(d => d.isOnline).length;
+  const nextOnlineCount = nextProps.devices.filter(d => d.isOnline).length;
+  
+  if (prevOnlineCount !== nextOnlineCount) {
+    return false;
+  }
+  
+  const prevLowBatteryCount = prevProps.devices.filter(d => d.battery_level < 20).length;
+  const nextLowBatteryCount = nextProps.devices.filter(d => d.battery_level < 20).length;
+  
+  if (prevLowBatteryCount !== nextLowBatteryCount) {
+    return false;
+  }
+  
+  return true;
 });
 
 DeviceStats.displayName = "DeviceStats";
