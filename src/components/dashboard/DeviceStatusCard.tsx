@@ -1,5 +1,5 @@
 
-import { FC } from "react";
+import { FC, memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DeviceStatus } from "@/types/telemetry";
 import { formatDistanceToNow } from "date-fns";
@@ -10,7 +10,7 @@ interface DeviceStatusCardProps {
   device: DeviceStatus;
 }
 
-export const DeviceStatusCard: FC<DeviceStatusCardProps> = ({ device }) => {
+export const DeviceStatusCard: FC<DeviceStatusCardProps> = memo(({ device }) => {
   // Function to determine appropriate network icon
   const getNetworkIcon = (networkType: string) => {
     if (!networkType || networkType === "Unknown") {
@@ -33,7 +33,12 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = ({ device }) => {
         <CardHeader className="pb-2">
           <div className="flex justify-between items-center">
             <CardTitle className="text-base font-medium">{device.name}</CardTitle>
-            <div className={`h-2 w-2 rounded-full ${device.isOnline ? "bg-status-online" : "bg-status-offline"} animate-pulse-slow`}></div>
+            <div 
+              className={`h-2 w-2 rounded-full ${device.isOnline ? "bg-status-online" : "bg-status-offline"}`} 
+              style={{ 
+                animation: device.isOnline ? "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite" : "none"
+              }}
+            ></div>
           </div>
           <p className="text-xs text-muted-foreground">{device.model} - {device.manufacturer}</p>
         </CardHeader>
@@ -87,4 +92,6 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = ({ device }) => {
       </Card>
     </Link>
   );
-};
+});
+
+DeviceStatusCard.displayName = "DeviceStatusCard";

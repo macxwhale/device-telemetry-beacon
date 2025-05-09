@@ -1,5 +1,5 @@
 
-import { FC } from "react";
+import { FC, memo, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DeviceStatus } from "@/types/telemetry";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend } from "recharts";
@@ -8,30 +8,34 @@ interface DeviceOverviewProps {
   devices: DeviceStatus[];
 }
 
-export const DeviceOverview: FC<DeviceOverviewProps> = ({ devices }) => {
-  // Status summary
-  const onlineCount = devices.filter(device => device.isOnline).length;
-  const offlineCount = devices.length - onlineCount;
-  
-  const statusData = [
-    { name: "Online", value: onlineCount },
-    { name: "Offline", value: offlineCount }
-  ];
+export const DeviceOverview: FC<DeviceOverviewProps> = memo(({ devices }) => {
+  // Memoize the chart data to prevent unnecessary recalculations
+  const { statusData, deviceTypeData } = useMemo(() => {
+    // Status summary
+    const onlineCount = devices.filter(device => device.isOnline).length;
+    const offlineCount = devices.length - onlineCount;
+    
+    const statusData = [
+      { name: "Online", value: onlineCount },
+      { name: "Offline", value: offlineCount }
+    ];
+    
+    // Device types summary
+    const deviceTypes = devices.reduce((acc, device) => {
+      const manufacturer = device.manufacturer;
+      acc[manufacturer] = (acc[manufacturer] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const deviceTypeData = Object.entries(deviceTypes).map(([name, value]) => ({
+      name,
+      value
+    }));
+    
+    return { statusData, deviceTypeData };
+  }, [devices]);
   
   const COLORS = ["#10b981", "#ef4444"];
-  
-  // Device types summary
-  const deviceTypes = devices.reduce((acc, device) => {
-    const manufacturer = device.manufacturer;
-    acc[manufacturer] = (acc[manufacturer] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-  
-  const deviceTypeData = Object.entries(deviceTypes).map(([name, value]) => ({
-    name,
-    value
-  }));
-  
   const TYPE_COLORS = ["#3b82f6", "#8b5cf6", "#f59e0b", "#ec4899", "#6b7280"];
   
   return (
@@ -88,4 +92,6 @@ export const DeviceOverview: FC<DeviceOverviewProps> = ({ devices }) => {
       </CardContent>
     </Card>
   );
-};
+});
+
+DeviceOverview.displayName = "DeviceOverview";

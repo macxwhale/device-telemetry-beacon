@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Layout } from "@/components/Layout";
 import { useDevices } from "@/contexts/DeviceContext";
 import { DeviceStatusCard } from "@/components/dashboard/DeviceStatusCard";
@@ -12,20 +12,26 @@ const DevicesPage = () => {
   const { devices, loading, error, refreshDevices } = useDevices();
   const [searchTerm, setSearchTerm] = useState("");
   
-  // Filter devices based on search term
-  const filteredDevices = devices.filter(device => {
+  // Memoize filtered devices to prevent unnecessary re-renders
+  const filteredDevices = useMemo(() => {
     const searchTermLower = searchTerm.toLowerCase();
-    return (
-      device.name.toLowerCase().includes(searchTermLower) ||
-      device.model.toLowerCase().includes(searchTermLower) ||
-      device.manufacturer.toLowerCase().includes(searchTermLower)
-    );
-  });
+    return devices.filter(device => {
+      return (
+        device.name.toLowerCase().includes(searchTermLower) ||
+        device.model.toLowerCase().includes(searchTermLower) ||
+        device.manufacturer.toLowerCase().includes(searchTermLower)
+      );
+    });
+  }, [devices, searchTerm]);
   
   useEffect(() => {
     // Page title
     document.title = "Devices - Device Telemetry";
   }, []);
+  
+  const handleRefresh = () => {
+    refreshDevices();
+  };
   
   return (
     <Layout>
@@ -42,7 +48,7 @@ const DevicesPage = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Button variant="outline" size="sm" onClick={refreshDevices}>
+          <Button variant="outline" size="sm" onClick={handleRefresh}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>

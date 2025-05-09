@@ -1,5 +1,4 @@
-
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from "react";
 import { DeviceStatus } from "@/types/telemetry";
 import { getAllDevices } from "@/services/telemetryService";
 import { toast } from "@/hooks/use-toast";
@@ -21,6 +20,7 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
   const [knownDeviceIds, setKnownDeviceIds] = useState<Set<string>>(new Set());
   const [notificationSettings, setNotificationSettings] = useState<any>(null);
+  const [lastCheck, setLastCheck] = useState<number>(Date.now());
 
   // Fetch notification settings
   useEffect(() => {
@@ -71,7 +71,20 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
         return updated;
       });
       
-      setDevices(data);
+      // Process devices and maintain online status
+      setDevices(prevDevices => {
+        return data.map(newDevice => {
+          const prevDevice = prevDevices.find(d => d.id === newDevice.id);
+          const lastSeenDiff = Date.now() - newDevice.last_seen;
+          const isOnline = lastSeenDiff < 15 * 60 * 1000;
+          
+          return {
+            ...newDevice,
+            isOnline
+          };
+        });
+      });
+      
       setError(null);
     } catch (err) {
       setError("Failed to fetch devices");
@@ -83,46 +96,60 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, [knownDeviceIds, notificationSettings]); 
+  }, [knownDeviceIds, notificationSettings]);
 
-  // Check for offline devices
+  // Check for offline devices - optimized to prevent unnecessary re-renders
   const checkOfflineDevices = useCallback(() => {
     if (!notificationSettings) return;
     
-    setDevices(prev => 
-      prev.map(device => {
-        const lastSeenDiff = Date.now() - device.last_seen;
+    // Only run check every 30 seconds instead of every second
+    const now = Date.now();
+    if (now - lastCheck < 30000) return;
+    setLastCheck(now);
+    
+    setDevices(prev => {
+      // Make a copy to track if anything actually changed
+      let hasChanges = false;
+      
+      const updated = prev.map(device => {
+        const lastSeenDiff = now - device.last_seen;
         // Mark device as offline if not seen in last 15 minutes
-        const isOnline = lastSeenDiff < 15 * 60 * 1000;
+        const newIsOnline = lastSeenDiff < 15 * 60 * 1000;
         
-        // Only show notification if the setting is enabled and device status changed from online to offline
-        if (device.isOnline && !isOnline && notificationSettings.notify_device_offline) {
-          // UI Toast notification
-          toast({
-            title: "Device Offline",
-            description: `${device.name} (${device.model}) is now offline`,
-            variant: "destructive",
-          });
+        // Only trigger notifications if status changed from online to offline
+        if (device.isOnline && !newIsOnline) {
+          if (notificationSettings.notify_device_offline) {
+            // UI Toast notification
+            toast({
+              title: "Device Offline",
+              description: `${device.name} (${device.model}) is now offline`,
+              variant: "destructive",
+            });
+            
+            // Telegram notification
+            sendTelegramNotification(
+              `⚠️ Device Offline: ${device.name} (${device.model}) is now offline`,
+              "device_offline"
+            ).catch(err => {
+              console.error("Failed to send Telegram notification for offline device:", err);
+            });
+          }
           
-          // Telegram notification
-          sendTelegramNotification(
-            `⚠️ Device Offline: ${device.name} (${device.model}) is now offline`,
-            "device_offline"
-          ).catch(err => {
-            console.error("Failed to send Telegram notification for offline device:", err);
-          });
+          // Mark that we have changes
+          hasChanges = true;
         }
         
         // Check for low battery if the device is online and setting is enabled
-        if (isOnline && 
+        if (newIsOnline && 
             device.battery_level !== undefined && 
             device.battery_level <= 20 && 
-            notificationSettings.notify_low_battery) {
+            notificationSettings.notify_low_battery &&
+            (device.battery_status !== "Charging" && device.battery_status !== "Full")) {
           // UI Toast notification
           toast({
             title: "Low Battery Warning",
             description: `${device.name} has ${device.battery_level}% battery remaining`,
-            variant: "default", // Changed from "warning" to "default" as only "default" and "destructive" are valid
+            variant: "default",
           });
           
           // Telegram notification
@@ -132,12 +159,25 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
           ).catch(err => {
             console.error("Failed to send Telegram notification for low battery:", err);
           });
+          
+          // Mark that we have changes
+          hasChanges = true;
         }
         
-        return { ...device, isOnline };
-      })
-    );
-  }, [notificationSettings]);
+        // Only update if the status actually changed
+        if (device.isOnline !== newIsOnline) {
+          hasChanges = true;
+          return { ...device, isOnline: newIsOnline };
+        }
+        
+        // Return unchanged device if no status change
+        return device;
+      });
+      
+      // Only return new array if something actually changed
+      return hasChanges ? updated : prev;
+    });
+  }, [notificationSettings, lastCheck]);
 
   // Initial data load and interval setup
   useEffect(() => {
@@ -162,12 +202,13 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
     await fetchDevices();
   };
 
-  const contextValue = {
+  // Memoize the context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
     devices,
     loading,
     error,
     refreshDevices
-  };
+  }), [devices, loading, error, refreshDevices]);
 
   return (
     <DeviceContext.Provider value={contextValue}>
