@@ -1,4 +1,3 @@
-
 import type { Plugin } from 'vite';
 import { handleApiRequest } from './api-handler';
 
@@ -12,8 +11,10 @@ export function apiMiddleware(): Plugin {
           return;
         }
         
-        // Only process if it's an API request
-        if (req.url.startsWith('/api/')) {
+        // Improved API request detection - check starts with /api/ regardless of query params
+        const isApiRequest = req.url.split('?')[0].startsWith('/api/');
+        
+        if (isApiRequest) {
           console.log(`API middleware received: ${req.method} ${req.url}`);
           
           // Set CORS headers for all API responses
@@ -41,6 +42,9 @@ export function apiMiddleware(): Plugin {
               if (value) headers.set(key, Array.isArray(value) ? value.join(', ') : String(value));
             }
             
+            // Log headers for debugging
+            console.log("Request headers:", Object.fromEntries(headers.entries()));
+            
             // Get request body if available
             let body: any = undefined;
             if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
@@ -49,9 +53,24 @@ export function apiMiddleware(): Plugin {
                 chunks.push(Buffer.from(chunk));
               }
               const bodyBuffer = Buffer.concat(chunks);
-              body = bodyBuffer.length > 0 ? bodyBuffer.toString() : undefined;
+              if (bodyBuffer.length > 0) {
+                const bodyText = bodyBuffer.toString();
+                console.log("Raw request body (first 500 chars):", bodyText.substring(0, 500));
+                
+                // Try to parse JSON but keep original if parsing fails
+                try {
+                  if (bodyText.trim()) {
+                    JSON.parse(bodyText);
+                    body = bodyText; // Use the validated JSON string
+                  }
+                } catch (e) {
+                  console.log("Warning: Request body is not valid JSON:", e);
+                  body = bodyText; // Use the raw text
+                }
+              }
             }
             
+            // Create request with properly parsed body
             const request = new Request(url, {
               method: req.method,
               headers,

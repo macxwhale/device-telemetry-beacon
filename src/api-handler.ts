@@ -4,6 +4,9 @@ import { handleApiRequest as middlewareHandleApiRequest } from './api-middleware
 // Re-export the function with debugging
 export const handleApiRequest = async (request: Request): Promise<Response | undefined> => {
   console.log("API handler called with URL:", request.url);
+  console.log("API handler request method:", request.method);
+  console.log("API handler content-type:", request.headers.get("Content-Type"));
+  console.log("API handler authorization:", request.headers.get("Authorization")?.substring(0, 15) + "...");
   
   try {
     const response = await middlewareHandleApiRequest(request);

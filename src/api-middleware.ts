@@ -7,6 +7,7 @@ export async function handleApiRequest(request: Request): Promise<Response | und
   const path = url.pathname;
 
   console.log(`API middleware processing: ${path} (${request.method})`);
+  console.log(`API request headers:`, Object.fromEntries(request.headers.entries()));
 
   // CORS headers to use consistently
   const corsHeaders = {
@@ -26,22 +27,31 @@ export async function handleApiRequest(request: Request): Promise<Response | und
   }
 
   try {
-    // Handle different API routes
-    if (path.startsWith("/api/telemetry")) {
+    // Normalize path to handle trailing slashes consistently
+    const normalizedPath = path.endsWith('/') ? path.slice(0, -1) : path;
+    
+    // Handle different API routes - checking both with and without trailing slash
+    if (normalizedPath === "/api/telemetry" || normalizedPath === "/api/telemetry/") {
       console.log("Forwarding to telemetry API handler");
       
-      // Clone the request to inspect its body without consuming it
-      const clonedRequest = request.clone();
+      // Log content-type for debugging
+      const contentType = request.headers.get("content-type");
+      console.log("Content-Type header:", contentType);
+      
+      // Since we may have already consumed the body in the Vite middleware,
+      // create a new request to ensure we have a fresh body stream
       let bodyText = "";
       
       try {
+        // Clone the request to safely read its body
+        const clonedRequest = request.clone();
         bodyText = await clonedRequest.text();
         console.log("Request body (first 500 chars):", bodyText.substring(0, 500));
       } catch (e) {
         console.log("Could not read request body:", e);
       }
       
-      // Fix malformed JSON if needed
+      // Try to parse as JSON to validate and normalize
       let jsonData;
       
       try {
@@ -91,6 +101,7 @@ export async function handleApiRequest(request: Request): Promise<Response | und
       try {
         // Send to API handler
         console.log("Calling telemetry API handler with prepared request");
+        console.log("Headers being sent:", Object.fromEntries(newRequest.headers.entries()));
         const response = await handleTelemetryApi(newRequest);
         
         // Clone response to check content
