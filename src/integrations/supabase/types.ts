@@ -9,13 +9,104 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      device_apps: {
+        Row: {
+          app_package: string
+          device_id: string
+          id: string
+        }
+        Insert: {
+          app_package: string
+          device_id: string
+          id?: string
+        }
+        Update: {
+          app_package?: string
+          device_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_apps_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      devices: {
+        Row: {
+          android_id: string
+          device_name: string | null
+          first_seen: string
+          id: string
+          last_seen: string
+          manufacturer: string | null
+          model: string | null
+        }
+        Insert: {
+          android_id: string
+          device_name?: string | null
+          first_seen?: string
+          id?: string
+          last_seen?: string
+          manufacturer?: string | null
+          model?: string | null
+        }
+        Update: {
+          android_id?: string
+          device_name?: string | null
+          first_seen?: string
+          id?: string
+          last_seen?: string
+          manufacturer?: string | null
+          model?: string | null
+        }
+        Relationships: []
+      }
+      telemetry_history: {
+        Row: {
+          device_id: string
+          id: string
+          telemetry_data: Json
+          timestamp: string
+        }
+        Insert: {
+          device_id: string
+          id?: string
+          telemetry_data: Json
+          timestamp?: string
+        }
+        Update: {
+          device_id?: string
+          id?: string
+          telemetry_data?: Json
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telemetry_history_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_and_create_telemetry_trigger: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      enable_realtime_tables: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
     }
     Enums: {
       battery_status:

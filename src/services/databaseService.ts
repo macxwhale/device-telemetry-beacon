@@ -9,6 +9,8 @@ const client = supabase as any;
 // Initialize the database connection
 export const initializeDatabaseConnection = async (): Promise<boolean> => {
   try {
+    console.log("Initializing database connection...");
+    
     // Add telemetry trigger if it doesn't exist
     const { error: triggerError } = await client.rpc('check_and_create_telemetry_trigger');
     
@@ -25,6 +27,7 @@ export const initializeDatabaseConnection = async (): Promise<boolean> => {
       return false;
     }
     
+    console.log("Database connection initialized successfully");
     return true;
   } catch (error) {
     console.error("Error initializing database:", error);
@@ -39,6 +42,8 @@ export const getDatabaseStats = async (): Promise<{
   apps: number;
 } | null> => {
   try {
+    console.log("Fetching database statistics...");
+    
     const devicesResult = await client
       .from('devices')
       .select('id', { count: 'exact', head: true });
@@ -50,6 +55,12 @@ export const getDatabaseStats = async (): Promise<{
     const appsResult = await client
       .from('device_apps')
       .select('id', { count: 'exact', head: true });
+    
+    console.log("Database stats:", {
+      devices: devicesResult.count || 0,
+      telemetry: telemetryResult.count || 0,
+      apps: appsResult.count || 0
+    });
     
     return {
       devices: devicesResult.count || 0,
@@ -65,6 +76,7 @@ export const getDatabaseStats = async (): Promise<{
 // Migrate in-memory data to database
 export const migrateMemoryDataToDatabase = async (devices: DeviceStatus[]): Promise<boolean> => {
   try {
+    console.log(`Migrating ${devices.length} devices to database...`);
     let successCount = 0;
     
     for (const device of devices) {
@@ -102,8 +114,10 @@ export const migrateMemoryDataToDatabase = async (devices: DeviceStatus[]): Prom
         }
         
         deviceId = newDevice.id;
+        console.log(`Created new device with ID ${deviceId}`);
       } else {
         deviceId = existingDevice.id;
+        console.log(`Using existing device with ID ${deviceId}`);
       }
       
       // Add telemetry history
@@ -121,22 +135,34 @@ export const migrateMemoryDataToDatabase = async (devices: DeviceStatus[]): Prom
         if (telemetryError) {
           console.error(`Error inserting telemetry for device ${device.id}:`, telemetryError);
           continue;
+        } else {
+          console.log(`Added telemetry history for device ${device.id}`);
         }
       }
       
       // Add apps if present
       if (device.telemetry?.app_info?.installed_apps) {
         const apps = device.telemetry.app_info.installed_apps;
-        for (const app of apps) {
-          const { error: appError } = await client
+        console.log(`Adding ${apps.length} apps for device ${device.id}`);
+        
+        // Batch insert apps
+        const appRows = apps.map(app => ({
+          device_id: deviceId,
+          app_package: app
+        }));
+        
+        if (appRows.length > 0) {
+          const { error: appsError } = await client
             .from('device_apps')
-            .insert({
-              device_id: deviceId,
-              app_package: app
+            .upsert(appRows, { 
+              onConflict: 'device_id,app_package', 
+              ignoreDuplicates: true 
             });
           
-          if (appError) {
-            console.error(`Error inserting app ${app} for device ${device.id}:`, appError);
+          if (appsError) {
+            console.error(`Error inserting apps for device ${device.id}:`, appsError);
+          } else {
+            console.log(`Successfully added ${apps.length} apps for device ${device.id}`);
           }
         }
       }
