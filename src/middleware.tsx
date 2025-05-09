@@ -10,6 +10,14 @@ export async function handleApiRequest(request: Request): Promise<Response | und
 
   // Normalize path to handle trailing slashes consistently
   const normalizedPath = path.endsWith('/') ? path.slice(0, -1) : path;
+  
+  // CORS headers to use consistently
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Max-Age': '86400'
+  };
 
   // Handle different API routes
   if (normalizedPath.startsWith("/api/telemetry")) {
@@ -54,8 +62,56 @@ export async function handleApiRequest(request: Request): Promise<Response | und
         newRequest = request;
       }
       
-      // Forward to telemetry API handler
-      return await handleTelemetryApi(newRequest);
+      // Forward to telemetry API handler with error handling
+      try {
+        const response = await handleTelemetryApi(newRequest);
+        
+        // Check for HTML responses
+        const clonedResponse = response.clone();
+        const responseBody = await clonedResponse.text();
+        
+        if (responseBody.trim().startsWith('<!DOCTYPE') || 
+            responseBody.trim().startsWith('<html') ||
+            responseBody.includes('<head>') ||
+            responseBody.includes('<body>')) {
+          console.error("ERROR: API returned HTML - converting to JSON error");
+          return new Response(JSON.stringify({ 
+            error: "API returned HTML", 
+            message: "Internal server error - API handler returned HTML",
+            responsePreview: responseBody.substring(0, 100)
+          }), {
+            status: 500,
+            headers: { 
+              "Content-Type": "application/json",
+              ...corsHeaders
+            }
+          });
+        }
+        
+        // Ensure proper JSON headers
+        const headers = new Headers(response.headers);
+        headers.set("Content-Type", "application/json");
+        Object.entries(corsHeaders).forEach(([key, value]) => {
+          headers.set(key, value);
+        });
+        
+        return new Response(responseBody, {
+          status: response.status,
+          headers: headers
+        });
+      } catch (innerError) {
+        console.error("Error in telemetry API handler:", innerError);
+        return new Response(JSON.stringify({ 
+          error: "Telemetry API error", 
+          details: (innerError as Error).message 
+        }), {
+          status: 500,
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          }
+        });
+      }
     } catch (error) {
       console.error("Error in telemetry API handler:", error);
       return new Response(JSON.stringify({ 
@@ -65,7 +121,7 @@ export async function handleApiRequest(request: Request): Promise<Response | und
         status: 500,
         headers: { 
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
+          ...corsHeaders
         }
       });
     }

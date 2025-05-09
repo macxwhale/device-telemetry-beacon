@@ -1,3 +1,4 @@
+
 import type { Plugin } from 'vite';
 import { handleApiRequest } from './api-handler';
 
@@ -87,8 +88,11 @@ export function apiMiddleware(): Plugin {
               const clonedResponse = response.clone();
               const responseBody = await clonedResponse.text();
               
-              // Check if response contains HTML and reject it
-              if (responseBody.trim().startsWith('<!DOCTYPE') || responseBody.trim().startsWith('<html')) {
+              // Check if response contains HTML and reject it - CRITICAL FIX
+              if (responseBody.trim().startsWith('<!DOCTYPE') || 
+                  responseBody.trim().startsWith('<html') ||
+                  responseBody.includes('<head>') ||
+                  responseBody.includes('<body>')) {
                 console.error("ERROR: HTML response detected in vite-plugin. Converting to JSON error.");
                 res.statusCode = 500;
                 res.setHeader('Content-Type', 'application/json');

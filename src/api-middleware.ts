@@ -30,8 +30,10 @@ export async function handleApiRequest(request: Request): Promise<Response | und
     // Normalize path to handle trailing slashes consistently
     const normalizedPath = path.endsWith('/') ? path.slice(0, -1) : path;
     
-    // Handle different API routes - checking both with and without trailing slash
-    if (normalizedPath === "/api/telemetry" || normalizedPath === "/api/telemetry/") {
+    // Improved API route matching - Check for exact paths
+    const isTelemetryAPI = normalizedPath === "/api/telemetry" || normalizedPath === "/api/telemetry/";
+    
+    if (isTelemetryAPI) {
       console.log("Forwarding to telemetry API handler");
       
       // Log content-type for debugging
@@ -102,15 +104,35 @@ export async function handleApiRequest(request: Request): Promise<Response | und
         // Send to API handler
         console.log("Calling telemetry API handler with prepared request");
         console.log("Headers being sent:", Object.fromEntries(newRequest.headers.entries()));
-        const response = await handleTelemetryApi(newRequest);
+        
+        // Double-wrapped in try-catch to ensure we always return JSON
+        let response;
+        try {
+          response = await handleTelemetryApi(newRequest);
+        } catch (innerError) {
+          console.error("Inner API handler error:", innerError);
+          return new Response(JSON.stringify({ 
+            error: "API handler internal error", 
+            details: (innerError as Error).message 
+          }), {
+            status: 500,
+            headers: { 
+              "Content-Type": "application/json",
+              ...corsHeaders
+            }
+          });
+        }
         
         // Clone response to check content
         const clonedResponse = response.clone();
         const responseBody = await clonedResponse.text();
         console.log("Raw API response (first 200 chars):", responseBody.substring(0, 200));
         
-        // Check for HTML responses
-        if (responseBody.trim().startsWith('<!DOCTYPE') || responseBody.trim().startsWith('<html')) {
+        // Check for HTML responses - CRITICAL FIX
+        if (responseBody.trim().startsWith('<!DOCTYPE') || 
+            responseBody.trim().startsWith('<html') ||
+            responseBody.includes('<head>') ||
+            responseBody.includes('<body>')) {
           console.error("ERROR: API returned HTML - converting to JSON error");
           return new Response(JSON.stringify({ 
             error: "API returned HTML", 
@@ -136,6 +158,14 @@ export async function handleApiRequest(request: Request): Promise<Response | und
         
         try {
           // Verify response is valid JSON
+          if (responseBody.trim() === '') {
+            console.log("Empty response body, returning empty JSON object");
+            return new Response("{}", {
+              status: 200,
+              headers: headers
+            });
+          }
+          
           JSON.parse(responseBody);
           console.log("Response validated as valid JSON");
           
@@ -174,6 +204,10 @@ export async function handleApiRequest(request: Request): Promise<Response | und
         });
       }
     }
+    
+    // If we get here, no API route was matched
+    console.log("No API route matched, passing to default handler");
+    return undefined;
   } catch (error) {
     console.error("Global API middleware error:", error);
     return new Response(JSON.stringify({ 
@@ -187,8 +221,4 @@ export async function handleApiRequest(request: Request): Promise<Response | und
       }
     });
   }
-
-  // If no route matched, return undefined to let the default handler process it
-  console.log("No API route matched, passing to default handler");
-  return undefined;
 }

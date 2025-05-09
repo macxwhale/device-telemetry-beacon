@@ -24,7 +24,10 @@ export const handleApiRequest = async (request: Request): Promise<Response | und
         console.log("API response content (first 200 chars):", text.substring(0, 200));
         
         // Check if it's HTML and convert to proper JSON error
-        if (text.trim().startsWith("<!DOCTYPE") || text.trim().startsWith("<html")) {
+        if (text.trim().startsWith("<!DOCTYPE") || 
+            text.trim().startsWith("<html") || 
+            text.includes("<head>") ||
+            text.includes("<body>")) {
           console.error("WARNING: Response contains HTML, not JSON! Converting to proper error response");
           
           // Return a proper JSON error instead of HTML
@@ -45,6 +48,12 @@ export const handleApiRequest = async (request: Request): Promise<Response | und
         // Validate that it's JSON
         if (response.headers.get("Content-Type")?.includes("application/json")) {
           try {
+            if (text.trim() === '') {
+              return new Response("{}", {
+                status: 200,
+                headers: response.headers
+              });
+            }
             JSON.parse(text);
           } catch (jsonError) {
             console.error("Invalid JSON response:", jsonError);
