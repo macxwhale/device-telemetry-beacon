@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +13,7 @@ import { initializeDatabaseConnection, getDatabaseStats } from "@/services/datab
 
 const SettingsPage = () => {
   const [isInitializing, setIsInitializing] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [databaseStatus, setDatabaseStatus] = useState<{
     devices: number;
     telemetry_records: number;
@@ -46,13 +48,24 @@ const SettingsPage = () => {
   
   // Function to check database status
   const checkDatabaseStatus = async () => {
-    toast.loading("Refreshing database statistics...", { duration: 2000 });
-    const stats = await getDatabaseStats();
-    if (stats) {
-      setDatabaseStatus(stats);
-      toast.success("Database statistics refreshed", { duration: 2000 });
-    } else {
-      toast.error("Failed to refresh database statistics", { duration: 2000 });
+    setIsRefreshing(true);
+    toast.loading("Refreshing database statistics...", { duration: 3000 });
+    try {
+      const stats = await getDatabaseStats();
+      if (stats) {
+        setDatabaseStatus(stats);
+        toast.success("Database statistics refreshed", { duration: 2000 });
+      } else {
+        toast.error("Failed to refresh database statistics", { duration: 2000 });
+      }
+    } catch (error) {
+      console.error("Error checking database status:", error);
+      toast.error("Failed to refresh database statistics", {
+        description: "An unexpected error occurred",
+        duration: 3000
+      });
+    } finally {
+      setIsRefreshing(false);
     }
   };
   
@@ -62,9 +75,13 @@ const SettingsPage = () => {
     try {
       await initializeDatabaseConnection();
       // Success/error toasts are now handled in the service function
-      checkDatabaseStatus();
+      await checkDatabaseStatus();
     } catch (error) {
       console.error("Error initializing database:", error);
+      toast.error("Database initialization failed", {
+        description: "An unexpected error occurred during initialization",
+        duration: 4000
+      });
     } finally {
       setIsInitializing(false);
     }
@@ -215,10 +232,11 @@ const SettingsPage = () => {
                       variant="outline" 
                       size="sm"
                       onClick={checkDatabaseStatus}
+                      disabled={isRefreshing}
                       className="flex items-center gap-1"
                     >
-                      <RefreshCw className="h-4 w-4" />
-                      Refresh
+                      <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                      {isRefreshing ? 'Refreshing...' : 'Refresh'}
                     </Button>
                   </div>
                 </div>
@@ -236,7 +254,7 @@ const SettingsPage = () => {
                       className="flex items-center gap-2"
                     >
                       <Database className="h-4 w-4" />
-                      {isInitializing ? 'Initializing...' : 'Initialize/Verify Database'}
+                      {isInitializing ? 'Setting up database...' : 'Initialize/Verify Database'}
                     </Button>
                   </div>
                 </div>
