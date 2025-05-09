@@ -2,8 +2,7 @@
 // Non-JSX implementation of the telemetry API functions
 // This file must not contain any JSX or React imports
 
-// In-memory simulated database
-let deviceDatabase: any[] = [];
+import { supabase } from "@/integrations/supabase/client";
 
 // API key for simple authentication
 const API_KEY = "telm_sk_1234567890abcdef";
@@ -126,54 +125,150 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
         }
       });
     }
+
+    // Prepare device data for database
+    const timestamp = new Date().toISOString();
     
-    // Store device data in memory for simplicity
-    const existingDeviceIndex = deviceDatabase.findIndex(device => device.id === deviceId);
-    const timestamp = Date.now();
+    // Check if device exists in database
+    const { data: existingDevice, error: deviceCheckError } = await supabase
+      .from('devices')
+      .select('id')
+      .eq('android_id', deviceId)
+      .maybeSingle();
+      
+    if (deviceCheckError) {
+      console.error("Error checking device in database:", deviceCheckError);
+      return new Response(JSON.stringify({ 
+        error: "Database error", 
+        details: deviceCheckError.message
+      }), {
+        status: 500,
+        headers: { 
+          "Content-Type": "application/json",
+          ...corsHeaders
+        }
+      });
+    }
     
-    // Prepare device data object
-    const deviceData = {
-      id: deviceId,
-      name: data?.device_info?.device_name || "Unknown Device",
-      model: data?.device_info?.model || "Unknown Model",
-      manufacturer: data?.device_info?.manufacturer || "Unknown",
-      os_version: data?.system_info?.android_version || "Unknown",
-      battery_level: data?.battery_info?.battery_level || 0,
-      battery_status: data?.battery_info?.battery_status || "Unknown",
-      network_type: data?.network_info?.network_interface || "Unknown",
-      ip_address: data?.network_info?.ip_address || "0.0.0.0",
-      uptime_millis: data?.system_info?.uptime_millis || 0,
-      last_seen: timestamp,
-      isOnline: true,
-      telemetry: data, // Store the entire telemetry data
-      raw_data: data   // Keep raw data for backward compatibility
-    };
+    let deviceDbId;
     
-    console.log("Processed device data:", JSON.stringify({
-      id: deviceData.id,
-      name: deviceData.name,
-      model: deviceData.model,
-      manufacturer: deviceData.manufacturer,
-      // Omit full telemetry for log readability
-    }, null, 2));
-    
-    if (existingDeviceIndex >= 0) {
-      // Update existing device
-      deviceDatabase[existingDeviceIndex] = {
-        ...deviceDatabase[existingDeviceIndex],
-        ...deviceData
-      };
-      console.log(`Updated existing device ${deviceId}`);
+    // Insert or update device in database
+    if (!existingDevice) {
+      // Create new device
+      const { data: newDevice, error: insertError } = await supabase
+        .from('devices')
+        .insert({
+          android_id: deviceId,
+          device_name: data?.device_info?.device_name || "Unknown Device",
+          manufacturer: data?.device_info?.manufacturer || "Unknown",
+          model: data?.device_info?.model || "Unknown Model",
+          last_seen: timestamp
+        })
+        .select('id')
+        .single();
+        
+      if (insertError) {
+        console.error("Error inserting device to database:", insertError);
+        return new Response(JSON.stringify({ 
+          error: "Database error", 
+          details: insertError.message
+        }), {
+          status: 500,
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          }
+        });
+      }
+      
+      deviceDbId = newDevice.id;
+      console.log("Created new device in database with ID:", deviceDbId);
     } else {
-      // Add new device
-      deviceDatabase.push(deviceData);
-      console.log(`Added new device ${deviceId}`);
+      // Update existing device
+      deviceDbId = existingDevice.id;
+      
+      const { error: updateError } = await supabase
+        .from('devices')
+        .update({
+          device_name: data?.device_info?.device_name || "Unknown Device",
+          manufacturer: data?.device_info?.manufacturer || "Unknown",
+          model: data?.device_info?.model || "Unknown Model",
+          last_seen: timestamp
+        })
+        .eq('id', deviceDbId);
+        
+      if (updateError) {
+        console.error("Error updating device in database:", updateError);
+        return new Response(JSON.stringify({ 
+          error: "Database error", 
+          details: updateError.message
+        }), {
+          status: 500,
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          }
+        });
+      }
+      
+      console.log("Updated existing device in database with ID:", deviceDbId);
+    }
+    
+    // Store telemetry data in history
+    const { error: telemetryError } = await supabase
+      .from('telemetry_history')
+      .insert({
+        device_id: deviceDbId,
+        timestamp: timestamp,
+        telemetry_data: data
+      });
+      
+    if (telemetryError) {
+      console.error("Error storing telemetry data:", telemetryError);
+      return new Response(JSON.stringify({ 
+        error: "Database error", 
+        details: telemetryError.message
+      }), {
+        status: 500,
+        headers: { 
+          "Content-Type": "application/json",
+          ...corsHeaders
+        }
+      });
+    }
+    
+    // Process installed apps if present
+    if (data?.app_info?.installed_apps && Array.isArray(data.app_info.installed_apps)) {
+      const apps = data.app_info.installed_apps;
+      console.log(`Processing ${apps.length} apps for device ${deviceId}`);
+      
+      // Prepare app data for database
+      const appRows = apps.map(app => ({
+        device_id: deviceDbId,
+        app_package: app
+      }));
+      
+      if (appRows.length > 0) {
+        const { error: appsError } = await supabase
+          .from('device_apps')
+          .upsert(appRows, { 
+            onConflict: 'device_id,app_package', 
+            ignoreDuplicates: true 
+          });
+          
+        if (appsError) {
+          console.error("Warning: Error storing app data:", appsError);
+          // Continue even if app storage fails
+        } else {
+          console.log(`Successfully added ${apps.length} apps for device`);
+        }
+      }
     }
     
     // Return success response
     const response = {
       success: true, 
-      message: "Telemetry data received",
+      message: "Telemetry data received and stored in database",
       device_id: deviceId,
       timestamp: timestamp,
       received_data_size: JSON.stringify(data).length,
@@ -206,7 +301,67 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
   }
 }
 
-// Export a function to get all devices (simplified version)
-export function getAllDevicesFromApiImplementation() {
-  return deviceDatabase;
+// Export a function to get all devices from database
+export async function getAllDevicesFromApiImplementation() {
+  try {
+    // Get all devices from database
+    const { data: devices, error } = await supabase
+      .from('devices')
+      .select(`
+        id,
+        android_id,
+        device_name,
+        manufacturer,
+        model,
+        first_seen,
+        last_seen
+      `);
+      
+    if (error) {
+      console.error("Error getting devices from database:", error);
+      return [];
+    }
+    
+    // For each device, get the latest telemetry data
+    const result = await Promise.all(devices.map(async (device) => {
+      // Get latest telemetry record
+      const { data: telemetryRecords, error: telemetryError } = await supabase
+        .from('telemetry_history')
+        .select('telemetry_data')
+        .eq('device_id', device.id)
+        .order('timestamp', { ascending: false })
+        .limit(1);
+        
+      const telemetry = telemetryRecords && telemetryRecords.length > 0 
+        ? telemetryRecords[0].telemetry_data
+        : null;
+        
+      if (telemetryError) {
+        console.error(`Error getting telemetry for device ${device.id}:`, telemetryError);
+      }
+      
+      // Convert database record to DeviceStatus format
+      return {
+        id: device.android_id,
+        name: device.device_name || "Unknown Device",
+        model: device.model || "Unknown Model",
+        manufacturer: device.manufacturer || "Unknown Manufacturer",
+        os_version: telemetry?.system_info?.android_version || "Unknown",
+        battery_level: telemetry?.battery_info?.battery_level || 0,
+        battery_status: telemetry?.battery_info?.battery_status || "Unknown",
+        network_type: telemetry?.network_info?.network_interface || "Unknown",
+        ip_address: telemetry?.network_info?.ip_address || "0.0.0.0",
+        uptime_millis: telemetry?.system_info?.uptime_millis || 0,
+        last_seen: new Date(device.last_seen).getTime(),
+        isOnline: (new Date().getTime() - new Date(device.last_seen).getTime()) < 5 * 60 * 1000, // 5 min
+        telemetry: telemetry
+      };
+    }));
+    
+    return result;
+  } catch (error) {
+    console.error("Error in getAllDevicesFromApiImplementation:", error);
+    return [];
+  }
 }
+
