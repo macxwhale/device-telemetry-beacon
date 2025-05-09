@@ -38,8 +38,8 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
       });
       
       // Update known device IDs
-      setKnownDeviceIds(prev => {
-        const updated = new Set(prev);
+      setKnownDeviceIds(prevIds => {
+        const updated = new Set(prevIds);
         data.forEach(device => updated.add(device.id));
         return updated;
       });
@@ -56,7 +56,7 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, [knownDeviceIds]);
+  }, []); // Remove knownDeviceIds from the dependency array
 
   // Check for offline devices
   const checkOfflineDevices = useCallback(() => {
