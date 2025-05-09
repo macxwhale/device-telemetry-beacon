@@ -3,11 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { DeviceStatus, DeviceHistory, TelemetryData } from "@/types/telemetry";
 import { toast } from "sonner";
 
+// Create a generic client type that allows us to access any table
+const client = supabase as any;
+
 // Initialize the database connection
 export const initializeDatabaseConnection = async (): Promise<boolean> => {
   try {
     // Add telemetry trigger if it doesn't exist
-    const { error: triggerError } = await supabase.rpc('check_and_create_telemetry_trigger');
+    const { error: triggerError } = await client.rpc('check_and_create_telemetry_trigger');
     
     if (triggerError) {
       console.error("Error creating trigger:", triggerError);
@@ -15,7 +18,7 @@ export const initializeDatabaseConnection = async (): Promise<boolean> => {
     }
     
     // Enable real-time updates
-    const { error: realtimeError } = await supabase.rpc('enable_realtime_tables');
+    const { error: realtimeError } = await client.rpc('enable_realtime_tables');
     
     if (realtimeError) {
       console.error("Error enabling realtime:", realtimeError);
@@ -36,18 +39,16 @@ export const getDatabaseStats = async (): Promise<{
   apps: number;
 } | null> => {
   try {
-    // Use type assertion to bypass type checking for tables not in the type definition
-    const devicesResult = await (supabase
-      .from('devices') as any)
+    const devicesResult = await client
+      .from('devices')
       .select('id', { count: 'exact', head: true });
       
-    const telemetryResult = await (supabase
-      .from('telemetry_history') as any)
+    const telemetryResult = await client
+      .from('telemetry_history')
       .select('id', { count: 'exact', head: true });
       
-    // For tables not in the type definition, we need to use a more generic approach
-    const appsResult = await (supabase
-      .from('device_apps') as any)
+    const appsResult = await client
+      .from('device_apps')
       .select('id', { count: 'exact', head: true });
     
     return {
@@ -68,8 +69,8 @@ export const migrateMemoryDataToDatabase = async (devices: DeviceStatus[]): Prom
     
     for (const device of devices) {
       // First ensure the device exists
-      const { data: existingDevice, error: deviceError } = await (supabase
-        .from('devices') as any)
+      const { data: existingDevice, error: deviceError } = await client
+        .from('devices')
         .select('id')
         .eq('android_id', device.id)
         .maybeSingle();
@@ -83,8 +84,8 @@ export const migrateMemoryDataToDatabase = async (devices: DeviceStatus[]): Prom
       
       if (!existingDevice) {
         // Create device if it doesn't exist
-        const { data: newDevice, error: insertError } = await (supabase
-          .from('devices') as any)
+        const { data: newDevice, error: insertError } = await client
+          .from('devices')
           .insert({
             android_id: device.id,
             device_name: device.name,
@@ -109,8 +110,8 @@ export const migrateMemoryDataToDatabase = async (devices: DeviceStatus[]): Prom
       if (device.telemetry) {
         // Convert telemetry to a known Json type by going through JSON stringify/parse
         const telemetryJson = JSON.parse(JSON.stringify(device.telemetry));
-        const { error: telemetryError } = await (supabase
-          .from('telemetry_history') as any)
+        const { error: telemetryError } = await client
+          .from('telemetry_history')
           .insert({
             device_id: deviceId,
             timestamp: new Date(device.last_seen).toISOString(),
@@ -127,9 +128,8 @@ export const migrateMemoryDataToDatabase = async (devices: DeviceStatus[]): Prom
       if (device.telemetry?.app_info?.installed_apps) {
         const apps = device.telemetry.app_info.installed_apps;
         for (const app of apps) {
-          // For tables not in the type definition, we need to use a more generic approach
-          const { error: appError } = await (supabase
-            .from('device_apps') as any)
+          const { error: appError } = await client
+            .from('device_apps')
             .insert({
               device_id: deviceId,
               app_package: app
