@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -98,4 +99,45 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Define explicit pulse animation keyframes for our status indicators */
+@keyframes pulse {
+  0%, 100% { 
+    opacity: 1; 
+  }
+  50% { 
+    opacity: 0.6; 
+  }
+}
+
+/* Define a smoother pulse animation for status dots */
+@keyframes subtle-pulse {
+  0%, 100% { 
+    opacity: 0.95; 
+  }
+  50% { 
+    opacity: 0.75; 
+  }
+}
+
+/* Add transitions for smoother UI updates */
+.device-card, 
+.device-status, 
+.card {
+  transition: all 0.3s ease;
+}
+
+/* Smoother content changes */
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.chart-container {
+  transition: opacity 0.3s ease;
 }

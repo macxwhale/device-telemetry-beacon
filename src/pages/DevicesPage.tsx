@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Layout } from "@/components/Layout";
 import { useDevices } from "@/contexts/DeviceContext";
 import { DeviceStatusCard } from "@/components/dashboard/DeviceStatusCard";
@@ -11,21 +11,30 @@ import { RefreshCw, Search } from "lucide-react";
 const DevicesPage = () => {
   const { devices, loading, error, refreshDevices } = useDevices();
   const [searchTerm, setSearchTerm] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // Filter devices based on search term
-  const filteredDevices = devices.filter(device => {
+  // Memoize filtered devices to prevent unnecessary re-renders
+  const filteredDevices = useMemo(() => {
     const searchTermLower = searchTerm.toLowerCase();
-    return (
-      device.name.toLowerCase().includes(searchTermLower) ||
-      device.model.toLowerCase().includes(searchTermLower) ||
-      device.manufacturer.toLowerCase().includes(searchTermLower)
-    );
-  });
+    return devices.filter(device => {
+      return (
+        device.name.toLowerCase().includes(searchTermLower) ||
+        device.model.toLowerCase().includes(searchTermLower) ||
+        device.manufacturer.toLowerCase().includes(searchTermLower)
+      );
+    });
+  }, [devices, searchTerm]);
   
   useEffect(() => {
     // Page title
     document.title = "Devices - Device Telemetry";
   }, []);
+  
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refreshDevices();
+    setTimeout(() => setIsRefreshing(false), 500); // Add slight delay for better UX
+  };
   
   return (
     <Layout>
@@ -42,28 +51,34 @@ const DevicesPage = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Button variant="outline" size="sm" onClick={refreshDevices}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleRefresh} 
+            disabled={isRefreshing}
+            className="transition-all"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
           </Button>
         </div>
       </div>
       
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 fade-in">
           {[...Array(8)].map((_, i) => (
             <Skeleton key={i} className="h-48" />
           ))}
         </div>
       ) : filteredDevices.length === 0 ? (
-        <div className="text-center py-12">
+        <div className="text-center py-12 fade-in">
           <p className="text-muted-foreground">No devices found matching "{searchTerm}"</p>
           <Button variant="link" onClick={() => setSearchTerm("")}>Clear search</Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 fade-in">
           {filteredDevices.map(device => (
-            <DeviceStatusCard key={device.id} device={device} />
+            <DeviceStatusCard key={`device-${device.id}`} device={device} />
           ))}
         </div>
       )}
