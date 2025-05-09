@@ -8,19 +8,22 @@ import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 import { Toaster } from "@/components/ui/sonner";
 import TestApiPage from "./pages/TestApiPage";
+import { DeviceProvider } from "./contexts/DeviceContext";
 
 function App() {
   return (
     <Router>
       <Toaster />
-      <Routes>
-        <Route path="/" element={<Index />} />
-        <Route path="/devices" element={<DevicesPage />} />
-        <Route path="/devices/:id" element={<DeviceDetailPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/test-api" element={<TestApiPage />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <DeviceProvider>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/devices" element={<DevicesPage />} />
+          <Route path="/devices/:id" element={<DeviceDetailPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/test-api" element={<TestApiPage />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </DeviceProvider>
     </Router>
   );
 }
