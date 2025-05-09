@@ -1,5 +1,5 @@
 
-import { DeviceStatus } from "@/types/telemetry";
+import { DeviceStatus } from "../types/telemetry";
 
 // Non-JSX interface to the telemetry API
 // This file serves as a bridge between JSX and non-JSX code

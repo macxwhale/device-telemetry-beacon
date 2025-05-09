@@ -2,9 +2,9 @@
 // Non-JSX implementation of the telemetry API functions
 // This file must not contain any JSX or React imports
 
-import { supabase } from "@/integrations/supabase/client";
-import { DeviceStatus } from "@/types/telemetry";
-import { Json } from "@/integrations/supabase/types";
+import { supabase } from "../integrations/supabase/client";
+import { DeviceStatus } from "../types/telemetry";
+import { Json } from "../integrations/supabase/types";
 
 // API key for simple authentication
 const API_KEY = "telm_sk_1234567890abcdef";
