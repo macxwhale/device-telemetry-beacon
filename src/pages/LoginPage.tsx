@@ -57,7 +57,7 @@ const LoginPage: React.FC = () => {
               <Input 
                 id="email" 
                 type="email" 
-                placeholder="info@bunisystems.com"
+                placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -68,7 +68,7 @@ const LoginPage: React.FC = () => {
               <Input 
                 id="password" 
                 type="password" 
-                placeholder="••••••••"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
