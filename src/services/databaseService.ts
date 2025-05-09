@@ -36,29 +36,24 @@ export const getDatabaseStats = async (): Promise<{
   apps: number;
 } | null> => {
   try {
-    // Since the type definitions only include devices and telemetry_history,
-    // we need to use more generic methods to query other tables
-    const devicesResult = await supabase
-      .from('devices')
+    // Use type assertion to bypass type checking for tables not in the type definition
+    const devicesResult = await (supabase
+      .from('devices') as any)
       .select('id', { count: 'exact', head: true });
       
-    const telemetryResult = await supabase
-      .from('telemetry_history')
+    const telemetryResult = await (supabase
+      .from('telemetry_history') as any)
       .select('id', { count: 'exact', head: true });
       
     // For tables not in the type definition, we need to use a more generic approach
-    const { count: appsCount, error: appsError } = await supabase
-      .from('device_apps')
-      .select('id', { count: 'exact', head: true }) as unknown as { count: number | null, error: any };
-    
-    if (appsError) {
-      console.error("Error counting apps:", appsError);
-    }
+    const appsResult = await (supabase
+      .from('device_apps') as any)
+      .select('id', { count: 'exact', head: true });
     
     return {
       devices: devicesResult.count || 0,
       telemetry_records: telemetryResult.count || 0,
-      apps: appsCount || 0
+      apps: appsResult.count || 0
     };
   } catch (error) {
     console.error("Error getting database stats:", error);
@@ -73,8 +68,8 @@ export const migrateMemoryDataToDatabase = async (devices: DeviceStatus[]): Prom
     
     for (const device of devices) {
       // First ensure the device exists
-      const { data: existingDevice, error: deviceError } = await supabase
-        .from('devices')
+      const { data: existingDevice, error: deviceError } = await (supabase
+        .from('devices') as any)
         .select('id')
         .eq('android_id', device.id)
         .maybeSingle();
@@ -88,8 +83,8 @@ export const migrateMemoryDataToDatabase = async (devices: DeviceStatus[]): Prom
       
       if (!existingDevice) {
         // Create device if it doesn't exist
-        const { data: newDevice, error: insertError } = await supabase
-          .from('devices')
+        const { data: newDevice, error: insertError } = await (supabase
+          .from('devices') as any)
           .insert({
             android_id: device.id,
             device_name: device.name,
@@ -114,8 +109,8 @@ export const migrateMemoryDataToDatabase = async (devices: DeviceStatus[]): Prom
       if (device.telemetry) {
         // Convert telemetry to a known Json type by going through JSON stringify/parse
         const telemetryJson = JSON.parse(JSON.stringify(device.telemetry));
-        const { error: telemetryError } = await supabase
-          .from('telemetry_history')
+        const { error: telemetryError } = await (supabase
+          .from('telemetry_history') as any)
           .insert({
             device_id: deviceId,
             timestamp: new Date(device.last_seen).toISOString(),
@@ -133,12 +128,12 @@ export const migrateMemoryDataToDatabase = async (devices: DeviceStatus[]): Prom
         const apps = device.telemetry.app_info.installed_apps;
         for (const app of apps) {
           // For tables not in the type definition, we need to use a more generic approach
-          const { error: appError } = await supabase
-            .from('device_apps')
+          const { error: appError } = await (supabase
+            .from('device_apps') as any)
             .insert({
               device_id: deviceId,
               app_package: app
-            }) as any; // Using any to bypass TypeScript strict checking for tables not in definition
+            });
           
           if (appError) {
             console.error(`Error inserting app ${app} for device ${device.id}:`, appError);

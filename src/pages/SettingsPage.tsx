@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -312,10 +313,7 @@ const SettingsPage = () => {
                     <Input id="api-key" value="telm_sk_1234567890abcdef" readOnly className="font-mono text-sm" />
                     <Button variant="outline" onClick={() => {
                       navigator.clipboard.writeText("telm_sk_1234567890abcdef");
-                      toast({
-                        title: "Copied to clipboard",
-                        description: "API key copied to clipboard",
-                      });
+                      toast("API key copied to clipboard");
                     }}>
                       Copy
                     </Button>
@@ -429,10 +427,7 @@ Authorization: Bearer telm_sk_1234567890abcdef`}
                       variant="outline" 
                       onClick={() => {
                         navigator.clipboard.writeText(`curl -X POST ${apiEndpoint} \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer telm_sk_1234567890abcdef" \\\n  -d '{\n  "device_info": {\n    "device_name": "Test Device",\n    "android_id": "test123456789"\n  }}'`);
-                        toast({
-                          title: "Test command copied",
-                          description: "Minimal test curl command copied to clipboard",
-                        });
+                        toast("Minimal test curl command copied to clipboard");
                       }}
                     >
                       Copy Test Command
