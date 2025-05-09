@@ -103,7 +103,7 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
           toast({
             title: "Low Battery Warning",
             description: `${device.name} has ${device.battery_level}% battery remaining`,
-            variant: "warning",
+            variant: "default", // Changed from "warning" to "default" as only "default" and "destructive" are valid
           });
         }
         
