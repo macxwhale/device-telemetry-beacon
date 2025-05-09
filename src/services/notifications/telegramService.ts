@@ -12,17 +12,48 @@ export const sendTelegramTestNotification = async (
       return false;
     }
     
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-notification`, {
+    // Get the Supabase URL and anon key - don't use VITE_ prefixed env variables
+    // instead use the imported values from the supabase client
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error("Missing Supabase URL or anon key");
+      toast.error("Configuration error", { 
+        description: "Supabase URL or anon key is missing" 
+      });
+      return false;
+    }
+    
+    const response = await fetch(`${supabaseUrl}/functions/v1/send-notification`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        'Authorization': `Bearer ${supabaseAnonKey}`
       },
       body: JSON.stringify({
         message: "This is a test notification from Device Telemetry",
         type: "test"
       })
     });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Error response from send-notification function:", errorText);
+      let errorMessage = "Failed to send test notification";
+      
+      // Try to parse as JSON if possible
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.error || errorMessage;
+      } catch (e) {
+        // If parsing fails, use the raw text (truncated if too long)
+        errorMessage = errorText.length > 100 ? 
+          `${errorText.substring(0, 100)}...` : errorText;
+      }
+      
+      throw new Error(errorMessage);
+    }
     
     const result = await response.json();
     
