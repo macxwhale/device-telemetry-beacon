@@ -22,7 +22,8 @@ export const initializeDatabaseConnection = async (): Promise<boolean> => {
             SELECT 
               EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'devices') as devices_exist,
               EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'telemetry_history') as telemetry_exist,
-              EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'device_apps') as apps_exist
+              EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'device_apps') as apps_exist,
+              EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'device_telemetry') as device_telemetry_exist
           `
         }
       );
@@ -116,6 +117,7 @@ export const getDatabaseStats = async (): Promise<{
             SELECT 
               EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'devices') as devices_exist,
               EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'telemetry_history') as telemetry_exist,
+              EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'device_telemetry') as device_telemetry_exist,
               EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'device_apps') as apps_exist
           `
         }
@@ -140,7 +142,7 @@ export const getDatabaseStats = async (): Promise<{
         sql: `
           SELECT 
             (SELECT COUNT(*) FROM devices) as device_count,
-            (SELECT COUNT(*) FROM telemetry_history) as telemetry_count,
+            (SELECT COUNT(*) FROM telemetry_history) + (SELECT COALESCE(COUNT(*), 0) FROM device_telemetry) as telemetry_count,
             (SELECT COUNT(*) FROM device_apps) as app_count
         `
       });
