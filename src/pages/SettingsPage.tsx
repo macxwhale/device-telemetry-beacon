@@ -7,19 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, Database, Save } from "lucide-react";
-import { initializeDatabaseConnection, getDatabaseStats, migrateMemoryDataToDatabase } from "@/services/databaseService";
-import { useDevices } from "@/contexts/DeviceContext";
+import { RefreshCw, Database } from "lucide-react";
+import { initializeDatabaseConnection, getDatabaseStats } from "@/services/databaseService";
 
 const SettingsPage = () => {
   const [isInitializing, setIsInitializing] = useState(false);
-  const [isMigrating, setIsMigrating] = useState(false);
   const [databaseStatus, setDatabaseStatus] = useState<{
     devices: number;
     telemetry_records: number;
     apps: number;
   } | null>(null);
-  const { devices } = useDevices();
   
   useEffect(() => {
     // Page title
@@ -72,17 +69,6 @@ const SettingsPage = () => {
       toast.error("Failed to initialize database connection");
     } finally {
       setIsInitializing(false);
-    }
-  };
-  
-  // Function to migrate in-memory data to database
-  const handleMigrateData = async () => {
-    setIsMigrating(true);
-    try {
-      await migrateMemoryDataToDatabase(devices);
-      checkDatabaseStatus();
-    } finally {
-      setIsMigrating(false);
     }
   };
   
@@ -205,7 +191,7 @@ const SettingsPage = () => {
             <CardHeader>
               <CardTitle>Database Configuration</CardTitle>
               <CardDescription>
-                Initialize and manage the database connection for telemetry data.
+                Manage the database connection for telemetry data storage.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -242,7 +228,7 @@ const SettingsPage = () => {
                 <div className="border-t pt-4">
                   <h3 className="text-sm font-medium mb-2">Database Operations</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Initialize the connection between the API and database tables.
+                    Initialize or verify the database tables and connections.
                   </p>
                   
                   <div className="flex flex-col sm:flex-row gap-3">
@@ -252,17 +238,7 @@ const SettingsPage = () => {
                       className="flex items-center gap-2"
                     >
                       <Database className="h-4 w-4" />
-                      {isInitializing ? 'Initializing...' : 'Initialize Database Connection'}
-                    </Button>
-                    
-                    <Button 
-                      variant="outline"
-                      onClick={handleMigrateData} 
-                      disabled={isMigrating || devices.length === 0}
-                      className="flex items-center gap-2"
-                    >
-                      <Save className="h-4 w-4" />
-                      {isMigrating ? 'Migrating...' : `Migrate ${devices.length} Devices to Database`}
+                      {isInitializing ? 'Initializing...' : 'Initialize/Verify Database'}
                     </Button>
                   </div>
                 </div>
@@ -270,16 +246,16 @@ const SettingsPage = () => {
                 <div className="border-t pt-4">
                   <h3 className="text-sm font-medium mb-2">About Database Storage</h3>
                   <p className="text-sm text-muted-foreground">
-                    Device telemetry data is stored in a persistent database to ensure data is not lost.
-                    The database allows for:
+                    All device telemetry data is automatically stored in the database. The database structure includes:
                   </p>
                   <ul className="list-disc list-inside text-sm text-muted-foreground mt-2 space-y-1">
-                    <li>Long-term data storage and retrieval</li>
-                    <li>Historical trend analysis</li>
-                    <li>Device fleet management</li>
-                    <li>App inventory tracking</li>
-                    <li>Real-time notifications</li>
+                    <li><strong>devices</strong> - Basic device information (IDs, names, models)</li>
+                    <li><strong>telemetry_history</strong> - Complete telemetry data history</li>
+                    <li><strong>device_apps</strong> - List of applications installed on each device</li>
                   </ul>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    All data is automatically persisted and retrievable for historical analysis.
+                  </p>
                 </div>
               </div>
             </CardContent>
