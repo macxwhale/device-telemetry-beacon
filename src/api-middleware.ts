@@ -100,11 +100,13 @@ export async function handleApiRequest(request: Request): Promise<Response | und
         
         // Get response body to validate it's JSON
         const responseBody = await response.text();
+        console.log("Raw API response (first 200 chars):", responseBody.substring(0, 200));
         
         try {
           // Verify response is valid JSON if content type indicates JSON
           if (headers.get('Content-Type')?.includes('application/json')) {
             JSON.parse(responseBody); // Just to validate
+            console.log("Response validated as valid JSON");
           }
           
           // Return validated response with CORS headers
@@ -135,8 +137,7 @@ export async function handleApiRequest(request: Request): Promise<Response | und
         console.error("Error in API handler:", apiError);
         return new Response(JSON.stringify({ 
           error: "API handler error", 
-          details: (apiError as Error).message,
-          stack: (apiError as Error).stack 
+          details: (apiError as Error).message
         }), {
           status: 500,
           headers: { 
@@ -150,8 +151,7 @@ export async function handleApiRequest(request: Request): Promise<Response | und
     console.error("Global API middleware error:", error);
     return new Response(JSON.stringify({ 
       error: "API middleware error", 
-      details: (error as Error).message,
-      stack: (error as Error).stack
+      details: (error as Error).message
     }), {
       status: 500,
       headers: { 

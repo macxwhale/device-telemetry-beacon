@@ -72,8 +72,12 @@ export function apiMiddleware(): Plugin {
                 res.setHeader(key, value);
               });
               
-              // Ensure Content-Type is set
+              // Ensure Content-Type is set to application/json
               if (!res.getHeader('Content-Type')) {
+                res.setHeader('Content-Type', 'application/json');
+              } else {
+                console.log("Content-Type already set to:", res.getHeader('Content-Type'));
+                // Force JSON content type if we're handling API routes
                 res.setHeader('Content-Type', 'application/json');
               }
               
@@ -83,6 +87,43 @@ export function apiMiddleware(): Plugin {
               // Log response for debugging
               console.log("Response content type:", res.getHeader('Content-Type'));
               console.log("Response body (first 200 chars):", responseBody.substring(0, 200));
+              
+              // Validate JSON before sending
+              try {
+                if (
+                  (typeof responseBody === 'string') && 
+                  responseBody.trim() && 
+                  !responseBody.trim().startsWith('<!DOCTYPE') && 
+                  !responseBody.trim().startsWith('<html')
+                ) {
+                  // Try to parse as JSON to validate
+                  if (res.getHeader('Content-Type')?.toString().includes('application/json')) {
+                    JSON.parse(responseBody);
+                    console.log("Validated response is valid JSON");
+                  }
+                } else if (responseBody.trim().startsWith('<!DOCTYPE') || responseBody.trim().startsWith('<html')) {
+                  console.error("ERROR: Detected HTML response, converting to JSON error");
+                  res.statusCode = 500;
+                  res.setHeader('Content-Type', 'application/json');
+                  const errorJson = JSON.stringify({
+                    error: "API returned HTML instead of JSON",
+                    message: "Internal server error"
+                  });
+                  res.end(errorJson);
+                  return;
+                }
+              } catch (e) {
+                console.error("Response is not valid JSON, converting to error:", e);
+                res.statusCode = 500;
+                res.setHeader('Content-Type', 'application/json');
+                const errorJson = JSON.stringify({
+                  error: "Invalid JSON response",
+                  message: (e as Error).message,
+                  responsePreview: responseBody.substring(0, 100)
+                });
+                res.end(errorJson);
+                return;
+              }
               
               // Send response
               res.end(responseBody);
