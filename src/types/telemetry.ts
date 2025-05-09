@@ -8,7 +8,7 @@ export interface DeviceInfo {
   model: string;
   product: string;
   android_id: string;
-  imei: string;
+  imei?: string;
   is_emulator: boolean;
 }
 
@@ -41,6 +41,7 @@ export interface BatteryInfo {
 export interface NetworkInfo {
   wifi_ip: string;
   mobile_ip?: string;
+  ethernet_ip?: string;
   network_interface?: string;
   carrier: string;
   wifi_ssid: string;

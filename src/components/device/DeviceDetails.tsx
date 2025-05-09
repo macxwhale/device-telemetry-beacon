@@ -54,10 +54,12 @@ export const DeviceDetails: FC<DeviceDetailsProps> = ({ telemetry }) => {
                 <p className="text-sm text-muted-foreground">Android ID</p>
                 <p className="text-sm font-medium">{telemetry.device_info.android_id}</p>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">IMEI</p>
-                <p className="text-sm font-medium">{telemetry.device_info.imei}</p>
-              </div>
+              {telemetry.device_info.imei && (
+                <div>
+                  <p className="text-sm text-muted-foreground">IMEI</p>
+                  <p className="text-sm font-medium">{telemetry.device_info.imei}</p>
+                </div>
+              )}
               <div>
                 <p className="text-sm text-muted-foreground">Is Emulator</p>
                 <p className="text-sm font-medium">{telemetry.device_info.is_emulator ? "Yes" : "No"}</p>
@@ -136,17 +138,39 @@ export const DeviceDetails: FC<DeviceDetailsProps> = ({ telemetry }) => {
           {/* Network Info Tab */}
           <TabsContent value="network">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
-              <div>
-                <p className="text-sm text-muted-foreground">IP Address</p>
-                <p className="text-sm font-medium">{telemetry.network_info.ip_address}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Network Interface</p>
-                <p className="text-sm font-medium">{telemetry.network_info.network_interface}</p>
-              </div>
+              {telemetry.network_info.wifi_ip && (
+                <div>
+                  <p className="text-sm text-muted-foreground">WiFi IP</p>
+                  <p className="text-sm font-medium">{telemetry.network_info.wifi_ip}</p>
+                </div>
+              )}
+              {telemetry.network_info.ethernet_ip && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Ethernet IP</p>
+                  <p className="text-sm font-medium">{telemetry.network_info.ethernet_ip}</p>
+                </div>
+              )}
+              {telemetry.network_info.mobile_ip && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Mobile IP</p>
+                  <p className="text-sm font-medium">{telemetry.network_info.mobile_ip}</p>
+                </div>
+              )}
+              {telemetry.network_info.ip_address && !telemetry.network_info.wifi_ip && !telemetry.network_info.mobile_ip && !telemetry.network_info.ethernet_ip && (
+                <div>
+                  <p className="text-sm text-muted-foreground">IP Address</p>
+                  <p className="text-sm font-medium">{telemetry.network_info.ip_address}</p>
+                </div>
+              )}
+              {telemetry.network_info.network_interface && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Network Interface</p>
+                  <p className="text-sm font-medium">{telemetry.network_info.network_interface}</p>
+                </div>
+              )}
               <div>
                 <p className="text-sm text-muted-foreground">Carrier</p>
-                <p className="text-sm font-medium">{telemetry.network_info.carrier}</p>
+                <p className="text-sm font-medium">{telemetry.network_info.carrier || "Not available"}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">WiFi SSID</p>

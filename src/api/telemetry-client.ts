@@ -75,13 +75,27 @@ export const TelemetryClient = {
       .sort(() => Math.random() - 0.5)
       .slice(0, Math.floor(Math.random() * 5) + 3);
     
-    // Create network info based on the new structure
+    // Determine device type and create appropriate network info
+    const isAndroidTV = customData.device_type === 'tv' || Math.random() > 0.7;
+    
+    // Create network info based on the device type and available data
     const networkInfo = {
-      wifi_ip: customData.wifi_ip || customData.ip_address || `192.168.1.${Math.floor(Math.random() * 255)}`,
-      mobile_ip: customData.mobile_ip || `10.0.0.${Math.floor(Math.random() * 255)}`,
-      carrier: customData.carrier || "Test Carrier",
+      wifi_ip: customData.wifi_ip || `192.168.1.${Math.floor(Math.random() * 255)}`,
+      carrier: customData.carrier || (isAndroidTV ? "" : "Test Carrier"),
       wifi_ssid: customData.wifi_ssid || "Test-WiFi"
     };
+    
+    // Add mobile_ip or ethernet_ip based on device type
+    if (isAndroidTV) {
+      networkInfo['ethernet_ip'] = customData.ethernet_ip || `192.168.0.${Math.floor(Math.random() * 255)}`;
+    } else {
+      networkInfo['mobile_ip'] = customData.mobile_ip || `10.0.0.${Math.floor(Math.random() * 255)}`;
+    }
+    
+    // Include the legacy ip_address field for backward compatibility if provided
+    if (customData.ip_address) {
+      networkInfo['ip_address'] = customData.ip_address;
+    }
     
     return {
       device_info: {
@@ -119,8 +133,8 @@ export const TelemetryClient = {
         battery_status: customData.battery_status || ["Charging", "Discharging", "Full", "Not Charging"][Math.floor(Math.random() * 4)]
       },
       display_info: {
-        screen_resolution: customData.screen_resolution || "1080x2400",
-        screen_orientation: customData.screen_orientation || "portrait"
+        screen_resolution: customData.screen_resolution || (isAndroidTV ? "1920x1080" : "1080x2400"),
+        screen_orientation: customData.screen_orientation || (isAndroidTV ? "landscape" : "portrait")
       },
       network_info: networkInfo,
       security_info: {

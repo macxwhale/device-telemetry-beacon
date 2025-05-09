@@ -1,4 +1,3 @@
-
 // Non-JSX implementation of the telemetry API functions
 // This file must not contain any JSX or React imports
 
@@ -361,8 +360,9 @@ export async function getAllDevicesFromApiImplementation(): Promise<DeviceStatus
         console.error(`Error getting telemetry for device ${device.id}:`, telemetryError);
       }
       
-      // Get IP address from either wifi_ip or mobile_ip or fallback
+      // Get IP address from all possible sources with priority order
       const ipAddress = 
+        safelyGetNestedProperty(telemetryData, ['network_info', 'ethernet_ip'], null) || 
         safelyGetNestedProperty(telemetryData, ['network_info', 'wifi_ip'], null) || 
         safelyGetNestedProperty(telemetryData, ['network_info', 'mobile_ip'], null) || 
         safelyGetNestedProperty(telemetryData, ['network_info', 'ip_address'], "0.0.0.0");
