@@ -12,7 +12,7 @@ interface DeviceStatusCardProps {
 
 export const DeviceStatusCard: FC<DeviceStatusCardProps> = ({ device }) => {
   return (
-    <Link to={`/device/${device.id}`}>
+    <Link to={`/devices/${device.id}`}>
       <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
         <CardHeader className="pb-2">
           <div className="flex justify-between items-center">

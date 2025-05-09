@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Layout } from "@/components/Layout";
@@ -12,19 +11,19 @@ import { toast } from "@/components/ui/use-toast";
 import { useDevices } from "@/contexts/DeviceContext";
 
 const DeviceDetailPage = () => {
-  const { deviceId } = useParams<{ deviceId: string }>();
+  const { id } = useParams<{ id: string }>();
   const [device, setDevice] = useState<DeviceStatus | null>(null);
   const [history, setHistory] = useState<DeviceHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const { refreshDevices } = useDevices();
   
   const fetchDeviceData = async () => {
-    if (!deviceId) return;
+    if (!id) return;
     
     try {
       setLoading(true);
-      const deviceData = await getDeviceById(deviceId);
-      const deviceHistory = await getDeviceHistory(deviceId);
+      const deviceData = await getDeviceById(id);
+      const deviceHistory = await getDeviceHistory(id);
       
       if (deviceData) {
         setDevice(deviceData);
@@ -54,7 +53,7 @@ const DeviceDetailPage = () => {
   
   useEffect(() => {
     fetchDeviceData();
-  }, [deviceId]);
+  }, [id]);
   
   if (loading) {
     return (
