@@ -31,16 +31,14 @@ const SettingsPage = () => {
   
   const handleSaveGeneral = (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Settings saved",
+    toast.success("Settings saved", {
       description: "Your general settings have been updated",
     });
   };
   
   const handleSaveNotifications = (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: "Notification settings saved",
+    toast.success("Notification settings saved", {
       description: "Your notification preferences have been updated",
     });
   };

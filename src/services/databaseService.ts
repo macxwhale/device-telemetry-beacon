@@ -7,22 +7,7 @@ import { toast } from "sonner";
 export const initializeDatabaseConnection = async (): Promise<boolean> => {
   try {
     // Add telemetry trigger if it doesn't exist
-    const { error: triggerError } = await supabase.query(`
-      DO $$
-      BEGIN
-        -- Create trigger if it doesn't exist
-        IF NOT EXISTS (
-          SELECT 1 FROM pg_trigger 
-          WHERE tgname = 'telemetry_data_trigger'
-        ) THEN
-          CREATE TRIGGER telemetry_data_trigger
-            BEFORE INSERT ON public.telemetry_history
-            FOR EACH ROW
-            EXECUTE FUNCTION public.process_telemetry_data();
-        END IF;
-      END
-      $$;
-    `);
+    const { error: triggerError } = await supabase.rpc('check_and_create_telemetry_trigger');
     
     if (triggerError) {
       console.error("Error creating trigger:", triggerError);
@@ -30,33 +15,7 @@ export const initializeDatabaseConnection = async (): Promise<boolean> => {
     }
     
     // Enable real-time updates
-    const { error: realtimeError } = await supabase.query(`
-      ALTER TABLE public.devices REPLICA IDENTITY FULL;
-      ALTER TABLE public.telemetry_history REPLICA IDENTITY FULL;
-      
-      -- Add table to realtime publication if not already added
-      DO $$
-      BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM pg_publication_tables 
-          WHERE pubname = 'supabase_realtime' 
-          AND schemaname = 'public' 
-          AND tablename = 'devices'
-        ) THEN
-          ALTER PUBLICATION supabase_realtime ADD TABLE public.devices;
-        END IF;
-        
-        IF NOT EXISTS (
-          SELECT 1 FROM pg_publication_tables 
-          WHERE pubname = 'supabase_realtime' 
-          AND schemaname = 'public' 
-          AND tablename = 'telemetry_history'
-        ) THEN
-          ALTER PUBLICATION supabase_realtime ADD TABLE public.telemetry_history;
-        END IF;
-      END
-      $$;
-    `);
+    const { error: realtimeError } = await supabase.rpc('enable_realtime_tables');
     
     if (realtimeError) {
       console.error("Error enabling realtime:", realtimeError);
@@ -77,16 +36,29 @@ export const getDatabaseStats = async (): Promise<{
   apps: number;
 } | null> => {
   try {
-    const [devicesResult, telemetryResult, appsResult] = await Promise.all([
-      supabase.from('devices').select('id', { count: 'exact', head: true }),
-      supabase.from('telemetry_history').select('id', { count: 'exact', head: true }),
-      supabase.from('device_apps').select('id', { count: 'exact', head: true })
-    ]);
+    // Since the type definitions only include devices and telemetry_history,
+    // we need to use more generic methods to query other tables
+    const devicesResult = await supabase
+      .from('devices')
+      .select('id', { count: 'exact', head: true });
+      
+    const telemetryResult = await supabase
+      .from('telemetry_history')
+      .select('id', { count: 'exact', head: true });
+      
+    // For tables not in the type definition, we need to use a more generic approach
+    const { count: appsCount, error: appsError } = await supabase
+      .from('device_apps')
+      .select('id', { count: 'exact', head: true }) as unknown as { count: number | null, error: any };
+    
+    if (appsError) {
+      console.error("Error counting apps:", appsError);
+    }
     
     return {
       devices: devicesResult.count || 0,
       telemetry_records: telemetryResult.count || 0,
-      apps: appsResult.count || 0
+      apps: appsCount || 0
     };
   } catch (error) {
     console.error("Error getting database stats:", error);
@@ -140,12 +112,14 @@ export const migrateMemoryDataToDatabase = async (devices: DeviceStatus[]): Prom
       
       // Add telemetry history
       if (device.telemetry) {
+        // Convert telemetry to a known Json type by going through JSON stringify/parse
+        const telemetryJson = JSON.parse(JSON.stringify(device.telemetry));
         const { error: telemetryError } = await supabase
           .from('telemetry_history')
           .insert({
             device_id: deviceId,
             timestamp: new Date(device.last_seen).toISOString(),
-            telemetry_data: device.telemetry
+            telemetry_data: telemetryJson
           });
         
         if (telemetryError) {
@@ -158,14 +132,13 @@ export const migrateMemoryDataToDatabase = async (devices: DeviceStatus[]): Prom
       if (device.telemetry?.app_info?.installed_apps) {
         const apps = device.telemetry.app_info.installed_apps;
         for (const app of apps) {
+          // For tables not in the type definition, we need to use a more generic approach
           const { error: appError } = await supabase
             .from('device_apps')
             .insert({
               device_id: deviceId,
               app_package: app
-            })
-            .onConflict(['device_id', 'app_package'])
-            .ignore();
+            }) as any; // Using any to bypass TypeScript strict checking for tables not in definition
           
           if (appError) {
             console.error(`Error inserting app ${app} for device ${device.id}:`, appError);
