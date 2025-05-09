@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { TelemetryClient } from "@/api/telemetry-client";
 import { Loader2, PlayCircle, RefreshCw, CheckCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DatabaseInitializer } from "@/components/DatabaseInitializer";
 
 const TestApiPage = () => {
   const [deviceId, setDeviceId] = useState(`device_${Math.floor(Math.random() * 100000)}`);
@@ -179,6 +180,16 @@ const TestApiPage = () => {
             <RefreshCw className="w-4 h-4 mr-2" />
             Generate New Sample
           </Button>
+        </div>
+        
+        {/* Database Operations Section */}
+        <div className="bg-card rounded-lg p-4 border shadow-sm">
+          <h2 className="text-xl font-semibold mb-4">Database Operations</h2>
+          <p className="text-muted-foreground mb-4">
+            After sending test data, use the controls below to initialize the database and migrate 
+            the in-memory data to permanent storage.
+          </p>
+          <DatabaseInitializer />
         </div>
         
         <Tabs defaultValue="basic" value={activeTab} onValueChange={setActiveTab}>

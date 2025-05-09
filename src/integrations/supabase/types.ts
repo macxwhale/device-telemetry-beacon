@@ -9,20 +9,234 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      device_apps: {
+        Row: {
+          app_package: string
+          device_id: string
+          id: string
+          recorded_at: string
+        }
+        Insert: {
+          app_package: string
+          device_id: string
+          id?: string
+          recorded_at?: string
+        }
+        Update: {
+          app_package?: string
+          device_id?: string
+          id?: string
+          recorded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_apps_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      device_telemetry: {
+        Row: {
+          android_id: string | null
+          android_version: string | null
+          base_version: number | null
+          battery_level: number | null
+          battery_status: Database["public"]["Enums"]["battery_status"] | null
+          board: string | null
+          boot_time: number | null
+          bootloader: string | null
+          brand: string | null
+          build_number: string | null
+          build_tags: string | null
+          build_type: string | null
+          carrier: string | null
+          cpu_cores: number | null
+          device_id: string
+          device_name: string | null
+          fingerprint: string | null
+          hardware: string | null
+          host: string | null
+          id: string
+          imei: string | null
+          ip_address: string | null
+          is_emulator: boolean | null
+          is_rooted: boolean | null
+          kernel_version: string | null
+          language: string | null
+          manufacturer: string | null
+          model: string | null
+          network_interface: Database["public"]["Enums"]["network_type"] | null
+          os_type: string | null
+          product: string | null
+          screen_orientation: string | null
+          screen_resolution: string | null
+          sdk_int: number | null
+          timestamp: string
+          timezone: string | null
+          uptime_millis: number | null
+          user_name: string | null
+          wifi_ssid: string | null
+        }
+        Insert: {
+          android_id?: string | null
+          android_version?: string | null
+          base_version?: number | null
+          battery_level?: number | null
+          battery_status?: Database["public"]["Enums"]["battery_status"] | null
+          board?: string | null
+          boot_time?: number | null
+          bootloader?: string | null
+          brand?: string | null
+          build_number?: string | null
+          build_tags?: string | null
+          build_type?: string | null
+          carrier?: string | null
+          cpu_cores?: number | null
+          device_id: string
+          device_name?: string | null
+          fingerprint?: string | null
+          hardware?: string | null
+          host?: string | null
+          id?: string
+          imei?: string | null
+          ip_address?: string | null
+          is_emulator?: boolean | null
+          is_rooted?: boolean | null
+          kernel_version?: string | null
+          language?: string | null
+          manufacturer?: string | null
+          model?: string | null
+          network_interface?: Database["public"]["Enums"]["network_type"] | null
+          os_type?: string | null
+          product?: string | null
+          screen_orientation?: string | null
+          screen_resolution?: string | null
+          sdk_int?: number | null
+          timestamp?: string
+          timezone?: string | null
+          uptime_millis?: number | null
+          user_name?: string | null
+          wifi_ssid?: string | null
+        }
+        Update: {
+          android_id?: string | null
+          android_version?: string | null
+          base_version?: number | null
+          battery_level?: number | null
+          battery_status?: Database["public"]["Enums"]["battery_status"] | null
+          board?: string | null
+          boot_time?: number | null
+          bootloader?: string | null
+          brand?: string | null
+          build_number?: string | null
+          build_tags?: string | null
+          build_type?: string | null
+          carrier?: string | null
+          cpu_cores?: number | null
+          device_id?: string
+          device_name?: string | null
+          fingerprint?: string | null
+          hardware?: string | null
+          host?: string | null
+          id?: string
+          imei?: string | null
+          ip_address?: string | null
+          is_emulator?: boolean | null
+          is_rooted?: boolean | null
+          kernel_version?: string | null
+          language?: string | null
+          manufacturer?: string | null
+          model?: string | null
+          network_interface?: Database["public"]["Enums"]["network_type"] | null
+          os_type?: string | null
+          product?: string | null
+          screen_orientation?: string | null
+          screen_resolution?: string | null
+          sdk_int?: number | null
+          timestamp?: string
+          timezone?: string | null
+          uptime_millis?: number | null
+          user_name?: string | null
+          wifi_ssid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_telemetry_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      devices: {
+        Row: {
+          android_id: string
+          device_name: string | null
+          first_seen: string
+          id: string
+          last_seen: string
+          manufacturer: string | null
+          model: string | null
+        }
+        Insert: {
+          android_id: string
+          device_name?: string | null
+          first_seen?: string
+          id?: string
+          last_seen?: string
+          manufacturer?: string | null
+          model?: string | null
+        }
+        Update: {
+          android_id?: string
+          device_name?: string | null
+          first_seen?: string
+          id?: string
+          last_seen?: string
+          manufacturer?: string | null
+          model?: string | null
+        }
+        Relationships: []
+      }
+      telemetry_history: {
+        Row: {
+          device_id: string
+          id: string
+          telemetry_data: Json
+          timestamp: string
+        }
+        Insert: {
+          device_id: string
+          id?: string
+          telemetry_data: Json
+          timestamp?: string
+        }
+        Update: {
+          device_id?: string
+          id?: string
+          telemetry_data?: Json
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telemetry_history_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      check_and_create_telemetry_trigger: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      enable_realtime_tables: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      [_ in never]: never
     }
     Enums: {
       battery_status:
