@@ -1,5 +1,6 @@
 
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 // Send a test notification via Telegram
 export const sendTelegramTestNotification = async (
@@ -12,10 +13,9 @@ export const sendTelegramTestNotification = async (
       return false;
     }
     
-    // Get the Supabase URL and anon key - don't use VITE_ prefixed env variables
-    // instead use the imported values from the supabase client
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    // Use the Supabase URL and anon key from the supabase client
+    const supabaseUrl = supabase.supabaseUrl;
+    const supabaseAnonKey = supabase.supabaseKey;
     
     if (!supabaseUrl || !supabaseAnonKey) {
       console.error("Missing Supabase URL or anon key");
@@ -32,6 +32,8 @@ export const sendTelegramTestNotification = async (
         'Authorization': `Bearer ${supabaseAnonKey}`
       },
       body: JSON.stringify({
+        botToken: botToken,
+        chatId: chatId,
         message: "This is a test notification from Device Telemetry",
         type: "test"
       })
