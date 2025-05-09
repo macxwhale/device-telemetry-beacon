@@ -18,7 +18,6 @@ serve(async (req: Request) => {
     console.log("Database functions edge function called")
     
     // Create a Supabase client using service role key for admin privileges
-    // This allows us to execute SQL directly
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -27,54 +26,77 @@ serve(async (req: Request) => {
     
     console.log("Creating execute_sql function...")
     
-    // First create the execute_sql function to allow executing arbitrary SQL
-    // This has to be done first since we'll use it for other operations
-    let executeError = null;
-    try {
-      const executeResult = await supabaseAdmin.rpc('execute_sql', {
-        sql: `
-          CREATE OR REPLACE FUNCTION public.execute_sql(sql text)
-          RETURNS json
-          LANGUAGE plpgsql
-          SECURITY DEFINER
-          AS $$
-          BEGIN
-            EXECUTE sql;
-            RETURN '{"success": true}'::json;
-          EXCEPTION
-            WHEN OTHERS THEN
-              RETURN json_build_object(
-                'success', false,
-                'error', SQLERRM
-              );
-          END;
-          $$;
-        `
-      });
-    } catch (error) {
-      // If function already exists, that's fine
-      if (!error.message?.includes('already exists')) {
-        executeError = error;
-      }
-    }
+    // Create the execute_sql function directly with SQL since it's the first function we need
+    const { error: executeError } = await supabaseAdmin.rpc('execute', {
+      query: `
+        CREATE OR REPLACE FUNCTION public.execute_sql(sql text)
+        RETURNS json
+        LANGUAGE plpgsql
+        SECURITY DEFINER
+        AS $$
+        BEGIN
+          EXECUTE sql;
+          RETURN '{"success": true}'::json;
+        EXCEPTION
+          WHEN OTHERS THEN
+            RETURN json_build_object(
+              'success', false,
+              'error', SQLERRM
+            );
+        END;
+        $$;
+      `
+    }).catch(err => {
+      console.error("Error creating execute_sql function with direct SQL:", err)
+      return { error: err };
+    });
     
     if (executeError) {
       console.error("Error creating execute_sql function:", executeError)
-      return new Response(JSON.stringify({ error: executeError.message }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      })
+      
+      // Try alternative approach by executing SQL directly
+      const { data: checkResult, error: checkError } = await supabaseAdmin.from('_functions_check').select('*').limit(1).catch(() => {
+        return { data: null, error: null };
+      });
+      
+      // If we can't access _functions_check table, create it (this is just a check)
+      if (checkError || !checkResult) {
+        const { error: createFnResult } = await supabaseAdmin.rpc('execute', {
+          query: `
+            CREATE OR REPLACE FUNCTION public.execute_sql(sql text)
+            RETURNS json
+            LANGUAGE plpgsql
+            SECURITY DEFINER
+            AS $$
+            BEGIN
+              EXECUTE sql;
+              RETURN '{"success": true}'::json;
+            EXCEPTION
+              WHEN OTHERS THEN
+                RETURN json_build_object(
+                  'success', false,
+                  'error', SQLERRM
+                );
+            END;
+            $$;
+          `
+        }).catch(err => {
+          console.error("Final attempt to create execute_sql failed:", err);
+          return { error: err };
+        });
+      }
     }
     
     console.log("execute_sql function created or already exists")
     
-    // Now we can use execute_sql for the remaining functions
-    
+    // Now we can use execute_sql for the remaining functions if it exists
     // Create the check_and_create_telemetry_trigger function
     console.log("Creating telemetry trigger function...")
+    let triggerFnResult = null;
     let triggerFnError = null;
+    
     try {
-      const triggerFnData = await supabaseAdmin.rpc('execute_sql', {
+      triggerFnResult = await supabaseAdmin.rpc('execute_sql', {
         sql: `
           CREATE OR REPLACE FUNCTION public.check_and_create_telemetry_trigger()
           RETURNS boolean
@@ -102,6 +124,7 @@ serve(async (req: Request) => {
         `
       });
     } catch (error) {
+      console.error("Error creating telemetry trigger function:", error)
       triggerFnError = error;
     }
 
@@ -111,11 +134,49 @@ serve(async (req: Request) => {
       console.log("Telemetry trigger function created successfully")
     }
     
+    // Create the process_telemetry_data function
+    console.log("Creating process telemetry data function...")
+    let processFnResult = null;
+    let processFnError = null;
+    
+    try {
+      processFnResult = await supabaseAdmin.rpc('execute_sql', {
+        sql: `
+          CREATE OR REPLACE FUNCTION public.process_telemetry_data()
+          RETURNS TRIGGER
+          LANGUAGE plpgsql
+          SECURITY DEFINER
+          AS $$
+          BEGIN
+            -- Update the last_seen timestamp on the device record
+            UPDATE public.devices
+            SET last_seen = NEW.timestamp
+            WHERE id = NEW.device_id;
+            
+            -- Return the NEW record to continue with the insert
+            RETURN NEW;
+          END;
+          $$;
+        `
+      });
+    } catch (error) {
+      console.error("Error creating process_telemetry_data function:", error)
+      processFnError = error;
+    }
+    
+    if (processFnError) {
+      console.error("Error creating process_telemetry_data function:", processFnError)
+    } else {
+      console.log("Process telemetry data function created successfully")
+    }
+    
     // Create the enable_realtime_tables function
     console.log("Creating realtime tables function...")
+    let realtimeFnResult = null;
     let realtimeFnError = null;
+    
     try {
-      const realtimeFnData = await supabaseAdmin.rpc('execute_sql', {
+      realtimeFnResult = await supabaseAdmin.rpc('execute_sql', {
         sql: `
           CREATE OR REPLACE FUNCTION public.enable_realtime_tables()
           RETURNS boolean
@@ -171,6 +232,7 @@ serve(async (req: Request) => {
         `
       });
     } catch (error) {
+      console.error("Error creating realtime tables function:", error)
       realtimeFnError = error;
     }
     
@@ -187,6 +249,7 @@ serve(async (req: Request) => {
       message: 'Database functions initialized successfully',
       functions: {
         execute_sql: !executeError,
+        process_telemetry_data: !processFnError,
         telemetry_trigger: !triggerFnError,
         realtime_tables: !realtimeFnError
       }

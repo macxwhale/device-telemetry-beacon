@@ -13,108 +13,38 @@ export const initializeDatabaseConnection = async (): Promise<boolean> => {
       duration: 6000,
     });
     
-    // First check if database tables exist
-    console.log("Checking if database tables exist...");
+    // First call the database-functions endpoint to set up the necessary functions
+    console.log("Setting up database functions...");
     
     try {
-      const { data: tablesExist, error: tableCheckError } = await client.rpc(
-        'execute_sql', 
-        { 
-          sql: `
-            SELECT EXISTS (
-              SELECT 1
-              FROM information_schema.tables
-              WHERE table_schema = 'public'
-              AND table_name = 'devices'
-            ) as devices_exist,
-            EXISTS (
-              SELECT 1
-              FROM information_schema.tables
-              WHERE table_schema = 'public'
-              AND table_name = 'telemetry_history'
-            ) as telemetry_exist,
-            EXISTS (
-              SELECT 1
-              FROM information_schema.tables
-              WHERE table_schema = 'public'
-              AND table_name = 'device_apps'
-            ) as apps_exist
-          `
-        }
-      );
-      
-      // If all tables exist, we're done
-      if (tablesExist && 
-          tablesExist[0].devices_exist && 
-          tablesExist[0].telemetry_exist && 
-          tablesExist[0].apps_exist) {
-        console.log("All database tables already exist");
-        
-        toast.success("Database verification complete", {
-          description: "All required tables already exist",
-          duration: 3000,
-          id: initialToast,
-        });
-        
-        // Check if realtime is enabled
-        try {
-          await client.rpc('enable_realtime_tables');
-          console.log("Realtime tables enabled or verified");
-          toast.success("Realtime tables enabled", {
-            description: "You'll receive live telemetry updates as they come in",
-            duration: 3000,
-          });
-        } catch (realtimeError) {
-          console.error("Error enabling realtime:", realtimeError);
-          toast.error("Failed to enable realtime updates", {
-            description: "Telemetry updates may not appear in real-time",
-            duration: 4000,
-          });
-        }
-        
-        return true;
-      }
-      
-      // Some tables are missing, need to create them
-      console.log("Some tables missing, creating database tables...");
-      toast.loading("Creating database tables...", {
-        id: initialToast,
-        duration: 10000,
+      const { data: dbFunctionsResult, error: dbFunctionsError } = await supabase.functions.invoke('database-functions', {
+        method: 'POST',
+        body: {}
       });
       
-    } catch (tableCheckError) {
-      console.error("Error checking database tables:", tableCheckError);
-      
-      // Need to create the execute_sql function first
-      console.log("Setting up database functions...");
-      toast.loading("Setting up database functions...", {
-        id: initialToast,
-      });
-      
-      try {
-        const { data: dbFunctionsResult, error: dbFunctionsError } = await supabase.functions.invoke('database-functions', {
-          method: 'POST',
-          body: {}
-        });
-        
-        if (dbFunctionsError) {
-          throw dbFunctionsError;
-        }
-        
-        console.log("Database functions initialized:", dbFunctionsResult);
-        toast.success("Database functions created", {
-          description: "Required database functions have been created successfully",
-          duration: 3000,
-        });
-      } catch (error) {
-        console.error("Error initializing database functions:", error);
+      if (dbFunctionsError) {
+        console.error("Error initializing database functions:", dbFunctionsError);
         toast.error("Failed to initialize database functions", {
-          description: error instanceof Error ? error.message : "Check the console for more details",
+          description: dbFunctionsError.message || "Check the console for more details",
           id: initialToast,
           duration: 5000,
         });
         return false;
       }
+      
+      console.log("Database functions initialized:", dbFunctionsResult);
+      toast.success("Database functions created", {
+        description: "Required database functions have been created successfully",
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error("Error initializing database functions:", error);
+      toast.error("Failed to initialize database functions", {
+        description: error instanceof Error ? error.message : "Check the console for more details",
+        id: initialToast,
+        duration: 5000,
+      });
+      return false;
     }
     
     // Now create the tables using the initialize-database function
@@ -127,7 +57,13 @@ export const initializeDatabaseConnection = async (): Promise<boolean> => {
       });
       
       if (initError) {
-        throw initError;
+        console.error("Error initializing database:", initError);
+        toast.error("Failed to create database tables", {
+          description: initError.message || "Check the console for more details",
+          id: initialToast,
+          duration: 5000,
+        });
+        return false;
       }
       
       console.log("Database tables initialized:", initResult);
@@ -136,6 +72,23 @@ export const initializeDatabaseConnection = async (): Promise<boolean> => {
         id: initialToast,
         duration: 4000,
       });
+      
+      // Check if realtime is enabled
+      try {
+        // Try to execute a simple query to check if the function exists
+        const { error: fnCheckError } = await client.rpc('enable_realtime_tables');
+        if (!fnCheckError) {
+          console.log("Realtime tables enabled or verified");
+          toast.success("Realtime tables enabled", {
+            description: "You'll receive live telemetry updates as they come in",
+            duration: 3000,
+          });
+        }
+      } catch (realtimeError) {
+        console.error("Error enabling realtime (non-critical):", realtimeError);
+        // Non-critical error, don't show toast
+      }
+      
       return true;
     } catch (error) {
       console.error("Error initializing database:", error);
@@ -146,7 +99,6 @@ export const initializeDatabaseConnection = async (): Promise<boolean> => {
       });
       return false;
     }
-    
   } catch (error) {
     console.error("Error initializing database:", error);
     toast.error("Failed to initialize database connection", {
@@ -172,24 +124,10 @@ export const getDatabaseStats = async (): Promise<{
         'execute_sql', 
         { 
           sql: `
-            SELECT EXISTS (
-              SELECT 1
-              FROM information_schema.tables
-              WHERE table_schema = 'public'
-              AND table_name = 'devices'
-            ) as devices_exist,
-            EXISTS (
-              SELECT 1
-              FROM information_schema.tables
-              WHERE table_schema = 'public'
-              AND table_name = 'telemetry_history'
-            ) as telemetry_exist,
-            EXISTS (
-              SELECT 1
-              FROM information_schema.tables
-              WHERE table_schema = 'public'
-              AND table_name = 'device_apps'
-            ) as apps_exist
+            SELECT 
+              EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'devices') as devices_exist,
+              EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'telemetry_history') as telemetry_exist,
+              EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'device_apps') as apps_exist
           `
         }
       );
@@ -197,9 +135,9 @@ export const getDatabaseStats = async (): Promise<{
       if (tableCheckError) throw tableCheckError;
       
       if (!tablesExist || 
-          !tablesExist[0].devices_exist || 
-          !tablesExist[0].telemetry_exist || 
-          !tablesExist[0].apps_exist) {
+          !tablesExist[0]?.devices_exist || 
+          !tablesExist[0]?.telemetry_exist || 
+          !tablesExist[0]?.apps_exist) {
         console.log("Database tables don't exist yet, returning zero counts");
         return {
           devices: 0,
@@ -208,29 +146,27 @@ export const getDatabaseStats = async (): Promise<{
         };
       }
       
-      const devicesResult = await client
-        .from('devices')
-        .select('id', { count: 'exact', head: true });
-        
-      const telemetryResult = await client
-        .from('telemetry_history')
-        .select('id', { count: 'exact', head: true });
-        
-      const appsResult = await client
-        .from('device_apps')
-        .select('id', { count: 'exact', head: true });
-      
-      console.log("Database stats:", {
-        devices: devicesResult.count || 0,
-        telemetry: telemetryResult.count || 0,
-        apps: appsResult.count || 0
+      // Use direct SQL query to count records since we don't have types yet
+      const { data: stats, error: statsError } = await client.rpc('execute_sql', {
+        sql: `
+          SELECT 
+            (SELECT COUNT(*) FROM devices) as device_count,
+            (SELECT COUNT(*) FROM telemetry_history) as telemetry_count,
+            (SELECT COUNT(*) FROM device_apps) as app_count
+        `
       });
       
-      return {
-        devices: devicesResult.count || 0,
-        telemetry_records: telemetryResult.count || 0,
-        apps: appsResult.count || 0
+      if (statsError) throw statsError;
+      
+      const result = {
+        devices: parseInt(stats[0]?.device_count || '0'),
+        telemetry_records: parseInt(stats[0]?.telemetry_count || '0'),
+        apps: parseInt(stats[0]?.app_count || '0')
       };
+      
+      console.log("Database stats:", result);
+      
+      return result;
     } catch (error) {
       console.error("Error checking database tables:", error);
       // Tables or function don't exist

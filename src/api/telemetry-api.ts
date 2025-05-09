@@ -1,9 +1,10 @@
+
 // Non-JSX implementation of the telemetry API functions
 // This file must not contain any JSX or React imports
 
 import { supabase } from "../integrations/supabase/client";
 import { DeviceStatus } from "../types/telemetry";
-import { Json } from "../integrations/supabase/types";
+import { Database, Tables, InsertTables } from "../integrations/supabase/database.types";
 
 // API key for simple authentication
 const API_KEY = "telm_sk_1234567890abcdef";
@@ -156,15 +157,17 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
     // Insert or update device in database
     if (!existingDevice) {
       // Create new device
+      const deviceData: InsertTables<'devices'> = {
+        android_id: deviceId,
+        device_name: data?.device_info?.device_name || "Unknown Device",
+        manufacturer: data?.device_info?.manufacturer || "Unknown",
+        model: data?.device_info?.model || "Unknown Model",
+        last_seen: timestamp
+      };
+      
       const { data: newDevice, error: insertError } = await supabase
         .from('devices')
-        .insert({
-          android_id: deviceId,
-          device_name: data?.device_info?.device_name || "Unknown Device",
-          manufacturer: data?.device_info?.manufacturer || "Unknown",
-          model: data?.device_info?.model || "Unknown Model",
-          last_seen: timestamp
-        })
+        .insert(deviceData)
         .select('id')
         .single();
         
@@ -182,7 +185,7 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
         });
       }
       
-      deviceDbId = newDevice.id;
+      deviceDbId = newDevice?.id;
       console.log("Created new device in database with ID:", deviceDbId);
     } else {
       // Update existing device
@@ -216,13 +219,15 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
     }
     
     // Store telemetry data in history
+    const telemetryData = {
+      device_id: deviceDbId,
+      timestamp: timestamp,
+      telemetry_data: data
+    };
+    
     const { error: telemetryError } = await supabase
       .from('telemetry_history')
-      .insert({
-        device_id: deviceDbId,
-        timestamp: timestamp,
-        telemetry_data: data
-      });
+      .insert(telemetryData);
       
     if (telemetryError) {
       console.error("Error storing telemetry data:", telemetryError);
@@ -303,7 +308,7 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
 }
 
 // Helper function to safely access nested properties in JSON
-function safelyGetNestedProperty(obj: Json | null, path: string[], defaultValue: any = null): any {
+function safelyGetNestedProperty(obj: any, path: string[], defaultValue: any = null): any {
   if (!obj) return defaultValue;
   
   try {
@@ -337,6 +342,10 @@ export async function getAllDevicesFromApiImplementation(): Promise<DeviceStatus
       
     if (error) {
       console.error("Error getting devices from database:", error);
+      return [];
+    }
+    
+    if (!devices || devices.length === 0) {
       return [];
     }
     

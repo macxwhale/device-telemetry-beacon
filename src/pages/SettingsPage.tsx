@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, Database } from "lucide-react";
+import { RefreshCw, Database, Loader2 } from "lucide-react";
 import { initializeDatabaseConnection, getDatabaseStats } from "@/services/databaseService";
 
 const SettingsPage = () => {
@@ -73,9 +73,12 @@ const SettingsPage = () => {
   const handleInitializeDatabase = async () => {
     setIsInitializing(true);
     try {
-      await initializeDatabaseConnection();
+      const result = await initializeDatabaseConnection();
       // Success/error toasts are now handled in the service function
-      await checkDatabaseStatus();
+      if (result) {
+        // If successful, refresh the database stats
+        await checkDatabaseStatus();
+      }
     } catch (error) {
       console.error("Error initializing database:", error);
       toast.error("Database initialization failed", {
@@ -93,7 +96,7 @@ const SettingsPage = () => {
         <h1 className="text-2xl font-bold">Settings</h1>
       </div>
       
-      <Tabs defaultValue="general" className="w-full">
+      <Tabs defaultValue="database" className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
@@ -216,15 +219,39 @@ const SettingsPage = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-secondary p-4 rounded-md">
                       <p className="text-sm text-muted-foreground">Devices</p>
-                      <p className="text-2xl font-bold">{databaseStatus?.devices ?? '...'}</p>
+                      <p className="text-2xl font-bold">
+                        {isRefreshing ? 
+                          <span className="flex items-center">
+                            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                            Loading...
+                          </span> : 
+                          databaseStatus?.devices ?? '0'
+                        }
+                      </p>
                     </div>
                     <div className="bg-secondary p-4 rounded-md">
                       <p className="text-sm text-muted-foreground">Telemetry Records</p>
-                      <p className="text-2xl font-bold">{databaseStatus?.telemetry_records ?? '...'}</p>
+                      <p className="text-2xl font-bold">
+                        {isRefreshing ? 
+                          <span className="flex items-center">
+                            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                            Loading...
+                          </span> : 
+                          databaseStatus?.telemetry_records ?? '0'
+                        }
+                      </p>
                     </div>
                     <div className="bg-secondary p-4 rounded-md">
                       <p className="text-sm text-muted-foreground">App Records</p>
-                      <p className="text-2xl font-bold">{databaseStatus?.apps ?? '...'}</p>
+                      <p className="text-2xl font-bold">
+                        {isRefreshing ? 
+                          <span className="flex items-center">
+                            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                            Loading...
+                          </span> : 
+                          databaseStatus?.apps ?? '0'
+                        }
+                      </p>
                     </div>
                   </div>
                   <div className="flex justify-end">
@@ -253,10 +280,35 @@ const SettingsPage = () => {
                       disabled={isInitializing}
                       className="flex items-center gap-2"
                     >
-                      <Database className="h-4 w-4" />
-                      {isInitializing ? 'Setting up database...' : 'Initialize/Verify Database'}
+                      {isInitializing ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Setting up database...
+                        </>
+                      ) : (
+                        <>
+                          <Database className="h-4 w-4" />
+                          Initialize/Verify Database
+                        </>
+                      )}
                     </Button>
                   </div>
+                </div>
+                
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-medium mb-2">Database Initialization Process</h3>
+                  <p className="text-sm text-muted-foreground">
+                    When you click "Initialize/Verify Database", the following steps are performed:
+                  </p>
+                  <ol className="list-decimal list-inside text-sm text-muted-foreground mt-2 space-y-1 pl-2">
+                    <li>Create database functions for SQL execution and data processing</li>
+                    <li>Create required tables if they don't exist (devices, telemetry_history, device_apps)</li>
+                    <li>Set up triggers for automatic data processing</li>
+                    <li>Enable realtime updates for live data monitoring</li>
+                  </ol>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    This process is safe to run multiple times and will only create tables and functions if they don't exist.
+                  </p>
                 </div>
                 
                 <div className="border-t pt-4">

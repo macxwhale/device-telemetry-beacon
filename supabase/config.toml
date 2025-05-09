@@ -1,8 +1,4 @@
 
-# This file is used to configure your Supabase project.
-# It is very similar to package.json, except with sections.
-# https://supabase.com/docs/guides/functions/config
-
 project_id = "byvbunvegjwzgytavgkv"
 
 [functions.database-functions]
