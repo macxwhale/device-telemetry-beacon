@@ -9,6 +9,9 @@ const client = supabase as any;
 export const initializeDatabaseConnection = async (): Promise<boolean> => {
   try {
     console.log("Initializing database connection...");
+    toast.info("Initializing database connection...", {
+      duration: 3000,
+    });
     
     // First check if database tables exist
     console.log("Checking if database tables exist...");
@@ -43,6 +46,7 @@ export const initializeDatabaseConnection = async (): Promise<boolean> => {
       
       // Need to create the execute_sql function first
       console.log("Setting up database functions...");
+      toast.loading("Setting up database functions...");
       const { data: dbFunctionsResult, error: dbFunctionsError } = await supabase.functions.invoke('database-functions', {
         method: 'POST',
         body: {}
@@ -50,11 +54,18 @@ export const initializeDatabaseConnection = async (): Promise<boolean> => {
       
       if (dbFunctionsError) {
         console.error("Error initializing database functions:", dbFunctionsError);
-        toast.error("Failed to initialize database functions");
+        toast.error("Failed to initialize database functions", {
+          description: dbFunctionsError.message || "Check the console for more details",
+          duration: 5000,
+        });
         return false;
       }
       
       console.log("Database functions initialized:", dbFunctionsResult);
+      toast.success("Database functions initialized", {
+        description: "Required database functions have been created successfully",
+        duration: 3000,
+      });
     }
     
     // If all tables exist, we're done
@@ -71,16 +82,31 @@ export const initializeDatabaseConnection = async (): Promise<boolean> => {
       
       if (realtimeError) {
         console.error("Error enabling realtime:", realtimeError);
+        toast.error("Failed to enable realtime updates", {
+          description: "Telemetry updates may not appear in real-time",
+          duration: 4000,
+        });
       } else {
         console.log("Realtime tables enabled or verified");
+        toast.success("Realtime tables enabled", {
+          description: "You'll receive live telemetry updates as they come in",
+          duration: 3000,
+        });
       }
       
-      toast.success("Database connection initialized successfully");
+      toast.success("Database verification complete", {
+        description: "All required tables already exist",
+        duration: 3000,
+      });
       return true;
     }
     
     // Create tables if they don't exist
     console.log("Some tables missing, creating database tables...");
+    toast.loading("Creating database tables...", {
+      duration: 6000,
+    });
+    
     const { data: initResult, error: initError } = await supabase.functions.invoke('initialize-database', {
       method: 'POST',
       body: {}
@@ -88,17 +114,26 @@ export const initializeDatabaseConnection = async (): Promise<boolean> => {
     
     if (initError) {
       console.error("Error initializing database:", initError);
-      toast.error("Failed to initialize database tables");
+      toast.error("Failed to create database tables", {
+        description: initError.message || "Check the console for more details",
+        duration: 5000,
+      });
       return false;
     }
     
     console.log("Database tables initialized:", initResult);
-    toast.success("Database tables created successfully");
+    toast.success("Database tables created successfully", {
+      description: "Your telemetry data will now be stored in the database",
+      duration: 4000,
+    });
     return true;
     
   } catch (error) {
     console.error("Error initializing database:", error);
-    toast.error("Failed to initialize database connection");
+    toast.error("Failed to initialize database connection", {
+      description: error instanceof Error ? error.message : "Unknown error occurred",
+      duration: 5000,
+    });
     return false;
   }
 };
@@ -176,6 +211,10 @@ export const getDatabaseStats = async (): Promise<{
     };
   } catch (error) {
     console.error("Error getting database stats:", error);
+    toast.error("Failed to fetch database statistics", {
+      description: "Please try again later",
+      duration: 3000,
+    });
     return null;
   }
 };
@@ -187,12 +226,22 @@ export const executeSQL = async (sql: string): Promise<any> => {
     
     if (error) {
       console.error("Error executing SQL:", error);
+      toast.error("SQL execution failed", {
+        description: error.message,
+        duration: 3000,
+      });
       return { success: false, error };
     }
     
+    toast.success("SQL executed successfully");
     return { success: true, data };
   } catch (error) {
     console.error("Error executing SQL:", error);
+    toast.error("SQL execution failed", {
+      description: error instanceof Error ? error.message : "Unknown error occurred",
+      duration: 3000,
+    });
     return { success: false, error };
   }
 };
+

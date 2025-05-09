@@ -46,9 +46,13 @@ const SettingsPage = () => {
   
   // Function to check database status
   const checkDatabaseStatus = async () => {
+    toast.loading("Refreshing database statistics...", { duration: 2000 });
     const stats = await getDatabaseStats();
     if (stats) {
       setDatabaseStatus(stats);
+      toast.success("Database statistics refreshed", { duration: 2000 });
+    } else {
+      toast.error("Failed to refresh database statistics", { duration: 2000 });
     }
   };
   
@@ -56,17 +60,11 @@ const SettingsPage = () => {
   const handleInitializeDatabase = async () => {
     setIsInitializing(true);
     try {
-      const success = await initializeDatabaseConnection();
-      
-      if (success) {
-        toast.success("Database connection initialized successfully");
-        checkDatabaseStatus();
-      } else {
-        toast.error("Failed to initialize database connection");
-      }
+      await initializeDatabaseConnection();
+      // Success/error toasts are now handled in the service function
+      checkDatabaseStatus();
     } catch (error) {
       console.error("Error initializing database:", error);
-      toast.error("Failed to initialize database connection");
     } finally {
       setIsInitializing(false);
     }
