@@ -11,11 +11,56 @@ export const initializeDatabaseConnection = async (): Promise<boolean> => {
   try {
     console.log("Initializing database connection...");
     
+    // First check if database tables exist
+    const { data: tablesExist, error: tableCheckError } = await client.rpc(
+      'execute_sql', 
+      { 
+        sql: `
+          SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name = 'devices'
+          ) as devices_exist,
+          EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name = 'telemetry_history'
+          ) as telemetry_exist,
+          EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name = 'device_apps'
+          ) as apps_exist
+        `
+      }
+    );
+    
+    if (tableCheckError) {
+      console.error("Error checking database tables:", tableCheckError);
+      toast.error("Failed to check database structure. Tables may be missing.");
+      return false;
+    }
+    
+    if (!tablesExist || 
+        !tablesExist.devices_exist || 
+        !tablesExist.telemetry_exist || 
+        !tablesExist.apps_exist) {
+      console.error("Database tables don't exist. Run SQL migrations first");
+      toast.error("Database tables don't exist. Please initialize the database structure first.");
+      return false;
+    }
+    
+    console.log("Database tables exist, proceeding with initialization");
+    
     // Add telemetry trigger if it doesn't exist
     const { error: triggerError } = await client.rpc('check_and_create_telemetry_trigger');
     
     if (triggerError) {
       console.error("Error creating trigger:", triggerError);
+      toast.error("Failed to initialize database triggers");
       return false;
     }
     
@@ -24,13 +69,16 @@ export const initializeDatabaseConnection = async (): Promise<boolean> => {
     
     if (realtimeError) {
       console.error("Error enabling realtime:", realtimeError);
+      toast.error("Failed to enable realtime updates");
       return false;
     }
     
     console.log("Database connection initialized successfully");
+    toast.success("Database connection initialized successfully");
     return true;
   } catch (error) {
     console.error("Error initializing database:", error);
+    toast.error("Failed to initialize database connection");
     return false;
   }
 };
@@ -43,6 +91,45 @@ export const getDatabaseStats = async (): Promise<{
 } | null> => {
   try {
     console.log("Fetching database statistics...");
+    
+    // First check if database tables exist
+    const { data: tablesExist, error: tableCheckError } = await client.rpc(
+      'execute_sql', 
+      { 
+        sql: `
+          SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name = 'devices'
+          ) as devices_exist,
+          EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name = 'telemetry_history'
+          ) as telemetry_exist,
+          EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name = 'device_apps'
+          ) as apps_exist
+        `
+      }
+    );
+    
+    if (tableCheckError || !tablesExist || 
+        !tablesExist.devices_exist || 
+        !tablesExist.telemetry_exist || 
+        !tablesExist.apps_exist) {
+      console.log("Database tables don't exist yet, returning zero counts");
+      return {
+        devices: 0,
+        telemetry_records: 0,
+        apps: 0
+      };
+    }
     
     const devicesResult = await client
       .from('devices')
@@ -78,6 +165,42 @@ export const migrateMemoryDataToDatabase = async (devices: DeviceStatus[]): Prom
   try {
     console.log(`Migrating ${devices.length} devices to database...`);
     let successCount = 0;
+    
+    // Check if tables exist first
+    const { data: tablesExist, error: tableCheckError } = await client.rpc(
+      'execute_sql', 
+      { 
+        sql: `
+          SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name = 'devices'
+          ) as devices_exist,
+          EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name = 'telemetry_history'
+          ) as telemetry_exist,
+          EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name = 'device_apps'
+          ) as apps_exist
+        `
+      }
+    );
+    
+    if (tableCheckError || !tablesExist || 
+        !tablesExist.devices_exist || 
+        !tablesExist.telemetry_exist || 
+        !tablesExist.apps_exist) {
+      console.error("Cannot migrate data - tables don't exist");
+      toast.error("Database tables don't exist. Please initialize database structure first.");
+      return false;
+    }
     
     for (const device of devices) {
       // First ensure the device exists
@@ -176,5 +299,22 @@ export const migrateMemoryDataToDatabase = async (devices: DeviceStatus[]): Prom
     console.error("Error migrating memory data to database:", error);
     toast.error("Failed to migrate data to database");
     return false;
+  }
+};
+
+// Create a new execute_sql function to allow for safe SQL execution
+export const executeSQL = async (sql: string): Promise<any> => {
+  try {
+    const { data, error } = await client.rpc('execute_sql', { sql });
+    
+    if (error) {
+      console.error("Error executing SQL:", error);
+      return { success: false, error };
+    }
+    
+    return { success: true, data };
+  } catch (error) {
+    console.error("Error executing SQL:", error);
+    return { success: false, error };
   }
 };
