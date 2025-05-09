@@ -26,24 +26,47 @@ export async function handleApiRequest(request: Request): Promise<Response | und
     });
   }
 
-  // Handle different API routes
-  if (path.startsWith("/api/telemetry")) {
-    console.log("Forwarding to telemetry API handler");
-    try {
+  try {
+    // Handle different API routes
+    if (path.startsWith("/api/telemetry")) {
+      console.log("Forwarding to telemetry API handler");
+      
       // Clone the request to inspect its body without consuming it
       const clonedRequest = request.clone();
-      const bodyText = await clonedRequest.text();
-      console.log("Request body (first 1000 chars):", bodyText.substring(0, 1000));
+      let bodyText = "";
+      
+      try {
+        bodyText = await clonedRequest.text();
+        console.log("Request body (first 1000 chars):", bodyText.substring(0, 1000));
+      } catch (e) {
+        console.log("Could not read request body:", e);
+      }
       
       // Fix malformed JSON if needed
-      let fixedBodyText = bodyText.trim();
       let jsonData;
       
       try {
-        jsonData = JSON.parse(fixedBodyText);
-        console.log("JSON parsed successfully, keys:", Object.keys(jsonData));
+        if (bodyText && bodyText.trim()) {
+          jsonData = JSON.parse(bodyText.trim());
+          console.log("JSON parsed successfully, keys:", Object.keys(jsonData));
+        } else {
+          console.log("Empty request body");
+          return new Response(JSON.stringify({
+            error: "Empty request body",
+            message: "Request body must contain valid JSON"
+          }), {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders
+            }
+          });
+        }
       } catch (parseError) {
-        console.log("JSON parse error, attempting fixes:", parseError);
+        console.log("JSON parse error:", parseError);
+        
+        // Try to fix common JSON issues
+        let fixedBodyText = bodyText.trim();
         
         // Try to fix double curly braces
         if (fixedBodyText.startsWith('{{') && fixedBodyText.endsWith('}}')) {
@@ -55,7 +78,31 @@ export async function handleApiRequest(request: Request): Promise<Response | und
             console.log("JSON parsed successfully after fix, keys:", Object.keys(jsonData));
           } catch (secondError) {
             console.error("Still failed to parse JSON after fixing braces:", secondError);
+            return new Response(JSON.stringify({
+              error: "Invalid JSON format",
+              details: (secondError as Error).message,
+              received: fixedBodyText.substring(0, 100) + "..."
+            }), {
+              status: 400,
+              headers: {
+                "Content-Type": "application/json",
+                ...corsHeaders
+              }
+            });
           }
+        } else {
+          // If we couldn't fix the JSON, return an error
+          return new Response(JSON.stringify({
+            error: "Invalid JSON format",
+            details: (parseError as Error).message,
+            received: bodyText.substring(0, 100) + "..."
+          }), {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders
+            }
+          });
         }
       }
       
@@ -63,38 +110,72 @@ export async function handleApiRequest(request: Request): Promise<Response | und
       const newRequest = new Request(request.url, {
         method: request.method,
         headers: request.headers,
-        body: jsonData ? JSON.stringify(jsonData) : fixedBodyText
+        body: jsonData ? JSON.stringify(jsonData) : bodyText
       });
       
-      const response = await handleTelemetryApi(newRequest);
-      console.log("API response status:", response.status);
-      
-      // Ensure the response has the correct content type and CORS headers
-      const responseClone = response.clone();
-      const responseBody = await responseClone.text();
-      console.log("API response body:", responseBody);
-      
-      return new Response(responseBody, {
-        status: response.status,
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders,
-          ...Object.fromEntries(response.headers.entries())
+      try {
+        const response = await handleTelemetryApi(newRequest);
+        console.log("API response status:", response.status);
+        
+        // Ensure the response has the correct content type and CORS headers
+        const responseClone = response.clone();
+        const responseBody = await responseClone.text();
+        console.log("API response body:", responseBody);
+        
+        // Ensure the response is valid JSON
+        try {
+          JSON.parse(responseBody);
+        } catch (jsonError) {
+          console.error("Response is not valid JSON:", jsonError);
+          return new Response(JSON.stringify({
+            error: "API returned invalid JSON",
+            details: responseBody.substring(0, 200) + "...",
+            status: response.status
+          }), {
+            status: 500,
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders
+            }
+          });
         }
-      });
-    } catch (error) {
-      console.error("Error in API handler:", error);
-      return new Response(JSON.stringify({ 
-        error: "API handler error", 
-        details: (error as Error).message 
-      }), {
-        status: 500,
-        headers: { 
-          "Content-Type": "application/json",
-          ...corsHeaders
-        }
-      });
+        
+        return new Response(responseBody, {
+          status: response.status,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders,
+            ...Object.fromEntries(response.headers.entries())
+          }
+        });
+      } catch (apiError) {
+        console.error("Error in API handler:", apiError);
+        return new Response(JSON.stringify({ 
+          error: "API handler error", 
+          details: (apiError as Error).message,
+          stack: (apiError as Error).stack 
+        }), {
+          status: 500,
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          }
+        });
+      }
     }
+  } catch (error) {
+    console.error("Global API middleware error:", error);
+    return new Response(JSON.stringify({ 
+      error: "API middleware error", 
+      details: (error as Error).message,
+      stack: (error as Error).stack
+    }), {
+      status: 500,
+      headers: { 
+        "Content-Type": "application/json",
+        ...corsHeaders
+      }
+    });
   }
 
   // If no route matched, return undefined to let the default handler process it

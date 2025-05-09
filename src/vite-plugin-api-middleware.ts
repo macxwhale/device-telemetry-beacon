@@ -75,9 +75,39 @@ export function apiMiddleware(): Plugin {
                 res.setHeader(key, value);
               });
               
+              // Ensure Content-Type is set to application/json for API responses
+              if (!res.getHeader('Content-Type')) {
+                res.setHeader('Content-Type', 'application/json');
+              }
+              
               // Send response body
               const responseBody = await response.text();
-              console.log("Response body:", responseBody.substring(0, 500) + (responseBody.length > 500 ? "..." : ""));
+              
+              // Log response details
+              console.log("Response content type:", res.getHeader('Content-Type'));
+              console.log("Response body (first 500 chars):", responseBody.substring(0, 500) + (responseBody.length > 500 ? "..." : ""));
+              
+              // Validate JSON response if content type is application/json
+              if (String(res.getHeader('Content-Type')).includes('application/json')) {
+                try {
+                  // Check if the response is valid JSON
+                  JSON.parse(responseBody);
+                } catch (jsonError) {
+                  console.error("Invalid JSON in response:", jsonError);
+                  
+                  // Override with a valid JSON error response
+                  res.statusCode = 500;
+                  res.setHeader('Content-Type', 'application/json');
+                  const errorResponse = JSON.stringify({
+                    error: "Invalid JSON response",
+                    details: "The API returned invalid JSON data",
+                    original_response: responseBody.substring(0, 200) + "..."
+                  });
+                  res.end(errorResponse);
+                  return;
+                }
+              }
+              
               res.end(responseBody);
               return;
             }
