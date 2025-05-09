@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { TelemetryClient } from "@/api/telemetry-client";
 import { Loader2, PlayCircle, RefreshCw, CheckCircle } from "lucide-react";
-import { Tab, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const TestApiPage = () => {
   const [deviceId, setDeviceId] = useState(`device_${Math.floor(Math.random() * 100000)}`);
