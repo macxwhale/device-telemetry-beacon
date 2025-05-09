@@ -2,7 +2,7 @@
 import { FormField, FormItem, FormLabel, FormControl, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Control } from "react-hook-form";
-import { NotificationSettings } from "@/services/notificationService";
+import { NotificationSettings } from "@/services/notifications";
 
 interface EmailNotificationsProps {
   control: Control<NotificationSettings>;

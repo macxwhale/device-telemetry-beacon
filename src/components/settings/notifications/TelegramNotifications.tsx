@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TestTube2 } from "lucide-react";
 import { Control, UseFormGetValues } from "react-hook-form";
-import { NotificationSettings } from "@/services/notificationService";
+import { NotificationSettings } from "@/services/notifications";
 import TelegramSetupGuide from "./TelegramSetupGuide";
 
 interface TelegramNotificationsProps {

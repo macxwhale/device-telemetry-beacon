@@ -13,11 +13,11 @@ import { Separator } from "@/components/ui/separator";
 import { Send } from "lucide-react";
 import { Form } from "@/components/ui/form";
 import {
+  NotificationSettings,
   getNotificationSettings,
   saveNotificationSettings,
-  sendTestNotification,
-  NotificationSettings,
-} from "@/services/notificationService";
+  sendTelegramTestNotification,
+} from "@/services/notifications";
 
 // Import the refactored components
 import NotificationPreferences from "./notifications/NotificationPreferences";
@@ -77,7 +77,7 @@ const NotificationsTab = () => {
     
     setIsTesting(true);
     try {
-      await sendTestNotification(botToken, chatId);
+      await sendTelegramTestNotification(botToken, chatId);
     } finally {
       setIsTesting(false);
     }
