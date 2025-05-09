@@ -69,7 +69,7 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
   try {
     // Get the request body as text
     let bodyText = await request.text();
-    console.log("Raw request body in telemetry API:", bodyText.substring(0, 500) + "...");
+    console.log("Raw request body in telemetry API (first 1000 chars):", bodyText.substring(0, 1000));
     
     // Parse JSON body
     let data;
@@ -78,6 +78,7 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
       bodyText = bodyText.trim();
       if (bodyText.startsWith('{{') && bodyText.endsWith('}}')) {
         bodyText = bodyText.substring(1, bodyText.length - 1);
+        console.log("Fixed double curly braces in JSON");
       }
       
       data = JSON.parse(bodyText);
@@ -87,7 +88,7 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
       return new Response(JSON.stringify({ 
         error: "Invalid JSON format", 
         details: (parseError as Error).message,
-        received_data: bodyText.substring(0, 100) + "...", // Include part of the raw data for debugging
+        received_data: bodyText.substring(0, 200) + "...", // Include part of the raw data for debugging
         tip: "Make sure you're sending valid JSON without duplicate curly braces"
       }), {
         status: 400,
@@ -115,7 +116,8 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
         error: "Missing device identifier",
         required: "android_id or device_info.android_id must be provided",
         received_keys: Object.keys(data),
-        device_info: data.device_info ? JSON.stringify(data.device_info) : "No device_info found"
+        device_info: data.device_info ? JSON.stringify(data.device_info) : "No device_info found",
+        data_sample: JSON.stringify(data).substring(0, 500) // Include sample of the data for debugging
       }), {
         status: 400,
         headers: { 
@@ -147,7 +149,13 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
       raw_data: data   // Keep raw data for backward compatibility
     };
     
-    console.log("Processed device data:", JSON.stringify(deviceData, null, 2));
+    console.log("Processed device data:", JSON.stringify({
+      id: deviceData.id,
+      name: deviceData.name,
+      model: deviceData.model,
+      manufacturer: deviceData.manufacturer,
+      // Omit full telemetry for log readability
+    }, null, 2));
     
     if (existingDeviceIndex >= 0) {
       // Update existing device
@@ -167,7 +175,9 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
       success: true, 
       message: "Telemetry data received",
       device_id: deviceId,
-      timestamp: timestamp
+      timestamp: timestamp,
+      received_data_size: JSON.stringify(data).length,
+      received_keys: Object.keys(data)
     };
     
     console.log("Sending response:", JSON.stringify(response));

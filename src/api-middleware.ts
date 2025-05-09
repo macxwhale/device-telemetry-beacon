@@ -33,20 +33,37 @@ export async function handleApiRequest(request: Request): Promise<Response | und
       // Clone the request to inspect its body without consuming it
       const clonedRequest = request.clone();
       const bodyText = await clonedRequest.text();
-      console.log("Request body (first 500 chars):", bodyText.substring(0, 500));
+      console.log("Request body (first 1000 chars):", bodyText.substring(0, 1000));
       
-      // Fix malformed JSON if needed (handles double curly brace issue)
+      // Fix malformed JSON if needed
       let fixedBodyText = bodyText.trim();
-      if (fixedBodyText.startsWith('{{') && fixedBodyText.endsWith('}}')) {
-        fixedBodyText = fixedBodyText.substring(1, fixedBodyText.length - 1);
-        console.log("Fixed malformed JSON with double curly braces");
+      let jsonData;
+      
+      try {
+        jsonData = JSON.parse(fixedBodyText);
+        console.log("JSON parsed successfully, keys:", Object.keys(jsonData));
+      } catch (parseError) {
+        console.log("JSON parse error, attempting fixes:", parseError);
+        
+        // Try to fix double curly braces
+        if (fixedBodyText.startsWith('{{') && fixedBodyText.endsWith('}}')) {
+          fixedBodyText = fixedBodyText.substring(1, fixedBodyText.length - 1);
+          console.log("Fixed malformed JSON with double curly braces");
+          
+          try {
+            jsonData = JSON.parse(fixedBodyText);
+            console.log("JSON parsed successfully after fix, keys:", Object.keys(jsonData));
+          } catch (secondError) {
+            console.error("Still failed to parse JSON after fixing braces:", secondError);
+          }
+        }
       }
       
       // Create a new request with the same content for processing
       const newRequest = new Request(request.url, {
         method: request.method,
         headers: request.headers,
-        body: fixedBodyText
+        body: jsonData ? JSON.stringify(jsonData) : fixedBodyText
       });
       
       const response = await handleTelemetryApi(newRequest);
@@ -55,6 +72,7 @@ export async function handleApiRequest(request: Request): Promise<Response | und
       // Ensure the response has the correct content type and CORS headers
       const responseClone = response.clone();
       const responseBody = await responseClone.text();
+      console.log("API response body:", responseBody);
       
       return new Response(responseBody, {
         status: response.status,
