@@ -111,11 +111,15 @@ export const sendTestNotification = async (
       return false;
     }
     
-    const response = await fetch(`${supabase.supabaseUrl}/functions/v1/send-notification`, {
+    // Get the supabase URL and key from environment rather than accessing protected properties
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://byvbunvegjwzgytavgkv.supabase.co";
+    const supabaseKey = import.meta.env.VITE_SUPABASE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5dmJ1bnZlZ2p3emd5dGF2Z2t2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3NzM3MzMsImV4cCI6MjA2MjM0OTczM30.JaYx-kQuM2_L2li9I3a0fy9bUIwFP1e40iIRM7gVBFA";
+    
+    const response = await fetch(`${supabaseUrl}/functions/v1/send-notification`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabase.supabaseKey}`
+        'Authorization': `Bearer ${supabaseKey}`
       },
       body: JSON.stringify({
         message: "This is a test notification from Device Telemetry",
