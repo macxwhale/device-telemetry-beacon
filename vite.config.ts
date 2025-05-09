@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     mode === 'development' && componentTagger(),
-    apiMiddleware()
+    apiMiddleware() // Using the middleware from src/vite-plugin-api-middleware
   ].filter(Boolean),
   resolve: {
     alias: {

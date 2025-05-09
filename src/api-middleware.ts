@@ -90,32 +90,48 @@ export async function handleApiRequest(request: Request): Promise<Response | und
       
       try {
         // Send to API handler
+        console.log("Calling telemetry API handler with prepared request");
         const response = await handleTelemetryApi(newRequest);
+        
+        // Clone response to check content
+        const clonedResponse = response.clone();
+        const responseBody = await clonedResponse.text();
+        console.log("Raw API response (first 200 chars):", responseBody.substring(0, 200));
+        
+        // Check for HTML responses
+        if (responseBody.trim().startsWith('<!DOCTYPE') || responseBody.trim().startsWith('<html')) {
+          console.error("ERROR: API returned HTML - converting to JSON error");
+          return new Response(JSON.stringify({ 
+            error: "API returned HTML", 
+            message: "Internal server error - API handler returned HTML",
+            responsePreview: responseBody.substring(0, 100)
+          }), {
+            status: 500,
+            headers: { 
+              "Content-Type": "application/json",
+              ...corsHeaders
+            }
+          });
+        }
         
         // Ensure the response has proper content type
         const headers = new Headers(response.headers);
-        if (!headers.has('Content-Type')) {
-          headers.set('Content-Type', 'application/json');
-        }
+        headers.set('Content-Type', 'application/json');
         
-        // Get response body to validate it's JSON
-        const responseBody = await response.text();
-        console.log("Raw API response (first 200 chars):", responseBody.substring(0, 200));
+        // Add CORS headers
+        Object.entries(corsHeaders).forEach(([key, value]) => {
+          headers.set(key, value);
+        });
         
         try {
-          // Verify response is valid JSON if content type indicates JSON
-          if (headers.get('Content-Type')?.includes('application/json')) {
-            JSON.parse(responseBody); // Just to validate
-            console.log("Response validated as valid JSON");
-          }
+          // Verify response is valid JSON
+          JSON.parse(responseBody);
+          console.log("Response validated as valid JSON");
           
-          // Return validated response with CORS headers
+          // Return validated response with headers
           return new Response(responseBody, {
             status: response.status,
-            headers: {
-              ...Object.fromEntries(headers.entries()),
-              ...corsHeaders
-            }
+            headers: headers
           });
         } catch (jsonError) {
           console.error("API returned invalid JSON:", jsonError);

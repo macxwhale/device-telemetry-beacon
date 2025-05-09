@@ -64,6 +64,24 @@ export function apiMiddleware(): Plugin {
             if (response) {
               console.log(`API response status: ${response.status}`);
               
+              // Clone the response to read its content
+              const clonedResponse = response.clone();
+              const responseBody = await clonedResponse.text();
+              
+              // Check if response contains HTML and reject it
+              if (responseBody.trim().startsWith('<!DOCTYPE') || responseBody.trim().startsWith('<html')) {
+                console.error("ERROR: HTML response detected in vite-plugin. Converting to JSON error.");
+                res.statusCode = 500;
+                res.setHeader('Content-Type', 'application/json');
+                const errorJson = JSON.stringify({
+                  error: "API returned HTML instead of JSON",
+                  message: "Internal server error - middleware detected HTML response",
+                  responsePreview: responseBody.substring(0, 100)
+                });
+                res.end(errorJson);
+                return;
+              }
+              
               // Set status code
               res.statusCode = response.status;
               
@@ -72,48 +90,21 @@ export function apiMiddleware(): Plugin {
                 res.setHeader(key, value);
               });
               
-              // Ensure Content-Type is set to application/json
-              if (!res.getHeader('Content-Type')) {
-                res.setHeader('Content-Type', 'application/json');
-              } else {
-                console.log("Content-Type already set to:", res.getHeader('Content-Type'));
-                // Force JSON content type if we're handling API routes
-                res.setHeader('Content-Type', 'application/json');
-              }
-              
-              // Get response body
-              const responseBody = await response.text();
+              // Always force JSON content type for API responses
+              res.setHeader('Content-Type', 'application/json');
               
               // Log response for debugging
               console.log("Response content type:", res.getHeader('Content-Type'));
-              console.log("Response body (first 200 chars):", responseBody.substring(0, 200));
+              console.log("Response body first 200 chars:", responseBody.substring(0, 200));
               
-              // Validate JSON before sending
+              // Final validation pass - try to parse as JSON
               try {
-                if (
-                  (typeof responseBody === 'string') && 
-                  responseBody.trim() && 
-                  !responseBody.trim().startsWith('<!DOCTYPE') && 
-                  !responseBody.trim().startsWith('<html')
-                ) {
-                  // Try to parse as JSON to validate
-                  if (res.getHeader('Content-Type')?.toString().includes('application/json')) {
-                    JSON.parse(responseBody);
-                    console.log("Validated response is valid JSON");
-                  }
-                } else if (responseBody.trim().startsWith('<!DOCTYPE') || responseBody.trim().startsWith('<html')) {
-                  console.error("ERROR: Detected HTML response, converting to JSON error");
-                  res.statusCode = 500;
-                  res.setHeader('Content-Type', 'application/json');
-                  const errorJson = JSON.stringify({
-                    error: "API returned HTML instead of JSON",
-                    message: "Internal server error"
-                  });
-                  res.end(errorJson);
-                  return;
+                if (responseBody.trim()) {
+                  JSON.parse(responseBody);
+                  console.log("Final validation: confirmed valid JSON");
                 }
               } catch (e) {
-                console.error("Response is not valid JSON, converting to error:", e);
+                console.error("Final validation: response is not valid JSON:", e);
                 res.statusCode = 500;
                 res.setHeader('Content-Type', 'application/json');
                 const errorJson = JSON.stringify({
