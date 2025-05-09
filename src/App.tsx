@@ -1,9 +1,10 @@
+
 import React from "react";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import Index from "./pages/Index";
-import DevicesPage from "./pages/Devices";
-import DeviceDetailPage from "./pages/DeviceDetail";
-import SettingsPage from "./pages/Settings";
+import DevicesPage from "./pages/DevicesPage";
+import DeviceDetailPage from "./pages/DeviceDetailPage";
+import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 import { Toaster } from "@/components/ui/sonner";
 import TestApiPage from "./pages/TestApiPage";
