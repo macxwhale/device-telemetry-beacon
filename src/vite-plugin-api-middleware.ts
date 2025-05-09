@@ -41,8 +41,6 @@ export function apiMiddleware(): Plugin {
               if (value) headers.set(key, Array.isArray(value) ? value.join(', ') : String(value));
             }
             
-            console.log("Request headers:", JSON.stringify(Object.fromEntries(headers.entries())));
-            
             // Get request body if available
             let body: any = undefined;
             if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
@@ -52,7 +50,6 @@ export function apiMiddleware(): Plugin {
               }
               const bodyBuffer = Buffer.concat(chunks);
               body = bodyBuffer.length > 0 ? bodyBuffer.toString() : undefined;
-              console.log("Request body (partial):", body ? body.substring(0, 100) + "..." : "empty");
             }
             
             const request = new Request(url, {
@@ -65,7 +62,7 @@ export function apiMiddleware(): Plugin {
             const response = await handleApiRequest(request);
             
             if (response) {
-              console.log(`API response: ${response.status}`);
+              console.log(`API response status: ${response.status}`);
               
               // Set status code
               res.statusCode = response.status;
@@ -75,39 +72,19 @@ export function apiMiddleware(): Plugin {
                 res.setHeader(key, value);
               });
               
-              // Ensure Content-Type is set to application/json for API responses
+              // Ensure Content-Type is set
               if (!res.getHeader('Content-Type')) {
                 res.setHeader('Content-Type', 'application/json');
               }
               
-              // Send response body
+              // Get response body
               const responseBody = await response.text();
               
-              // Log response details
+              // Log response for debugging
               console.log("Response content type:", res.getHeader('Content-Type'));
-              console.log("Response body (first 500 chars):", responseBody.substring(0, 500) + (responseBody.length > 500 ? "..." : ""));
+              console.log("Response body (first 200 chars):", responseBody.substring(0, 200));
               
-              // Validate JSON response if content type is application/json
-              if (String(res.getHeader('Content-Type')).includes('application/json')) {
-                try {
-                  // Check if the response is valid JSON
-                  JSON.parse(responseBody);
-                } catch (jsonError) {
-                  console.error("Invalid JSON in response:", jsonError);
-                  
-                  // Override with a valid JSON error response
-                  res.statusCode = 500;
-                  res.setHeader('Content-Type', 'application/json');
-                  const errorResponse = JSON.stringify({
-                    error: "Invalid JSON response",
-                    details: "The API returned invalid JSON data",
-                    original_response: responseBody.substring(0, 200) + "..."
-                  });
-                  res.end(errorResponse);
-                  return;
-                }
-              }
-              
+              // Send response
               res.end(responseBody);
               return;
             }
@@ -115,11 +92,9 @@ export function apiMiddleware(): Plugin {
             console.error('API middleware error:', error);
             res.statusCode = 500;
             res.setHeader('Content-Type', 'application/json');
-            res.setHeader('Access-Control-Allow-Origin', '*');
             res.end(JSON.stringify({ 
               error: 'Internal Server Error', 
-              details: (error as Error).message,
-              stack: (error as Error).stack
+              details: (error as Error).message
             }));
             return;
           }
