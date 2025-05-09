@@ -4,7 +4,6 @@ import { DeviceStatus } from "@/types/telemetry";
 import { getAllDevices } from "@/services/telemetryService";
 import { toast } from "@/hooks/use-toast";
 import { getNotificationSettings } from "@/services/notifications";
-import { sendTelegramNotification } from "@/services/notifications/telegramService";
 
 interface DeviceContextType {
   devices: DeviceStatus[];
@@ -47,20 +46,12 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
       
       // Show notifications for new devices if the setting is enabled
       if (notificationSettings?.notify_new_device && newDevices.length > 0) {
-        // Process each new device for notifications
-        newDevices.forEach(async device => {
-          // UI Toast notification
+        newDevices.forEach(device => {
           toast({
             title: "New Device Added",
             description: `${device.name} (${device.model}) has been added to your network`,
             variant: "default",
           });
-          
-          // Telegram notification
-          await sendTelegramNotification(
-            `🆕 New Device Added: ${device.name} (${device.model}) has been added to your network`,
-            "new_device"
-          );
         });
       }
       
@@ -97,19 +88,10 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
         
         // Only show notification if the setting is enabled and device status changed from online to offline
         if (device.isOnline && !isOnline && notificationSettings.notify_device_offline) {
-          // UI Toast notification
           toast({
             title: "Device Offline",
             description: `${device.name} (${device.model}) is now offline`,
             variant: "destructive",
-          });
-          
-          // Telegram notification
-          sendTelegramNotification(
-            `⚠️ Device Offline: ${device.name} (${device.model}) is now offline`,
-            "device_offline"
-          ).catch(err => {
-            console.error("Failed to send Telegram notification for offline device:", err);
           });
         }
         
@@ -118,19 +100,10 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
             device.battery_level !== undefined && 
             device.battery_level <= 20 && 
             notificationSettings.notify_low_battery) {
-          // UI Toast notification
           toast({
             title: "Low Battery Warning",
             description: `${device.name} has ${device.battery_level}% battery remaining`,
             variant: "default", // Changed from "warning" to "default" as only "default" and "destructive" are valid
-          });
-          
-          // Telegram notification
-          sendTelegramNotification(
-            `🔋 Low Battery Warning: ${device.name} has ${device.battery_level}% battery remaining`,
-            "low_battery"
-          ).catch(err => {
-            console.error("Failed to send Telegram notification for low battery:", err);
           });
         }
         

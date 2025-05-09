@@ -11,8 +11,6 @@ interface NotificationPayload {
   message: string;
   type: 'test' | 'device_offline' | 'low_battery' | 'security_issue' | 'new_device';
   deviceId?: string;
-  botToken: string;
-  chatId: string;
 }
 
 serve(async (req) => {
@@ -22,37 +20,70 @@ serve(async (req) => {
   }
 
   try {
-    // Parse the request body
-    const payload = await req.json() as NotificationPayload;
-    
-    if (!payload.message || !payload.type || !payload.botToken || !payload.chatId) {
-      throw new Error('Missing required fields: message, type, botToken, and chatId');
+    // Get the Supabase URL and key from env
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase URL or service role key');
     }
 
-    console.log(`Processing notification of type: ${payload.type}`);
+    // Create a Supabase client
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Parse the request body
+    const payload: NotificationPayload = await req.json();
+    
+    if (!payload.message || !payload.type) {
+      throw new Error('Missing required fields: message and type');
+    }
+
+    // Get notification settings
+    const { data: settings, error: settingsError } = await supabase
+      .from('notification_settings')
+      .select('*')
+      .limit(1)
+      .single();
+
+    if (settingsError) {
+      throw new Error(`Failed to get notification settings: ${settingsError.message}`);
+    }
+
+    if (!settings) {
+      throw new Error('No notification settings found');
+    }
 
     // Initialize results array
     const results = [];
 
-    // Format message based on notification type
-    let formattedMessage = payload.message;
-    
-    // Add timestamp to all messages
-    const timestamp = new Date().toLocaleString();
-    formattedMessage += `\n\nTime: ${timestamp}`;
+    // Send Telegram notification if configured
+    if (settings.telegram_bot_token && settings.telegram_chat_id) {
+      try {
+        const telegramResult = await sendTelegramNotification(
+          payload.message,
+          settings.telegram_bot_token,
+          settings.telegram_chat_id
+        );
+        results.push({ channel: 'telegram', success: true, result: telegramResult });
+      } catch (error) {
+        console.error('Telegram notification error:', error);
+        results.push({ channel: 'telegram', success: false, error: error.message });
+      }
+    } else {
+      results.push({ 
+        channel: 'telegram', 
+        success: false, 
+        error: 'Telegram bot token or chat ID not configured' 
+      });
+    }
 
-    // Send Telegram notification
-    try {
-      const telegramResult = await sendTelegramNotification(
-        formattedMessage,
-        payload.botToken,
-        payload.chatId
-      );
-      results.push({ channel: 'telegram', success: true, result: telegramResult });
-      console.log('Telegram notification sent successfully');
-    } catch (error) {
-      console.error('Telegram notification error:', error);
-      results.push({ channel: 'telegram', success: false, error: error.message });
+    // Send email notification if configured (placeholder)
+    if (settings.email_notifications) {
+      results.push({ 
+        channel: 'email', 
+        success: false, 
+        error: 'Email notifications not implemented yet' 
+      });
     }
 
     return new Response(
