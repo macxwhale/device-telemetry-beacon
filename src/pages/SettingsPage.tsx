@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+
+import { useState } from "react";
 import { Layout } from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,25 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, Database, Loader2, Copy } from "lucide-react";
-import { initializeDatabaseConnection, getDatabaseStats } from "@/services/databaseService";
+import { Copy } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
 const SettingsPage = () => {
   const [isInitializing, setIsInitializing] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [databaseStatus, setDatabaseStatus] = useState<{
-    devices: number;
-    telemetry_records: number;
-    apps: number;
-  } | null>(null);
   
   useEffect(() => {
     // Page title
     document.title = "Settings - Device Telemetry";
-    
-    // Check database status on load
-    checkDatabaseStatus();
   }, []);
   
   const handleSaveGeneral = (e: React.FormEvent) => {
@@ -46,50 +37,6 @@ const SettingsPage = () => {
   const currentDomain = window.location.origin;
   const apiEndpoint = `${currentDomain}/api/telemetry`;
   
-  // Function to check database status
-  const checkDatabaseStatus = async () => {
-    setIsRefreshing(true);
-    toast.loading("Refreshing database statistics...", { duration: 3000 });
-    try {
-      const stats = await getDatabaseStats();
-      if (stats) {
-        setDatabaseStatus(stats);
-        toast.success("Database statistics refreshed", { duration: 2000 });
-      } else {
-        toast.error("Failed to refresh database statistics", { duration: 2000 });
-      }
-    } catch (error) {
-      console.error("Error checking database status:", error);
-      toast.error("Failed to refresh database statistics", {
-        description: "An unexpected error occurred",
-        duration: 3000
-      });
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-  
-  // Function to initialize database connection
-  const handleInitializeDatabase = async () => {
-    setIsInitializing(true);
-    try {
-      const result = await initializeDatabaseConnection();
-      // Success/error toasts are now handled in the service function
-      if (result) {
-        // If successful, refresh the database stats
-        await checkDatabaseStatus();
-      }
-    } catch (error) {
-      console.error("Error initializing database:", error);
-      toast.error("Database initialization failed", {
-        description: "An unexpected error occurred during initialization",
-        duration: 4000
-      });
-    } finally {
-      setIsInitializing(false);
-    }
-  };
-
   // Generate SQL for database setup
   const getSetupSQL = () => {
     return `-- Create the execute_sql function for safe SQL execution
@@ -578,52 +525,16 @@ ALTER TABLE public.device_telemetry REPLICA IDENTITY FULL;`;
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-secondary p-4 rounded-md">
                       <p className="text-sm text-muted-foreground">Devices</p>
-                      <p className="text-2xl font-bold">
-                        {isRefreshing ? 
-                          <span className="flex items-center">
-                            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                            Loading...
-                          </span> : 
-                          databaseStatus?.devices ?? '0'
-                        }
-                      </p>
+                      <p className="text-2xl font-bold">0</p>
                     </div>
                     <div className="bg-secondary p-4 rounded-md">
                       <p className="text-sm text-muted-foreground">Telemetry Records</p>
-                      <p className="text-2xl font-bold">
-                        {isRefreshing ? 
-                          <span className="flex items-center">
-                            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                            Loading...
-                          </span> : 
-                          databaseStatus?.telemetry_records ?? '0'
-                        }
-                      </p>
+                      <p className="text-2xl font-bold">0</p>
                     </div>
                     <div className="bg-secondary p-4 rounded-md">
                       <p className="text-sm text-muted-foreground">App Records</p>
-                      <p className="text-2xl font-bold">
-                        {isRefreshing ? 
-                          <span className="flex items-center">
-                            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                            Loading...
-                          </span> : 
-                          databaseStatus?.apps ?? '0'
-                        }
-                      </p>
+                      <p className="text-2xl font-bold">0</p>
                     </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={checkDatabaseStatus}
-                      disabled={isRefreshing}
-                      className="flex items-center gap-1"
-                    >
-                      <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                      {isRefreshing ? 'Refreshing...' : 'Refresh'}
-                    </Button>
                   </div>
                 </div>
 
@@ -635,21 +546,10 @@ ALTER TABLE public.device_telemetry REPLICA IDENTITY FULL;`;
                   
                   <div className="flex flex-col sm:flex-row gap-3">
                     <Button 
-                      onClick={handleInitializeDatabase} 
+                      onClick={() => toast.info("This feature is currently disabled.")} 
                       disabled={isInitializing}
-                      className="flex items-center gap-2"
                     >
-                      {isInitializing ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Setting up database...
-                        </>
-                      ) : (
-                        <>
-                          <Database className="h-4 w-4" />
-                          Initialize/Verify Database
-                        </>
-                      )}
+                      Initialize/Verify Database
                     </Button>
                   </div>
                 </div>
