@@ -245,7 +245,7 @@ export async function handleTelemetryApiImplementation(request: Request): Promis
       console.log(`Processing ${apps.length} apps for device ${deviceId}`);
       
       // Prepare app data for database
-      const appRows = apps.map(app => ({
+      const appRows = apps.map((app: string) => ({
         device_id: deviceDbId,
         app_package: app
       }));
