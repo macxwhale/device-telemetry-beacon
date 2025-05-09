@@ -1,5 +1,6 @@
 
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 // Initialize the database connection and ensure tables exist
 export const initializeDatabaseConnection = async (): Promise<boolean> => {
@@ -26,12 +27,50 @@ export const getDatabaseStats = async (): Promise<{
   telemetry_records: number;
   apps: number;
 } | null> => {
-  console.log("Database statistics feature is currently disabled.");
-  return {
-    devices: 0,
-    telemetry_records: 0,
-    apps: 0
-  };
+  try {
+    // Query devices count
+    const { count: devicesCount, error: devicesError } = await supabase
+      .from('devices')
+      .select('*', { count: 'exact', head: true });
+    
+    if (devicesError) {
+      console.error("Error fetching devices count:", devicesError);
+      throw devicesError;
+    }
+
+    // Query telemetry records count
+    const { count: telemetryCount, error: telemetryError } = await supabase
+      .from('telemetry_history')
+      .select('*', { count: 'exact', head: true });
+    
+    if (telemetryError) {
+      console.error("Error fetching telemetry count:", telemetryError);
+      throw telemetryError;
+    }
+
+    // Query app records count
+    const { count: appsCount, error: appsError } = await supabase
+      .from('device_apps')
+      .select('*', { count: 'exact', head: true });
+    
+    if (appsError) {
+      console.error("Error fetching apps count:", appsError);
+      throw appsError;
+    }
+
+    return {
+      devices: devicesCount || 0,
+      telemetry_records: telemetryCount || 0,
+      apps: appsCount || 0
+    };
+  } catch (error) {
+    console.error("Error fetching database statistics:", error);
+    toast.error("Failed to fetch database statistics", {
+      description: error instanceof Error ? error.message : "Unknown error occurred",
+      duration: 3000,
+    });
+    return null;
+  }
 };
 
 // Execute SQL function to allow for safe SQL execution
