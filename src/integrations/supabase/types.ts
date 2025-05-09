@@ -202,6 +202,48 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_settings: {
+        Row: {
+          additional_settings: Json | null
+          created_at: string | null
+          email_notifications: string | null
+          id: string
+          notify_device_offline: boolean | null
+          notify_low_battery: boolean | null
+          notify_new_device: boolean | null
+          notify_security_issues: boolean | null
+          telegram_bot_token: string | null
+          telegram_chat_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          additional_settings?: Json | null
+          created_at?: string | null
+          email_notifications?: string | null
+          id?: string
+          notify_device_offline?: boolean | null
+          notify_low_battery?: boolean | null
+          notify_new_device?: boolean | null
+          notify_security_issues?: boolean | null
+          telegram_bot_token?: string | null
+          telegram_chat_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          additional_settings?: Json | null
+          created_at?: string | null
+          email_notifications?: string | null
+          id?: string
+          notify_device_offline?: boolean | null
+          notify_low_battery?: boolean | null
+          notify_new_device?: boolean | null
+          notify_security_issues?: boolean | null
+          telegram_bot_token?: string | null
+          telegram_chat_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       telemetry_history: {
         Row: {
           device_id: string | null
@@ -239,6 +281,10 @@ export type Database = {
       execute_sql: {
         Args: { sql: string }
         Returns: Json[]
+      }
+      send_telegram_notification: {
+        Args: { message: string; bot_token: string; chat_id: string }
+        Returns: Json
       }
     }
     Enums: {
