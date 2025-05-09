@@ -111,11 +111,12 @@ export const sendTestNotification = async (
       return false;
     }
     
-    const response = await fetch(`${supabase.supabaseUrl}/functions/v1/send-notification`, {
+    // Fix: Use the Supabase functions.invoke method instead of accessing protected properties
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-notification`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabase.supabaseKey}`
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
       },
       body: JSON.stringify({
         message: "This is a test notification from Device Telemetry",
