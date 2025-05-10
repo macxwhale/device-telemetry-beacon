@@ -19,13 +19,19 @@ export const TelemetryClient = {
       // Log the data being sent for debugging
       console.log("Sending telemetry data to API:", JSON.stringify(telemetryData).slice(0, 200) + "...");
       
-      // Detect if we're running locally or in production
-      const isDevelopmentMode = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      // Improved environment detection logic
+      const isLocalhost = window.location.hostname === 'localhost' || 
+                          window.location.hostname === '127.0.0.1';
       
-      // URL for the API endpoint
-      const apiUrl = isDevelopmentMode 
+      console.log("Current hostname:", window.location.hostname);
+      console.log("Using local development API?", isLocalhost);
+      
+      // URL for the API endpoint - ALWAYS use Edge Function in production
+      const apiUrl = isLocalhost 
         ? '/api/telemetry'                                      // Local development
         : `${SUPABASE_URL}/functions/v1/telemetry-api`;         // Production (Edge Function)
+      
+      console.log("Using API URL:", apiUrl);
 
       // Make the API call
       const response = await fetch(apiUrl, {
@@ -64,13 +70,19 @@ export const TelemetryClient = {
    */
   getAllDevices: async (): Promise<any[]> => {
     try {
-      // Detect if we're running locally or in production
-      const isDevelopmentMode = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      // Use the same environment detection logic for consistency
+      const isLocalhost = window.location.hostname === 'localhost' || 
+                          window.location.hostname === '127.0.0.1';
+      
+      console.log("Current hostname:", window.location.hostname);
+      console.log("Using local development API for devices?", isLocalhost);
       
       // URL for the devices API endpoint
-      const apiUrl = isDevelopmentMode 
+      const apiUrl = isLocalhost 
         ? '/api/devices'                                 // Local development mode
         : `${SUPABASE_URL}/functions/v1/get-devices`;    // Production (Edge Function)
+      
+      console.log("Using devices API URL:", apiUrl);
 
       const response = await fetch(apiUrl, {
         method: 'GET',

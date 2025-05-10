@@ -7,6 +7,7 @@ export async function handleApiRequest(request: Request): Promise<Response | und
   const path = url.pathname;
 
   console.log(`API request: ${request.method} ${path}`);
+  console.log(`Request URL: ${request.url}`);
 
   // Normalize path to handle trailing slashes consistently
   const normalizedPath = path.endsWith('/') ? path.slice(0, -1) : path;
