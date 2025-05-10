@@ -125,6 +125,41 @@ export async function handleApiRequest(request: Request): Promise<Response | und
         }
       });
     }
+  } else if (normalizedPath === "/api/devices") {
+    // Create a simple proxy for get-devices during development
+    console.log("Proxying devices API request to Supabase Edge Function");
+    
+    const supabaseUrl = "https://byvbunvegjwzgytavgkv.supabase.co";
+    
+    try {
+      const response = await fetch(`${supabaseUrl}/functions/v1/get-devices`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      return new Response(JSON.stringify(data), {
+        status: response.status,
+        headers: { 
+          "Content-Type": "application/json",
+          ...corsHeaders
+        }
+      });
+    } catch (error) {
+      console.error("Error proxying devices API:", error);
+      return new Response(JSON.stringify({ 
+        error: "API proxy error", 
+        details: (error as Error).message 
+      }), {
+        status: 500,
+        headers: { 
+          "Content-Type": "application/json",
+          ...corsHeaders
+        }
+      });
+    }
   }
 
   // If no route matched, return undefined to let the default handler process it

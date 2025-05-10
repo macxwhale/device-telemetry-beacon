@@ -6,3 +6,10 @@ verify_jwt = false
 
 [functions.initialize-database]
 verify_jwt = false
+
+[functions.telemetry-api]
+verify_jwt = false
+
+[functions.get-devices]
+verify_jwt = false
+

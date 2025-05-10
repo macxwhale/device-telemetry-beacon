@@ -4,6 +4,9 @@ import { toast } from "@/hooks/use-toast";
 // API key for simple authentication
 const API_KEY = "telm_sk_1234567890abcdef";
 
+// Supabase project URL - ensure this is set correctly for your deployed version
+const SUPABASE_URL = "https://byvbunvegjwzgytavgkv.supabase.co";
+
 /**
  * A client for sending telemetry data to the API
  */
@@ -15,9 +18,17 @@ export const TelemetryClient = {
     try {
       // Log the data being sent for debugging
       console.log("Sending telemetry data to API:", JSON.stringify(telemetryData).slice(0, 200) + "...");
+      
+      // Detect if we're running locally or in production
+      const isDevelopmentMode = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      
+      // URL for the API endpoint
+      const apiUrl = isDevelopmentMode 
+        ? '/api/telemetry'                                      // Local development
+        : `${SUPABASE_URL}/functions/v1/telemetry-api`;         // Production (Edge Function)
 
       // Make the API call
-      const response = await fetch('/api/telemetry', {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -45,6 +56,44 @@ export const TelemetryClient = {
         variant: "destructive"
       });
       throw error;
+    }
+  },
+
+  /**
+   * Get all devices from the API
+   */
+  getAllDevices: async (): Promise<any[]> => {
+    try {
+      // Detect if we're running locally or in production
+      const isDevelopmentMode = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      
+      // URL for the devices API endpoint
+      const apiUrl = isDevelopmentMode 
+        ? '/api/devices'                                 // Local development mode
+        : `${SUPABASE_URL}/functions/v1/get-devices`;    // Production (Edge Function)
+
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`API error: ${errorData.error || response.statusText}`);
+      }
+      
+      const devices = await response.json();
+      return devices;
+    } catch (error) {
+      console.error("Error fetching devices:", error);
+      toast({
+        title: "Error",
+        description: `Failed to fetch devices: ${(error as Error).message}`,
+        variant: "destructive"
+      });
+      return [];
     }
   },
 
