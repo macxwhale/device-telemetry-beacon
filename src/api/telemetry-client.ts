@@ -27,9 +27,8 @@ export const TelemetryClient = {
       console.log("Using local development API?", isLocalhost);
       
       // URL for the API endpoint - ALWAYS use Edge Function in production
-      const apiUrl = isLocalhost 
-        ? '/api/telemetry'                                      // Local development
-        : `${SUPABASE_URL}/functions/v1/telemetry-api`;         // Production (Edge Function)
+      const apiUrl = `${SUPABASE_URL}/functions/v1/telemetry-api`;
+
       
       console.log("Using API URL:", apiUrl);
 
