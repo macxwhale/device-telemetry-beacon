@@ -9,6 +9,7 @@ interface DeviceContextType {
   loading: boolean;
   error: string | null;
   refreshDevices: () => Promise<void>;
+  updateOfflineThreshold: (minutes: number) => void;
 }
 
 const DeviceContext = createContext<DeviceContextType | undefined>(undefined);
@@ -18,6 +19,15 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [knownDeviceIds, setKnownDeviceIds] = useState<Set<string>>(new Set());
+  const [offlineThreshold, setOfflineThreshold] = useState<number>(15); // Default to 15 minutes
+
+  // Set initial offline threshold from localStorage if available
+  useEffect(() => {
+    const storedThreshold = localStorage.getItem("offlineThreshold");
+    if (storedThreshold) {
+      setOfflineThreshold(parseInt(storedThreshold, 10));
+    }
+  }, []);
 
   // Fetch devices from API
   const fetchDevices = useCallback(async () => {
@@ -56,15 +66,15 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, []); // Remove knownDeviceIds from the dependency array
+  }, [knownDeviceIds]);
 
-  // Check for offline devices
+  // Check for offline devices using the configurable threshold
   const checkOfflineDevices = useCallback(() => {
     setDevices(prev => 
       prev.map(device => {
         const lastSeenDiff = Date.now() - device.last_seen;
-        // Mark device as offline if not seen in last 15 minutes
-        const isOnline = lastSeenDiff < 15 * 60 * 1000;
+        // Use the configurable threshold (convert from minutes to milliseconds)
+        const isOnline = lastSeenDiff < offlineThreshold * 60 * 1000;
         
         if (device.isOnline && !isOnline) {
           toast({
@@ -77,7 +87,14 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
         return { ...device, isOnline };
       })
     );
-  }, []);
+  }, [offlineThreshold]);
+
+  // Update the offline threshold
+  const updateOfflineThreshold = useCallback((minutes: number) => {
+    setOfflineThreshold(minutes);
+    // Re-check devices with the new threshold immediately
+    setTimeout(() => checkOfflineDevices(), 0);
+  }, [checkOfflineDevices]);
 
   // Initial data load and interval setup
   useEffect(() => {
@@ -99,7 +116,8 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
     devices,
     loading,
     error,
-    refreshDevices
+    refreshDevices,
+    updateOfflineThreshold
   };
 
   return (
