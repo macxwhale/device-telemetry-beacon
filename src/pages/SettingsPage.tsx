@@ -19,7 +19,7 @@ const SettingsPage = () => {
         <h1 className="text-2xl font-bold">Settings</h1>
       </div>
       
-      <Tabs defaultValue="general" className="w-full">
+      <Tabs defaultValue="notifications" className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
