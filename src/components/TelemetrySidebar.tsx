@@ -1,9 +1,10 @@
 
 import { useState } from "react";
-import { Activity, BarChart3, LogOut, PlayCircle, Settings, Smartphone } from "lucide-react";
+import { Activity, BarChart3, LogOut, MenuIcon, PlayCircle, Settings, Smartphone, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useSidebar } from "./ui/sidebar";
 
 interface SidebarLinkProps {
   to: string;
@@ -45,49 +46,8 @@ function MobileMenuToggle({ open, onClick }: MobileMenuToggleProps) {
   );
 }
 
-function MenuIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <line x1="4" x2="20" y1="12" y2="12" />
-      <line x1="4" x2="20" y1="6" y2="6" />
-      <line x1="4" x2="20" y1="18" y2="18" />
-    </svg>
-  );
-}
-
-function X(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  );
-}
-
 export function TelemetrySidebar() {
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const { toggleSidebar, openMobile, setOpenMobile } = useSidebar();
   const navigate = useNavigate();
   const userString = localStorage.getItem("user");
   const user = userString ? JSON.parse(userString) : null;
@@ -102,13 +62,13 @@ export function TelemetrySidebar() {
   return (
     <aside className={cn(
       "fixed left-0 top-0 z-40 h-screen w-64 border-r bg-background transition-transform",
-      mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      openMobile ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
     )}>
       <div className="flex h-full flex-col overflow-y-auto">
         <div className="px-3 py-4">
           <MobileMenuToggle 
-            open={mobileOpen} 
-            onClick={() => setMobileOpen(!mobileOpen)}
+            open={openMobile} 
+            onClick={() => setOpenMobile(!openMobile)}
           />
           <div className="mb-10 flex items-center rounded-lg px-3 py-2">
             <Activity className="mr-2 h-6 w-6" />
