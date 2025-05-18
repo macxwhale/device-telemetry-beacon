@@ -9,7 +9,6 @@ import ApiTab from "@/components/settings/ApiTab";
 
 const SettingsPage = () => {
   useEffect(() => {
-    // Page title
     document.title = "Settings - Device Telemetry";
   }, []);
 

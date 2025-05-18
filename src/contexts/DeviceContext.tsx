@@ -21,6 +21,7 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
   const [knownDeviceIds, setKnownDeviceIds] = useState<Set<string>>(new Set());
   const [settings, setSettings] = useState<GeneralSettings | null>(null);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   // Fetch settings from database
   useEffect(() => {
@@ -44,9 +45,12 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   // Fetch devices from API
-  const fetchDevices = useCallback(async () => {
+  const fetchDevices = useCallback(async (showLoadingState = !initialLoadComplete) => {
     try {
-      setLoading(true);
+      if (showLoadingState) {
+        setLoading(true);
+      }
+      
       const data = await getAllDevices();
       
       // Check for new devices by comparing with known device IDs
@@ -70,6 +74,10 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
       
       setDevices(data);
       setError(null);
+      
+      if (!initialLoadComplete) {
+        setInitialLoadComplete(true);
+      }
     } catch (err) {
       setError("Failed to fetch devices");
       toast({
@@ -80,7 +88,7 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, [knownDeviceIds]); // Include knownDeviceIds in the dependency array
+  }, [knownDeviceIds, initialLoadComplete]);
 
   // Check for offline devices
   const checkOfflineDevices = useCallback(() => {
@@ -114,6 +122,7 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
     // Only set up interval if settings are loaded and auto-refresh is enabled
     if (settings && settings.auto_refresh) {
       const interval = setInterval(() => {
+        fetchDevices(false); // Don't show loading state on background refresh
         checkOfflineDevices();
       }, 60 * 1000);
       
@@ -123,7 +132,7 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
 
   // Public API for context consumers
   const refreshDevices = async () => {
-    await fetchDevices();
+    await fetchDevices(true); // Show loading state on manual refresh
   };
 
   const contextValue = {
