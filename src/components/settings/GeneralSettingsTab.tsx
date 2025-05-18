@@ -1,18 +1,60 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+} from "@/components/ui/form";
 import { toast } from "sonner";
+import { GeneralSettings, getGeneralSettings, saveGeneralSettings } from "@/services/settingsService";
+import { Loader2 } from "lucide-react";
 
 const GeneralSettingsTab = () => {
-  const handleSaveGeneral = (e: React.FormEvent) => {
-    e.preventDefault();
-    toast.success("Settings saved", {
-      description: "Your general settings have been updated",
-    });
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const form = useForm<GeneralSettings>({
+    defaultValues: {
+      system_name: "Device Telemetry Beacon",
+      offline_threshold: 15,
+      data_retention: 30,
+      auto_refresh: true
+    },
+  });
+  
+  useEffect(() => {
+    const loadSettings = async () => {
+      setIsLoading(true);
+      try {
+        const settings = await getGeneralSettings();
+        if (settings) {
+          form.reset(settings);
+        }
+      } catch (error) {
+        console.error("Error loading general settings:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadSettings();
+  }, [form]);
+
+  const handleSaveGeneral = async (data: GeneralSettings) => {
+    setIsLoading(true);
+    try {
+      await saveGeneralSettings(data);
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   return (
@@ -24,47 +66,96 @@ const GeneralSettingsTab = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSaveGeneral} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="system-name">System Name</Label>
-            <Input id="system-name" defaultValue="Device Telemetry Beacon" />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="offline-threshold">Offline Threshold (minutes)</Label>
-            <Input 
-              id="offline-threshold" 
-              type="number" 
-              defaultValue="15" 
-              min="1"
-              max="60"
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSaveGeneral)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="system_name"
+              render={({ field }) => (
+                <FormItem className="space-y-2">
+                  <FormLabel>System Name</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
             />
-            <p className="text-xs text-muted-foreground">
-              Time in minutes after which a device is marked as offline if no data is received.
-            </p>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="data-retention">Data Retention Period (days)</Label>
-            <Input 
-              id="data-retention" 
-              type="number" 
-              defaultValue="30" 
-              min="1"
-              max="365"
+            
+            <FormField
+              control={form.control}
+              name="offline_threshold"
+              render={({ field }) => (
+                <FormItem className="space-y-2">
+                  <FormLabel>Offline Threshold (minutes)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="60"
+                      {...field}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Time in minutes after which a device is marked as offline if no data is received.
+                  </FormDescription>
+                </FormItem>
+              )}
             />
-            <p className="text-xs text-muted-foreground">
-              Number of days to retain historical telemetry data.
-            </p>
-          </div>
-          
-          <div className="flex items-center space-x-2 pt-2">
-            <Switch id="auto-refresh" defaultChecked />
-            <Label htmlFor="auto-refresh">Enable auto-refresh (1 minute)</Label>
-          </div>
-          
-          <Button type="submit">Save Settings</Button>
-        </form>
+            
+            <FormField
+              control={form.control}
+              name="data_retention"
+              render={({ field }) => (
+                <FormItem className="space-y-2">
+                  <FormLabel>Data Retention Period (days)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="365"
+                      {...field}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Number of days to retain historical telemetry data.
+                  </FormDescription>
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="auto_refresh"
+              render={({ field }) => (
+                <FormItem className="flex items-center space-x-2 pt-2">
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <FormLabel className="!mt-0">Enable auto-refresh (1 minute)</FormLabel>
+                </FormItem>
+              )}
+            />
+            
+            <Button 
+              type="submit" 
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Settings"
+              )}
+            </Button>
+          </form>
+        </Form>
       </CardContent>
     </Card>
   );

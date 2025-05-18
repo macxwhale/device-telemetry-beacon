@@ -3,12 +3,14 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 import { DeviceStatus } from "@/types/telemetry";
 import { getAllDevices } from "@/services/telemetryService";
 import { toast } from "@/hooks/use-toast";
+import { getGeneralSettings, GeneralSettings } from "@/services/settingsService";
 
 interface DeviceContextType {
   devices: DeviceStatus[];
   loading: boolean;
   error: string | null;
   refreshDevices: () => Promise<void>;
+  settings: GeneralSettings | null;
 }
 
 const DeviceContext = createContext<DeviceContextType | undefined>(undefined);
@@ -18,6 +20,28 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [knownDeviceIds, setKnownDeviceIds] = useState<Set<string>>(new Set());
+  const [settings, setSettings] = useState<GeneralSettings | null>(null);
+
+  // Fetch settings from database
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const generalSettings = await getGeneralSettings();
+        setSettings(generalSettings);
+      } catch (err) {
+        console.error("Failed to load settings:", err);
+        // If settings can't be loaded, use default values
+        setSettings({
+          system_name: "Device Telemetry Beacon",
+          offline_threshold: 15,
+          data_retention: 30,
+          auto_refresh: true
+        });
+      }
+    };
+    
+    loadSettings();
+  }, []);
 
   // Fetch devices from API
   const fetchDevices = useCallback(async () => {
@@ -56,15 +80,19 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, []); // Remove knownDeviceIds from the dependency array
+  }, [knownDeviceIds]); // Include knownDeviceIds in the dependency array
 
   // Check for offline devices
   const checkOfflineDevices = useCallback(() => {
+    if (!settings) return; // Wait until settings are loaded
+    
+    const offlineThresholdMs = settings.offline_threshold * 60 * 1000; // Convert minutes to ms
+    
     setDevices(prev => 
       prev.map(device => {
         const lastSeenDiff = Date.now() - device.last_seen;
-        // Mark device as offline if not seen in last 15 minutes
-        const isOnline = lastSeenDiff < 15 * 60 * 1000;
+        // Use threshold from settings
+        const isOnline = lastSeenDiff < offlineThresholdMs;
         
         if (device.isOnline && !isOnline) {
           toast({
@@ -77,18 +105,21 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
         return { ...device, isOnline };
       })
     );
-  }, []);
+  }, [settings]); // Add settings to the dependency array
 
   // Initial data load and interval setup
   useEffect(() => {
     fetchDevices();
     
-    const interval = setInterval(() => {
-      checkOfflineDevices();
-    }, 60 * 1000);
-    
-    return () => clearInterval(interval);
-  }, [fetchDevices, checkOfflineDevices]);
+    // Only set up interval if settings are loaded and auto-refresh is enabled
+    if (settings && settings.auto_refresh) {
+      const interval = setInterval(() => {
+        checkOfflineDevices();
+      }, 60 * 1000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [fetchDevices, checkOfflineDevices, settings]);
 
   // Public API for context consumers
   const refreshDevices = async () => {
@@ -99,7 +130,8 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
     devices,
     loading,
     error,
-    refreshDevices
+    refreshDevices,
+    settings
   };
 
   return (
