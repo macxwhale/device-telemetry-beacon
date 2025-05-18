@@ -5,12 +5,22 @@ import { supabase } from "@/integrations/supabase/client";
 // Initialize the database connection and ensure tables exist
 export const initializeDatabaseConnection = async (): Promise<boolean> => {
   try {
-    console.log("Database connection initialization is disabled.");
-    toast.info("Database connection feature is currently disabled.", {
+    // Get the SQL setup script from the DatabaseSetupSQL component
+    const { data, error } = await supabase.functions.invoke('initialize-database', {
+      body: { action: 'initialize' },
+    });
+    
+    if (error) {
+      console.error("Error initializing database:", error);
+      throw new Error(error.message);
+    }
+    
+    toast.success("Database connection initialized", {
+      description: "Successfully connected to the database",
       duration: 3000,
     });
     
-    return false;
+    return true;
   } catch (error) {
     console.error("Error initializing database:", error);
     toast.error("Failed to initialize database connection", {
@@ -76,12 +86,16 @@ export const getDatabaseStats = async (): Promise<{
 // Execute SQL function to allow for safe SQL execution
 export const executeSQL = async (sql: string): Promise<any> => {
   try {
-    console.log("SQL execution is disabled.");
-    toast.info("SQL execution feature is currently disabled", {
-      duration: 3000,
+    const { data, error } = await supabase.rpc('execute_sql', {
+      sql: sql
     });
     
-    return { success: false, error: "Feature disabled" };
+    if (error) {
+      console.error("Error executing SQL:", error);
+      throw error;
+    }
+    
+    return { success: true, data };
   } catch (error) {
     console.error("Error executing SQL:", error);
     toast.error("SQL execution failed", {

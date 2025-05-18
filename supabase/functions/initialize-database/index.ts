@@ -1,489 +1,470 @@
 
-// Supabase Edge Function for database initialization
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
-import { serve } from 'https://deno.land/std@0.188.0/http/server.ts'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.1";
+import { corsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
-serve(async (req: Request) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders, status: 204 })
+// Create a Supabase client with the service role key
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// SQL setup script - same as in DatabaseSetupSQL.tsx
+const getDatabaseSetupSQL = () => {
+  return `-- Create the execute_sql function for safe SQL execution
+CREATE OR REPLACE FUNCTION execute_sql(sql text)
+RETURNS SETOF json AS $$
+BEGIN
+  RETURN QUERY EXECUTE sql;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create enums for common statuses
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'battery_status') THEN
+    CREATE TYPE public.battery_status AS ENUM ('Charging', 'Discharging', 'Full', 'Not Charging', 'Unknown');
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'network_type') THEN
+    CREATE TYPE public.network_type AS ENUM ('WiFi', 'Mobile', 'Ethernet', 'None', 'Unknown');
+  END IF;
+END$$;
+
+-- Create devices table
+CREATE TABLE IF NOT EXISTS public.devices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  android_id TEXT NOT NULL UNIQUE,
+  device_name TEXT,
+  manufacturer TEXT,
+  model TEXT,
+  first_seen TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  last_seen TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- Create device_telemetry table for structured data
+CREATE TABLE IF NOT EXISTS public.device_telemetry (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  device_id UUID NOT NULL REFERENCES public.devices(id) ON DELETE CASCADE,
+  timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  
+  -- Device info
+  device_name TEXT,
+  manufacturer TEXT,
+  brand TEXT,
+  model TEXT,
+  product TEXT,
+  android_id TEXT,
+  imei TEXT,
+  is_emulator BOOLEAN,
+  
+  -- System info
+  android_version TEXT,
+  sdk_int INTEGER,
+  base_version INTEGER,
+  fingerprint TEXT,
+  build_number TEXT,
+  kernel_version TEXT,
+  bootloader TEXT,
+  build_tags TEXT,
+  build_type TEXT,
+  board TEXT,
+  hardware TEXT,
+  host TEXT,
+  user_name TEXT,
+  uptime_millis BIGINT,
+  boot_time BIGINT,
+  cpu_cores INTEGER,
+  language TEXT,
+  timezone TEXT,
+  
+  -- Battery info
+  battery_level INTEGER,
+  battery_status battery_status,
+  
+  -- Network info
+  ip_address TEXT,
+  network_interface network_type,
+  carrier TEXT,
+  wifi_ssid TEXT,
+  
+  -- Display info
+  screen_resolution TEXT,
+  screen_orientation TEXT,
+  
+  -- Security info
+  is_rooted BOOLEAN,
+  
+  -- OS info
+  os_type TEXT
+);
+
+-- Create telemetry_history table for raw JSON data
+CREATE TABLE IF NOT EXISTS public.telemetry_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  device_id UUID REFERENCES public.devices(id) ON DELETE CASCADE,
+  timestamp TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  telemetry_data JSONB NOT NULL
+);
+
+-- Create device_apps table
+CREATE TABLE IF NOT EXISTS public.device_apps (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  device_id UUID REFERENCES public.devices(id) ON DELETE CASCADE,
+  app_package TEXT NOT NULL,
+  recorded_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  UNIQUE(device_id, app_package)
+);
+
+-- Create or replace the process_telemetry_data function
+CREATE OR REPLACE FUNCTION process_telemetry_data()
+RETURNS TRIGGER AS $$
+DECLARE
+  device_id_var UUID;
+  device_info JSONB;
+  system_info JSONB;
+  battery_info JSONB;
+  network_info JSONB;
+  display_info JSONB;
+  security_info JSONB;
+  app_info JSONB;
+  ip_addr TEXT;
+  network_type_var network_type;
+  battery_status_var battery_status;
+  app_list TEXT[];
+BEGIN
+  -- Extract sections from telemetry data
+  device_info := NEW.telemetry_data->'device_info';
+  system_info := NEW.telemetry_data->'system_info';
+  battery_info := NEW.telemetry_data->'battery_info';
+  network_info := NEW.telemetry_data->'network_info';
+  display_info := NEW.telemetry_data->'display_info';
+  security_info := NEW.telemetry_data->'security_info';
+  app_info := NEW.telemetry_data->'app_info';
+  
+  -- Get Android ID from telemetry data
+  -- First try getting it from device_info
+  IF device_info IS NOT NULL AND device_info->>'android_id' IS NOT NULL THEN
+    -- First ensure device exists in devices table
+    INSERT INTO public.devices (
+      android_id, 
+      device_name, 
+      manufacturer, 
+      model, 
+      last_seen
+    )
+    VALUES (
+      device_info->>'android_id',
+      device_info->>'device_name',
+      device_info->>'manufacturer',
+      device_info->>'model',
+      NEW.timestamp
+    )
+    ON CONFLICT (android_id) DO UPDATE
+    SET 
+      device_name = COALESCE(EXCLUDED.device_name, devices.device_name),
+      manufacturer = COALESCE(EXCLUDED.manufacturer, devices.manufacturer),
+      model = COALESCE(EXCLUDED.model, devices.model),
+      last_seen = EXCLUDED.last_seen
+    RETURNING id INTO device_id_var;
+  ELSE
+    -- Try getting android_id from root of the data
+    INSERT INTO public.devices (
+      android_id, 
+      device_name, 
+      manufacturer, 
+      model, 
+      last_seen
+    )
+    VALUES (
+      NEW.telemetry_data->>'android_id',
+      device_info->>'device_name',
+      device_info->>'manufacturer',
+      device_info->>'model',
+      NEW.timestamp
+    )
+    ON CONFLICT (android_id) DO UPDATE
+    SET 
+      last_seen = EXCLUDED.last_seen
+    RETURNING id INTO device_id_var;
+  END IF;
+  
+  -- Determine IP address from different possible sources
+  ip_addr := 
+    COALESCE(
+      network_info->>'ethernet_ip', 
+      network_info->>'wifi_ip', 
+      network_info->>'mobile_ip', 
+      network_info->>'ip_address',
+      '0.0.0.0'
+    );
+  
+  -- Determine network type
+  IF network_info->>'network_interface' = 'WiFi' OR network_info->>'wifi_ip' IS NOT NULL THEN
+    network_type_var := 'WiFi';
+  ELSIF network_info->>'network_interface' = 'Mobile' OR network_info->>'mobile_ip' IS NOT NULL THEN
+    network_type_var := 'Mobile';
+  ELSIF network_info->>'network_interface' = 'Ethernet' OR network_info->>'ethernet_ip' IS NOT NULL THEN
+    network_type_var := 'Ethernet';
+  ELSIF network_info->>'network_interface' = 'None' THEN
+    network_type_var := 'None';
+  ELSE
+    network_type_var := 'Unknown';
+  END IF;
+  
+  -- Determine battery status
+  IF battery_info->>'battery_status' = 'Charging' THEN
+    battery_status_var := 'Charging';
+  ELSIF battery_info->>'battery_status' = 'Discharging' THEN
+    battery_status_var := 'Discharging';
+  ELSIF battery_info->>'battery_status' = 'Full' THEN
+    battery_status_var := 'Full';
+  ELSIF battery_info->>'battery_status' = 'Not Charging' THEN
+    battery_status_var := 'Not Charging';
+  ELSE
+    battery_status_var := 'Unknown';
+  END IF;
+  
+  -- Insert into device_telemetry table
+  INSERT INTO public.device_telemetry (
+    device_id,
+    timestamp,
+    device_name,
+    manufacturer,
+    brand,
+    model,
+    product,
+    android_id,
+    imei,
+    is_emulator,
+    android_version,
+    sdk_int,
+    base_version,
+    fingerprint,
+    build_number,
+    kernel_version,
+    bootloader,
+    build_tags,
+    build_type,
+    board,
+    hardware,
+    host,
+    user_name,
+    uptime_millis,
+    boot_time,
+    cpu_cores,
+    language,
+    timezone,
+    battery_level,
+    battery_status,
+    ip_address,
+    network_interface,
+    carrier,
+    wifi_ssid,
+    screen_resolution,
+    screen_orientation,
+    is_rooted,
+    os_type
+  ) VALUES (
+    device_id_var,
+    NEW.timestamp,
+    device_info->>'device_name',
+    device_info->>'manufacturer',
+    device_info->>'brand',
+    device_info->>'model',
+    device_info->>'product',
+    device_info->>'android_id',
+    device_info->>'imei',
+    (device_info->>'is_emulator')::boolean,
+    system_info->>'android_version',
+    (system_info->>'sdk_int')::integer,
+    (system_info->>'base_version')::integer,
+    system_info->>'fingerprint',
+    system_info->>'build_number',
+    system_info->>'kernel_version',
+    system_info->>'bootloader',
+    system_info->>'build_tags',
+    system_info->>'build_type',
+    system_info->>'board',
+    system_info->>'hardware',
+    system_info->>'host',
+    system_info->>'user',
+    (system_info->>'uptime_millis')::bigint,
+    (system_info->>'boot_time')::bigint,
+    (system_info->>'cpu_cores')::integer,
+    system_info->>'language',
+    system_info->>'timezone',
+    (battery_info->>'battery_level')::integer,
+    battery_status_var,
+    ip_addr,
+    network_type_var,
+    network_info->>'carrier',
+    network_info->>'wifi_ssid',
+    display_info->>'screen_resolution',
+    display_info->>'screen_orientation',
+    (security_info->>'is_rooted')::boolean,
+    NEW.telemetry_data->>'os_type'
+  );
+  
+  -- Process installed apps if present
+  IF app_info IS NOT NULL AND app_info->'installed_apps' IS NOT NULL THEN
+    app_list := ARRAY(SELECT jsonb_array_elements_text(app_info->'installed_apps'));
+    
+    IF array_length(app_list, 1) > 0 THEN
+      INSERT INTO public.device_apps (device_id, app_package)
+      SELECT 
+        device_id_var,
+        app_name
+      FROM unnest(app_list) AS app_name
+      ON CONFLICT (device_id, app_package) DO NOTHING;
+    END IF;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Add trigger if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 
+    FROM pg_trigger 
+    WHERE tgname = 'telemetry_trigger' 
+  ) THEN
+    CREATE TRIGGER telemetry_trigger
+    AFTER INSERT ON public.telemetry_history
+    FOR EACH ROW
+    EXECUTE FUNCTION process_telemetry_data();
+  END IF;
+END $$;
+
+-- Add indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_telemetry_device_id ON public.device_telemetry(device_id);
+CREATE INDEX IF NOT EXISTS idx_telemetry_timestamp ON public.device_telemetry(timestamp);
+CREATE INDEX IF NOT EXISTS idx_history_device_id ON public.telemetry_history(device_id);
+CREATE INDEX IF NOT EXISTS idx_history_timestamp ON public.telemetry_history(timestamp);
+CREATE INDEX IF NOT EXISTS idx_apps_device_id ON public.device_apps(device_id);
+
+-- Enable row level security
+ALTER TABLE public.devices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.telemetry_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.device_apps ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.device_telemetry ENABLE ROW LEVEL SECURITY;
+
+-- Create policies
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow full access to authenticated users' AND tablename = 'devices') THEN
+    CREATE POLICY "Allow full access to authenticated users" ON public.devices
+      USING (auth.role() = 'authenticated')
+      WITH CHECK (auth.role() = 'authenticated');
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow full access to authenticated users' AND tablename = 'telemetry_history') THEN
+    CREATE POLICY "Allow full access to authenticated users" ON public.telemetry_history
+      USING (auth.role() = 'authenticated')
+      WITH CHECK (auth.role() = 'authenticated');
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow full access to authenticated users' AND tablename = 'device_apps') THEN
+    CREATE POLICY "Allow full access to authenticated users" ON public.device_apps
+      USING (auth.role() = 'authenticated')
+      WITH CHECK (auth.role() = 'authenticated');
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow full access to authenticated users' AND tablename = 'device_telemetry') THEN
+    CREATE POLICY "Allow full access to authenticated users" ON public.device_telemetry
+      USING (auth.role() = 'authenticated')
+      WITH CHECK (auth.role() = 'authenticated');
+  END IF;
+END $$;
+
+-- Enable realtime for all tables
+DO $$
+BEGIN
+  PERFORM supabase_functions.alter_subscription_add_table('public.devices');
+  PERFORM supabase_functions.alter_subscription_add_table('public.telemetry_history');
+  PERFORM supabase_functions.alter_subscription_add_table('public.device_apps');
+  PERFORM supabase_functions.alter_subscription_add_table('public.device_telemetry');
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE NOTICE 'Error enabling realtime: %', SQLERRM;
+END $$;
+
+-- Set replica identity to full for realtime updates
+ALTER TABLE public.devices REPLICA IDENTITY FULL;
+ALTER TABLE public.telemetry_history REPLICA IDENTITY FULL;
+ALTER TABLE public.device_apps REPLICA IDENTITY FULL;
+ALTER TABLE public.device_telemetry REPLICA IDENTITY FULL;`;
+};
+
+serve(async (req) => {
+  // Add CORS headers
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      throw new Error('Required environment variables are not set.')
-    }
+    // Get request body
+    const { action } = await req.json();
 
-    // Create a Supabase client with the service role key for admin privileges
-    const supabase = createClient(
-      SUPABASE_URL,
-      SUPABASE_SERVICE_ROLE_KEY,
-      { 
-        auth: {
-          persistSession: false
+    if (action === "initialize") {
+      console.log("Initializing database...");
+
+      // Execute the database setup script
+      const setupSQL = getDatabaseSetupSQL();
+      const { data, error } = await supabase.rpc('execute_sql', {
+        sql: setupSQL,
+      });
+
+      if (error) {
+        console.error("Error initializing database:", error);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: error.message,
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 500,
+          }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Database initialized successfully",
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
         }
-      }
-    )
-
-    console.log('Initializing database tables...')
-    
-    // First check if we have the execute_sql function available
-    let execute_sql_available = false;
-    
-    try {
-      const { data: functionCheck, error: functionError } = await supabase.rpc('execute_sql', {
-        sql: `SELECT 1 as test`
-      });
-      
-      if (!functionError) {
-        execute_sql_available = true;
-        console.log('execute_sql function is available');
-      } else {
-        console.error('execute_sql function error:', functionError);
-      }
-    } catch (error) {
-      console.error('Error checking execute_sql function:', error);
-      // Continue with direct SQL if execute_sql is not available
-    }
-    
-    // Create devices table if it doesn't exist
-    if (execute_sql_available) {
-      const { error: devicesError } = await supabase.rpc('execute_sql', {
-        sql: `
-          CREATE TABLE IF NOT EXISTS public.devices (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            android_id TEXT NOT NULL UNIQUE,
-            device_name TEXT,
-            manufacturer TEXT,
-            model TEXT,
-            first_seen TIMESTAMP WITH TIME ZONE DEFAULT now(),
-            last_seen TIMESTAMP WITH TIME ZONE DEFAULT now()
-          );
-        `
-      });
-      
-      if (devicesError) {
-        console.error('Error creating devices table:', devicesError);
-        throw devicesError;
-      }
+      );
     } else {
-      // Fallback to direct SQL
-      console.log('Using direct SQL to create devices table');
-      const { error: directError } = await supabase.sql(`
-        CREATE TABLE IF NOT EXISTS public.devices (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          android_id TEXT NOT NULL UNIQUE,
-          device_name TEXT,
-          manufacturer TEXT,
-          model TEXT,
-          first_seen TIMESTAMP WITH TIME ZONE DEFAULT now(),
-          last_seen TIMESTAMP WITH TIME ZONE DEFAULT now()
-        );
-      `);
-      
-      if (directError) {
-        console.error('Error with direct SQL for creating devices table:', directError);
-        throw directError;
-      }
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Invalid action",
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        }
+      );
     }
-    
-    console.log('Devices table created or verified');
-    
-    // Create telemetry_history table if it doesn't exist
-    if (execute_sql_available) {
-      const { error: telemetryError } = await supabase.rpc('execute_sql', {
-        sql: `
-          CREATE TABLE IF NOT EXISTS public.telemetry_history (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            device_id UUID NOT NULL REFERENCES public.devices(id) ON DELETE CASCADE,
-            timestamp TIMESTAMP WITH TIME ZONE DEFAULT now(),
-            telemetry_data JSONB NOT NULL
-          );
-        `
-      });
-      
-      if (telemetryError) {
-        console.error('Error creating telemetry_history table:', telemetryError);
-        throw telemetryError;
-      }
-    } else {
-      // Fallback to direct SQL
-      console.log('Using direct SQL to create telemetry_history table');
-      const { error: directError } = await supabase.sql(`
-        CREATE TABLE IF NOT EXISTS public.telemetry_history (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          device_id UUID NOT NULL REFERENCES public.devices(id) ON DELETE CASCADE,
-          timestamp TIMESTAMP WITH TIME ZONE DEFAULT now(),
-          telemetry_data JSONB NOT NULL
-        );
-      `);
-      
-      if (directError) {
-        console.error('Error with direct SQL for creating telemetry_history table:', directError);
-        throw directError;
-      }
-    }
-    
-    console.log('Telemetry history table created or verified');
-    
-    // Create device_apps table if it doesn't exist
-    if (execute_sql_available) {
-      const { error: appsError } = await supabase.rpc('execute_sql', {
-        sql: `
-          CREATE TABLE IF NOT EXISTS public.device_apps (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            device_id UUID NOT NULL REFERENCES public.devices(id) ON DELETE CASCADE,
-            app_package TEXT NOT NULL,
-            UNIQUE(device_id, app_package)
-          );
-        `
-      });
-      
-      if (appsError) {
-        console.error('Error creating device_apps table:', appsError);
-        throw appsError;
-      }
-    } else {
-      // Fallback to direct SQL
-      console.log('Using direct SQL to create device_apps table');
-      const { error: directError } = await supabase.sql(`
-        CREATE TABLE IF NOT EXISTS public.device_apps (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          device_id UUID NOT NULL REFERENCES public.devices(id) ON DELETE CASCADE,
-          app_package TEXT NOT NULL,
-          UNIQUE(device_id, app_package)
-        );
-      `);
-      
-      if (directError) {
-        console.error('Error with direct SQL for creating device_apps table:', directError);
-        throw directError;
-      }
-    }
-    
-    console.log('Device apps table created or verified');
-    
-    // Create or replace the telemetry trigger function
-    if (execute_sql_available) {
-      const { error: triggerFuncError } = await supabase.rpc('execute_sql', {
-        sql: `
-          CREATE OR REPLACE FUNCTION process_telemetry_data()
-          RETURNS TRIGGER AS $$
-          BEGIN
-            -- Update the last_seen timestamp on the device record
-            UPDATE public.devices
-            SET last_seen = NEW.timestamp
-            WHERE id = NEW.device_id;
-            
-            -- Return the NEW record to continue with the insert
-            RETURN NEW;
-          END;
-          $$ LANGUAGE plpgsql;
-        `
-      });
-      
-      if (triggerFuncError) {
-        console.error('Error creating telemetry trigger function:', triggerFuncError);
-        throw triggerFuncError;
-      }
-    } else {
-      // Fallback to direct SQL
-      console.log('Using direct SQL to create telemetry trigger function');
-      const { error: directError } = await supabase.sql(`
-        CREATE OR REPLACE FUNCTION process_telemetry_data()
-        RETURNS TRIGGER AS $$
-        BEGIN
-          -- Update the last_seen timestamp on the device record
-          UPDATE public.devices
-          SET last_seen = NEW.timestamp
-          WHERE id = NEW.device_id;
-          
-          -- Return the NEW record to continue with the insert
-          RETURN NEW;
-        END;
-        $$ LANGUAGE plpgsql;
-      `);
-      
-      if (directError) {
-        console.error('Error with direct SQL for creating telemetry trigger function:', directError);
-        throw directError;
-      }
-    }
-    
-    console.log('Telemetry trigger function created');
-    
-    // Create the trigger if it doesn't exist
-    if (execute_sql_available) {
-      const { error: triggerError } = await supabase.rpc('execute_sql', {
-        sql: `
-          DROP TRIGGER IF EXISTS telemetry_data_trigger ON public.telemetry_history;
-          CREATE TRIGGER telemetry_data_trigger
-          BEFORE INSERT ON public.telemetry_history
-          FOR EACH ROW
-          EXECUTE FUNCTION process_telemetry_data();
-        `
-      });
-      
-      if (triggerError) {
-        console.error('Error creating telemetry trigger:', triggerError);
-        throw triggerError;
-      }
-    } else {
-      // Fallback to direct SQL
-      console.log('Using direct SQL to create telemetry trigger');
-      const { error: directError } = await supabase.sql(`
-        DROP TRIGGER IF EXISTS telemetry_data_trigger ON public.telemetry_history;
-        CREATE TRIGGER telemetry_data_trigger
-        BEFORE INSERT ON public.telemetry_history
-        FOR EACH ROW
-        EXECUTE FUNCTION process_telemetry_data();
-      `);
-      
-      if (directError) {
-        console.error('Error with direct SQL for creating telemetry trigger:', directError);
-        throw directError;
-      }
-    }
-    
-    console.log('Telemetry trigger created');
-    
-    // Enable row level security for all tables
-    if (execute_sql_available) {
-      const { error: rlsError } = await supabase.rpc('execute_sql', {
-        sql: `
-          -- Enable row level security
-          ALTER TABLE IF EXISTS public.devices ENABLE ROW LEVEL SECURITY;
-          ALTER TABLE IF EXISTS public.telemetry_history ENABLE ROW LEVEL SECURITY;
-          ALTER TABLE IF EXISTS public.device_apps ENABLE ROW LEVEL SECURITY;
-          
-          -- Create policies that allow service role to access all data
-          CREATE POLICY IF NOT EXISTS "Service role can do anything on devices" 
-            ON public.devices 
-            USING (true)
-            WITH CHECK (true);
-          
-          CREATE POLICY IF NOT EXISTS "Service role can do anything on telemetry_history" 
-            ON public.telemetry_history 
-            USING (true)
-            WITH CHECK (true);
-          
-          CREATE POLICY IF NOT EXISTS "Service role can do anything on device_apps" 
-            ON public.device_apps 
-            USING (true)
-            WITH CHECK (true);
-        `
-      });
-      
-      if (rlsError) {
-        console.error('Error setting up row level security:', rlsError);
-        throw rlsError;
-      }
-    } else {
-      // Fallback to direct SQL
-      console.log('Using direct SQL to set up RLS');
-      const { error: directError } = await supabase.sql(`
-        -- Enable row level security
-        ALTER TABLE IF EXISTS public.devices ENABLE ROW LEVEL SECURITY;
-        ALTER TABLE IF EXISTS public.telemetry_history ENABLE ROW LEVEL SECURITY;
-        ALTER TABLE IF EXISTS public.device_apps ENABLE ROW LEVEL SECURITY;
-        
-        -- Create policies that allow service role to access all data
-        DO $$
-        BEGIN
-          IF NOT EXISTS (
-            SELECT 1 FROM pg_policies WHERE tablename = 'devices' AND policyname = 'Service role can do anything on devices'
-          ) THEN
-            CREATE POLICY "Service role can do anything on devices" 
-              ON public.devices 
-              USING (true)
-              WITH CHECK (true);
-          END IF;
-            
-          IF NOT EXISTS (
-            SELECT 1 FROM pg_policies WHERE tablename = 'telemetry_history' AND policyname = 'Service role can do anything on telemetry_history'
-          ) THEN
-            CREATE POLICY "Service role can do anything on telemetry_history" 
-              ON public.telemetry_history 
-              USING (true)
-              WITH CHECK (true);
-          END IF;
-            
-          IF NOT EXISTS (
-            SELECT 1 FROM pg_policies WHERE tablename = 'device_apps' AND policyname = 'Service role can do anything on device_apps'
-          ) THEN
-            CREATE POLICY "Service role can do anything on device_apps" 
-              ON public.device_apps 
-              USING (true)
-              WITH CHECK (true);
-          END IF;
-        END
-        $$;
-      `);
-      
-      if (directError) {
-        console.error('Error with direct SQL for RLS setup:', directError);
-        throw directError;
-      }
-    }
-    
-    console.log('Row level security set up');
-    
-    // Set up realtime features
-    if (execute_sql_available) {
-      const { error: realtimeError } = await supabase.rpc('execute_sql', {
-        sql: `
-          -- Set replica identity to full for the tables
-          ALTER TABLE IF EXISTS public.devices REPLICA IDENTITY FULL;
-          ALTER TABLE IF EXISTS public.telemetry_history REPLICA IDENTITY FULL;
-          ALTER TABLE IF EXISTS public.device_apps REPLICA IDENTITY FULL;
-          
-          -- Add tables to the supabase_realtime publication
-          DO $$
-          BEGIN
-            IF EXISTS (
-              SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime'
-            ) THEN
-              -- Check if tables are already in the publication
-              IF NOT EXISTS (
-                SELECT 1 FROM pg_publication_tables 
-                WHERE pubname = 'supabase_realtime' 
-                AND schemaname = 'public' 
-                AND tablename = 'devices'
-              ) THEN
-                ALTER PUBLICATION supabase_realtime ADD TABLE public.devices;
-              END IF;
-              
-              IF NOT EXISTS (
-                SELECT 1 FROM pg_publication_tables 
-                WHERE pubname = 'supabase_realtime' 
-                AND schemaname = 'public' 
-                AND tablename = 'telemetry_history'
-              ) THEN
-                ALTER PUBLICATION supabase_realtime ADD TABLE public.telemetry_history;
-              END IF;
-              
-              IF NOT EXISTS (
-                SELECT 1 FROM pg_publication_tables 
-                WHERE pubname = 'supabase_realtime' 
-                AND schemaname = 'public' 
-                AND tablename = 'device_apps'
-              ) THEN
-                ALTER PUBLICATION supabase_realtime ADD TABLE public.device_apps;
-              END IF;
-            ELSE
-              -- Create the publication and add tables
-              CREATE PUBLICATION supabase_realtime FOR TABLE 
-                public.devices, 
-                public.telemetry_history, 
-                public.device_apps;
-            END IF;
-          END
-          $$;
-        `
-      });
-      
-      if (realtimeError) {
-        console.error('Error setting up realtime features:', realtimeError);
-        throw realtimeError;
-      }
-    } else {
-      // Fallback to direct SQL
-      console.log('Using direct SQL to set up realtime features');
-      const { error: directError } = await supabase.sql(`
-        -- Set replica identity to full for the tables
-        ALTER TABLE IF EXISTS public.devices REPLICA IDENTITY FULL;
-        ALTER TABLE IF EXISTS public.telemetry_history REPLICA IDENTITY FULL;
-        ALTER TABLE IF EXISTS public.device_apps REPLICA IDENTITY FULL;
-        
-        -- Add tables to the supabase_realtime publication
-        DO $$
-        BEGIN
-          IF EXISTS (
-            SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime'
-          ) THEN
-            -- Check if tables are already in the publication
-            IF NOT EXISTS (
-              SELECT 1 FROM pg_publication_tables 
-              WHERE pubname = 'supabase_realtime' 
-              AND schemaname = 'public' 
-              AND tablename = 'devices'
-            ) THEN
-              ALTER PUBLICATION supabase_realtime ADD TABLE public.devices;
-            END IF;
-            
-            IF NOT EXISTS (
-              SELECT 1 FROM pg_publication_tables 
-              WHERE pubname = 'supabase_realtime' 
-              AND schemaname = 'public' 
-              AND tablename = 'telemetry_history'
-            ) THEN
-              ALTER PUBLICATION supabase_realtime ADD TABLE public.telemetry_history;
-            END IF;
-            
-            IF NOT EXISTS (
-              SELECT 1 FROM pg_publication_tables 
-              WHERE pubname = 'supabase_realtime' 
-              AND schemaname = 'public' 
-              AND tablename = 'device_apps'
-            ) THEN
-              ALTER PUBLICATION supabase_realtime ADD TABLE public.device_apps;
-            END IF;
-          ELSE
-            -- Create the publication and add tables
-            CREATE PUBLICATION supabase_realtime FOR TABLE 
-              public.devices, 
-              public.telemetry_history, 
-              public.device_apps;
-          END IF;
-        END
-        $$;
-      `);
-      
-      if (directError) {
-        console.error('Error with direct SQL for realtime setup:', directError);
-        throw directError;
-      }
-    }
-    
-    console.log('Realtime features set up');
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Database tables initialized successfully'
-      }),
-      {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        },
-        status: 200
-      }
-    )
   } catch (error) {
-    console.error('Database initialization error:', error)
-    
+    console.error("Error in initialize-database function:", error);
     return new Response(
       JSON.stringify({
         success: false,
         error: error.message,
-        details: String(error)
       }),
       {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        },
-        status: 500
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
       }
-    )
+    );
   }
-})
+});
