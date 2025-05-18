@@ -4,6 +4,7 @@ import { getAllDevicesFromApi } from "@/api";
 
 // Get all device information
 export const getAllDevices = async (): Promise<DeviceStatus[]> => {
+  // Get devices from API which determines online status based on database settings
   return getAllDevicesFromApi();
 };
 

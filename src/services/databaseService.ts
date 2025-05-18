@@ -83,6 +83,30 @@ export const getDatabaseStats = async (): Promise<{
   }
 };
 
+// Get device online status threshold from database settings
+export const getOfflineThreshold = async (): Promise<number> => {
+  try {
+    // Default threshold in minutes if no settings found
+    const defaultThreshold = 15;
+    
+    const { data, error } = await supabase
+      .from('settings')
+      .select('offline_threshold')
+      .limit(1)
+      .maybeSingle();
+    
+    if (error) {
+      console.error("Error fetching offline threshold:", error);
+      return defaultThreshold;
+    }
+    
+    return data?.offline_threshold || defaultThreshold;
+  } catch (error) {
+    console.error("Error fetching offline threshold:", error);
+    return 15; // Default threshold in minutes
+  }
+};
+
 // Execute SQL function to allow for safe SQL execution
 export const executeSQL = async (sql: string): Promise<any> => {
   try {
