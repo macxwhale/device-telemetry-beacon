@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, getOfflineThreshold } from "../_shared/telemetry.ts";
-import { mapDeviceToDeviceStatus } from "./telemetry-mapper.ts";
+import { mapDeviceToDeviceStatus, mapDeviceTelemetry } from "./telemetry-mapper.ts";
 import { getAllDevices, getLatestDeviceTelemetry, getLatestTelemetryHistory } from "./telemetry-service.ts";
 import { createSuccessResponse, handleError } from "./error-handler.ts";
 
