@@ -34,6 +34,29 @@ function safelyGetNestedProperty(obj: any, path: string[], defaultValue: any = n
   }
 }
 
+// Get offline threshold setting from database
+async function getOfflineThreshold(): Promise<number> {
+  try {
+    const { data, error } = await supabase
+      .from('notification_settings')
+      .select('additional_settings')
+      .limit(1)
+      .maybeSingle();
+      
+    if (error) {
+      console.error("Error fetching offline threshold:", error);
+      return 15; // Default to 15 minutes if error
+    }
+    
+    // Extract offline_threshold from additional_settings if available
+    const offlineThreshold = data?.additional_settings?.offline_threshold;
+    return offlineThreshold || 15; // Default to 15 minutes if not found
+  } catch (error) {
+    console.error("Error in getOfflineThreshold:", error);
+    return 15; // Default to 15 minutes on any error
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -44,6 +67,13 @@ serve(async (req) => {
   }
 
   try {
+    // Get offline threshold from database settings
+    const offlineThreshold = await getOfflineThreshold();
+    console.log(`Using offline threshold of ${offlineThreshold} minutes`);
+    
+    // Convert to milliseconds
+    const offlineThresholdMs = offlineThreshold * 60 * 1000;
+    
     // Get all devices from database
     const { data: devices, error } = await supabase
       .from('devices')
@@ -252,6 +282,11 @@ serve(async (req) => {
          safelyGetNestedProperty(telemetryData, ['network_info', 'ethernet_ip'], null) ? "Ethernet" : 
          "Unknown");
       
+      // Calculate if device is online using settings-based offline threshold
+      const lastSeenTime = new Date(device.last_seen).getTime();
+      const timeSinceLastSeen = new Date().getTime() - lastSeenTime;
+      const isOnline = timeSinceLastSeen < offlineThresholdMs;
+      
       // Convert database record to DeviceStatus format
       return {
         id: device.android_id,
@@ -264,8 +299,8 @@ serve(async (req) => {
         network_type: networkType,
         ip_address: ipAddress,
         uptime_millis: safelyGetNestedProperty(telemetryData, ['system_info', 'uptime_millis'], 0),
-        last_seen: new Date(device.last_seen).getTime(),
-        isOnline: (new Date().getTime() - new Date(device.last_seen).getTime()) < 5 * 60 * 1000, // 5 min
+        last_seen: lastSeenTime,
+        isOnline: isOnline, // Use settings-based threshold
         telemetry: telemetryData
       };
     }));
