@@ -323,9 +323,41 @@ function safelyGetNestedProperty(obj: any, path: string[], defaultValue: any = n
   }
 }
 
+/**
+ * Get offline threshold from database settings
+ */
+async function getOfflineThreshold(): Promise<number> {
+  try {
+    const { data, error } = await supabase
+      .from('notification_settings')
+      .select('additional_settings')
+      .limit(1)
+      .maybeSingle();
+      
+    if (error) {
+      console.error("Error fetching offline threshold:", error);
+      return 15; // Default to 15 minutes if error
+    }
+    
+    // Extract offline_threshold from additional_settings if available
+    const offlineThreshold = data?.additional_settings?.offline_threshold;
+    return offlineThreshold || 15; // Default to 15 minutes if not found
+  } catch (error) {
+    console.error("Error in getOfflineThreshold:", error);
+    return 15; // Default to 15 minutes on any error
+  }
+}
+
 // Export a function to get all devices from database
 export async function getAllDevicesFromApiImplementation(): Promise<DeviceStatus[]> {
   try {
+    // Get offline threshold from database
+    const offlineThreshold = await getOfflineThreshold();
+    console.log(`Using offline threshold of ${offlineThreshold} minutes`);
+    
+    // Convert to milliseconds for timestamp comparison
+    const offlineThresholdMs = offlineThreshold * 60 * 1000;
+    
     // Get all devices from database
     const { data: devices, error } = await supabase
       .from('devices')
@@ -522,6 +554,12 @@ export async function getAllDevicesFromApiImplementation(): Promise<DeviceStatus
          safelyGetNestedProperty(telemetryData, ['network_info', 'ethernet_ip'], null) ? "Ethernet" : 
          "Unknown");
       
+      // Calculate if device is online using the database settings-based threshold
+      const lastSeenTime = new Date(device.last_seen).getTime();
+      const currentTime = new Date().getTime();
+      const timeSinceLastSeen = currentTime - lastSeenTime;
+      const isOnline = timeSinceLastSeen < offlineThresholdMs;
+      
       // Convert database record to DeviceStatus format
       return {
         id: device.android_id,
@@ -535,7 +573,7 @@ export async function getAllDevicesFromApiImplementation(): Promise<DeviceStatus
         ip_address: ipAddress,
         uptime_millis: safelyGetNestedProperty(telemetryData, ['system_info', 'uptime_millis'], 0),
         last_seen: new Date(device.last_seen).getTime(),
-        isOnline: (new Date().getTime() - new Date(device.last_seen).getTime()) < 5 * 60 * 1000, // 5 min
+        isOnline: isOnline, // Use calculated online status with proper threshold
         telemetry: telemetryData
       };
     }));
