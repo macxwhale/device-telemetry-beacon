@@ -7,21 +7,17 @@ import { createSuccessResponse, handleError } from "./error-handler.ts";
 
 /**
  * Process device data by fetching and merging telemetry from multiple sources
- * @param devices List of devices from database
- * @param offlineThresholdMs Offline threshold in milliseconds
  * @returns Array of device status objects
  */
-async function processDevicesData(devices: any[], offlineThresholdMs: number) {
+async function processDevicesData(devices, offlineThresholdMs) {
   return Promise.all(devices.map(async (device) => {
-    // Try to get data from device_telemetry table first
+    // Get telemetry from both sources
     const latestDeviceTelemetry = await getLatestDeviceTelemetry(device.id);
-    
-    // Get latest telemetry record from history table
     const latestTelemetryHistory = await getLatestTelemetryHistory(device.id);
     
+    // Determine which telemetry data is most recent
     let telemetryData = null;
     
-    // Use the most recent data from either source
     if (latestDeviceTelemetry && latestTelemetryHistory) {
       // Compare timestamps to determine which is more recent
       const deviceTelemetryTime = new Date(latestDeviceTelemetry.timestamp).getTime();
@@ -36,6 +32,7 @@ async function processDevicesData(devices: any[], offlineThresholdMs: number) {
       telemetryData = latestTelemetryHistory.telemetry_data;
     }
     
+    // Map device data using the offline threshold from database settings
     return mapDeviceToDeviceStatus(device, telemetryData, offlineThresholdMs);
   }));
 }
@@ -43,10 +40,7 @@ async function processDevicesData(devices: any[], offlineThresholdMs: number) {
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders
-    });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   try {
@@ -54,17 +48,17 @@ serve(async (req) => {
     const offlineThreshold = await getOfflineThreshold();
     console.log(`Using offline threshold of ${offlineThreshold} minutes`);
     
-    // Convert to milliseconds
+    // Convert to milliseconds for accurate timestamp comparison
     const offlineThresholdMs = offlineThreshold * 60 * 1000;
     
-    // Get all devices from database
+    // Get devices and process them with the correct threshold
     const devices = await getAllDevices();
     
     if (!devices || devices.length === 0) {
       return createSuccessResponse([]);
     }
     
-    // Process device data
+    // Process device data with the threshold
     const result = await processDevicesData(devices, offlineThresholdMs);
     
     return createSuccessResponse(result);

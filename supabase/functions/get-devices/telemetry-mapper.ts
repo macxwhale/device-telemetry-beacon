@@ -1,7 +1,13 @@
 
 import { safelyGetNestedProperty } from "../_shared/telemetry.ts";
 
-// Extract telemetry from different sources and format device status
+/**
+ * Maps a device record and telemetry data to a DeviceStatus object
+ * @param device Device record from the database
+ * @param telemetryData Telemetry data object
+ * @param offlineThresholdMs Threshold in milliseconds to determine if a device is offline
+ * @returns DeviceStatus object with online status correctly calculated
+ */
 export function mapDeviceToDeviceStatus(device: any, telemetryData: any, offlineThresholdMs: number): any {
   // Get IP address from all possible sources with priority order
   const ipAddress = 
@@ -10,7 +16,7 @@ export function mapDeviceToDeviceStatus(device: any, telemetryData: any, offline
     safelyGetNestedProperty(telemetryData, ['network_info', 'mobile_ip'], null) || 
     safelyGetNestedProperty(telemetryData, ['network_info', 'ip_address'], "0.0.0.0");
   
-  // Determine network type with more fallbacks
+  // Determine network type with fallbacks
   const networkType = 
     safelyGetNestedProperty(telemetryData, ['network_info', 'network_interface'], null) ||
     (safelyGetNestedProperty(telemetryData, ['network_info', 'wifi_ip'], null) ? "WiFi" : 
@@ -18,12 +24,13 @@ export function mapDeviceToDeviceStatus(device: any, telemetryData: any, offline
      safelyGetNestedProperty(telemetryData, ['network_info', 'ethernet_ip'], null) ? "Ethernet" : 
      "Unknown");
   
-  // Calculate if device is online using settings-based offline threshold
+  // Calculate if device is online using the database settings-based threshold
   const lastSeenTime = new Date(device.last_seen).getTime();
-  const timeSinceLastSeen = new Date().getTime() - lastSeenTime;
+  const currentTime = new Date().getTime();
+  const timeSinceLastSeen = currentTime - lastSeenTime;
   const isOnline = timeSinceLastSeen < offlineThresholdMs;
   
-  // Convert database record to DeviceStatus format
+  // Return the mapped device status with the correct online status
   return {
     id: device.android_id,
     name: device.device_name || "Unknown Device",
@@ -41,7 +48,9 @@ export function mapDeviceToDeviceStatus(device: any, telemetryData: any, offline
   };
 }
 
-// Maps structured device telemetry from the device_telemetry table to a standardized format
+/**
+ * Maps structured device telemetry to a standardized format
+ */
 export function mapDeviceTelemetry(telemetryRecord: any): any {
   return {
     device_info: {
@@ -62,16 +71,9 @@ export function mapDeviceTelemetry(telemetryRecord: any): any {
       kernel_version: telemetryRecord.kernel_version,
       board: telemetryRecord.board,
       hardware: telemetryRecord.hardware,
-      cpu_cores: telemetryRecord.cpu_cores,
+      uptime_millis: telemetryRecord.uptime_millis,
       language: telemetryRecord.language,
       timezone: telemetryRecord.timezone,
-      uptime_millis: telemetryRecord.uptime_millis,
-      fingerprint: telemetryRecord.fingerprint,
-      base_version: telemetryRecord.base_version,
-      build_tags: telemetryRecord.build_tags,
-      build_type: telemetryRecord.build_type,
-      host: telemetryRecord.host,
-      user: telemetryRecord.user_name,
       boot_time: telemetryRecord.boot_time
     },
     battery_info: {
@@ -83,14 +85,6 @@ export function mapDeviceTelemetry(telemetryRecord: any): any {
       network_interface: telemetryRecord.network_interface,
       carrier: telemetryRecord.carrier,
       wifi_ssid: telemetryRecord.wifi_ssid
-    },
-    display_info: {
-      screen_resolution: telemetryRecord.screen_resolution,
-      screen_orientation: telemetryRecord.screen_orientation
-    },
-    security_info: {
-      is_rooted: telemetryRecord.is_rooted
-    },
-    os_type: telemetryRecord.os_type
+    }
   };
 }
