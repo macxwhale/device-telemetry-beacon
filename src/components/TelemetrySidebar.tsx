@@ -1,18 +1,17 @@
-
 import { useState } from "react";
 import { Activity, BarChart3, LogOut, MenuIcon, PlayCircle, Settings, Smartphone, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useSidebar } from "./ui/sidebar";
+import { ThemeToggle } from "./theme/ThemeToggle";
 
-interface SidebarLinkProps {
-  to: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}
-
-function SidebarLink({ to, icon, children }: SidebarLinkProps) {
+// Sidebar link component to reduce repetition
+const SidebarLink = ({ to, icon, children }: { 
+  to: string; 
+  icon: React.ReactNode; 
+  children: React.ReactNode 
+}) => {
   const location = useLocation();
   const isActive = location.pathname === to;
   
@@ -28,23 +27,7 @@ function SidebarLink({ to, icon, children }: SidebarLinkProps) {
       <span>{children}</span>
     </Link>
   );
-}
-
-interface MobileMenuToggleProps {
-  open: boolean;
-  onClick: () => void;
-}
-
-function MobileMenuToggle({ open, onClick }: MobileMenuToggleProps) {
-  return (
-    <button
-      className="absolute right-4 top-4 text-gray-600 lg:hidden"
-      onClick={onClick}
-    >
-      {open ? <X className="h-6 w-6" /> : <MenuIcon className="h-6 w-6" />}
-    </button>
-  );
-}
+};
 
 export function TelemetrySidebar() {
   const { toggleSidebar, openMobile, setOpenMobile } = useSidebar();
@@ -66,13 +49,18 @@ export function TelemetrySidebar() {
     )}>
       <div className="flex h-full flex-col overflow-y-auto">
         <div className="px-3 py-4">
-          <MobileMenuToggle 
-            open={openMobile} 
-            onClick={() => setOpenMobile(!openMobile)}
-          />
-          <div className="mb-10 flex items-center rounded-lg px-3 py-2">
-            <Activity className="mr-2 h-6 w-6" />
-            <span className="text-lg font-semibold">Telemetry</span>
+          <div className="flex justify-between items-center mb-10">
+            <div className="flex items-center rounded-lg px-3 py-2">
+              <Activity className="mr-2 h-6 w-6" />
+              <span className="text-lg font-semibold">Telemetry</span>
+            </div>
+            <ThemeToggle />
+            <button
+              className="lg:hidden"
+              onClick={() => setOpenMobile(!openMobile)}
+            >
+              {openMobile ? <X className="h-6 w-6" /> : <MenuIcon className="h-6 w-6" />}
+            </button>
           </div>
           
           {user && (

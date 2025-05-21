@@ -14,8 +14,9 @@ const DeviceInfo: FC<{label: string; children: React.ReactNode}> = ({label, chil
   </div>
 );
 
-export const DeviceStatusCard: FC<{device: DeviceStatus}> = ({ device }) => {
-  // Helper functions
+// Helper functions for device icons
+const getDeviceIcons = (device: DeviceStatus) => {
+  // Network icon selection based on network type
   const getNetworkIcon = () => {
     const type = device.network_type?.toLowerCase() || '';
     if (type.includes('wifi')) return <Wifi className="h-3 w-3" />;
@@ -23,12 +24,19 @@ export const DeviceStatusCard: FC<{device: DeviceStatus}> = ({ device }) => {
     return <Globe className="h-3 w-3" />;
   };
 
+  // OS icon selection based on OS version
   const getOsIcon = () => {
     const os = device.os_version?.toLowerCase() || '';
     if (os.includes('windows')) return <Monitor className="h-3 w-3" />;
     if (os.includes('linux')) return <Terminal className="h-3 w-3" />;
-    return <Smartphone className="h-3 w-3" />; // Default to smartphone for Android
+    return <Smartphone className="h-3 w-3" />; // Default for Android
   };
+  
+  return { getNetworkIcon, getOsIcon };
+};
+
+export const DeviceStatusCard: FC<{device: DeviceStatus}> = ({ device }) => {
+  const { getNetworkIcon, getOsIcon } = getDeviceIcons(device);
 
   return (
     <Link to={`/devices/${device.id}`}>

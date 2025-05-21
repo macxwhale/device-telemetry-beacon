@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import { BrowserRouter as Router, Route, Routes, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
@@ -11,6 +10,7 @@ import TestApiPage from "./pages/TestApiPage";
 import { DeviceProvider } from "./contexts/DeviceContext";
 import LoginPage from "./pages/LoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { ThemeProvider as NextThemesProvider } from "next-themes";
 
 function App() {
   // Check for JWT token expiry or removal
@@ -35,46 +35,48 @@ function App() {
   }, []);
 
   return (
-    <Router>
-      <Toaster />
-      <DeviceProvider>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          
-          <Route path="/" element={
-            <ProtectedRoute>
-              <Index />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/devices" element={
-            <ProtectedRoute>
-              <DevicesPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/devices/:id" element={
-            <ProtectedRoute>
-              <DeviceDetailPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/settings" element={
-            <ProtectedRoute>
-              <SettingsPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/test-api" element={
-            <ProtectedRoute>
-              <TestApiPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </DeviceProvider>
-    </Router>
+    <NextThemesProvider attribute="class" defaultTheme="system" enableSystem>
+      <Router>
+        <Toaster />
+        <DeviceProvider>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Index />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/devices" element={
+              <ProtectedRoute>
+                <DevicesPage />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/devices/:id" element={
+              <ProtectedRoute>
+                <DeviceDetailPage />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/settings" element={
+              <ProtectedRoute>
+                <SettingsPage />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/test-api" element={
+              <ProtectedRoute>
+                <TestApiPage />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </DeviceProvider>
+      </Router>
+    </NextThemesProvider>
   );
 }
 
