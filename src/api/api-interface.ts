@@ -4,7 +4,7 @@ import { DeviceStatus } from "../types/telemetry";
 // Non-JSX interface to the telemetry API
 // This file serves as a bridge between JSX and non-JSX code
 
-// Import from the non-JSX implementation
+// Import from the refactored implementation
 import { handleTelemetryApiImplementation, getAllDevicesFromApiImplementation } from './telemetry-api';
 
 // Re-export only the necessary functions without JSX dependencies
