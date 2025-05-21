@@ -1,7 +1,6 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { DeviceStatus } from "@/types/telemetry";
-import { getAllDevices } from "@/services/telemetryService";
+import { getAllDevices, deleteDevice } from "@/services/telemetryService";
 import { toast } from "@/hooks/use-toast";
 import { getGeneralSettings, GeneralSettings } from "@/services/settingsService";
 
@@ -10,6 +9,7 @@ interface DeviceContextType {
   loading: boolean;
   error: string | null;
   refreshDevices: () => Promise<void>;
+  deleteDeviceById: (id: string) => Promise<boolean>;
   settings: GeneralSettings | null;
 }
 
@@ -42,6 +42,44 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
     
     loadSettings();
   }, []);
+
+  // Delete device functionality
+  const deleteDeviceById = async (deviceId: string): Promise<boolean> => {
+    try {
+      const result = await deleteDevice(deviceId);
+      
+      if (result.success) {
+        // Update local state to remove the device
+        setDevices(prevDevices => prevDevices.filter(device => device.id !== deviceId));
+        
+        // Show success notification
+        toast({
+          title: "Device Deleted",
+          description: result.message,
+          variant: "default",
+        });
+        
+        return true;
+      } else {
+        // Show error notification
+        toast({
+          title: "Error",
+          description: result.message,
+          variant: "destructive",
+        });
+        
+        return false;
+      }
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while deleting the device",
+        variant: "destructive",
+      });
+      
+      return false;
+    }
+  };
 
   // Fetch devices from API
   const fetchDevices = useCallback(async (showLoadingState = !initialLoadComplete) => {
@@ -114,6 +152,7 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
       loading,
       error,
       refreshDevices,
+      deleteDeviceById,
       settings
     }}>
       {children}

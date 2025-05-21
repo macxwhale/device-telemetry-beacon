@@ -14,6 +14,30 @@ export const getDeviceById = async (id: string): Promise<DeviceStatus | null> =>
   return devices.find(device => device.id === id) || null;
 };
 
+// Delete device and all related data
+export const deleteDevice = async (id: string): Promise<{ success: boolean; message: string }> => {
+  try {
+    // API call to delete device
+    const response = await fetch(`/api/device/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(result.error || 'Failed to delete device');
+    }
+    
+    return { success: true, message: 'Device deleted successfully' };
+  } catch (error) {
+    console.error("Error deleting device:", error);
+    return { success: false, message: (error as Error).message || 'Failed to delete device' };
+  }
+};
+
 // Get device history (simulated data for now)
 export const getDeviceHistory = async (deviceId: string): Promise<DeviceHistory[]> => {
   // Simulate history data

@@ -1,5 +1,6 @@
 
 import { handleTelemetryApi } from './api/api-interface';
+import { deleteDeviceFromApiImplementation } from './api/telemetry-api';
 
 // This is the main entry point for API requests without JSX dependencies
 export async function handleApiRequest(request: Request): Promise<Response | undefined> {
@@ -12,7 +13,7 @@ export async function handleApiRequest(request: Request): Promise<Response | und
   // CORS headers to use consistently
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, DELETE',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Max-Age': '86400'
   };
@@ -29,6 +30,34 @@ export async function handleApiRequest(request: Request): Promise<Response | und
   try {
     // Normalize path to handle trailing slashes consistently
     const normalizedPath = path.endsWith('/') ? path.slice(0, -1) : path;
+    
+    // Device deletion endpoint
+    if (normalizedPath.startsWith("/api/device/") && request.method === "DELETE") {
+      console.log("Processing device deletion request");
+      const deviceId = normalizedPath.split("/api/device/")[1];
+      
+      if (!deviceId) {
+        return new Response(JSON.stringify({
+          error: "Missing device ID",
+          message: "Device ID is required for deletion"
+        }), {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders
+          }
+        });
+      }
+      
+      const result = await deleteDeviceFromApiImplementation(deviceId);
+      return new Response(JSON.stringify(result), {
+        status: result.success ? 200 : 400,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        }
+      });
+    }
     
     // Improved API route matching - Check for exact paths
     const isTelemetryAPI = normalizedPath === "/api/telemetry" || normalizedPath === "/api/telemetry/";

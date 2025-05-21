@@ -1,71 +1,106 @@
 
-import { FC } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DeviceStatus } from "@/types/telemetry";
+import { Battery, Server, Smartphone } from "lucide-react";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
-import { Battery, SignalHigh, SignalLow, Wifi, Smartphone, Globe, Monitor, Terminal } from "lucide-react";
+import { Button } from "../ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { useState } from "react";
+import { useDevices } from "@/contexts/DeviceContext";
+import { Trash } from "lucide-react";
 
-// Property list component for device info
-const DeviceInfo: FC<{label: string; children: React.ReactNode}> = ({label, children}) => (
-  <div className="flex items-center justify-between">
-    <div className="text-xs text-muted-foreground">{label}</div>
-    <div className="text-xs font-medium flex items-center gap-1">{children}</div>
-  </div>
-);
+interface DeviceStatusCardProps {
+  device: DeviceStatus;
+}
 
-// Helper functions for device icons
-const getDeviceIcons = (device: DeviceStatus) => {
-  // Network icon selection based on network type
-  const getNetworkIcon = () => {
-    const type = device.network_type?.toLowerCase() || '';
-    if (type.includes('wifi')) return <Wifi className="h-3 w-3" />;
-    if (type.includes('mobile')) return <Smartphone className="h-3 w-3" />;
-    return <Globe className="h-3 w-3" />;
-  };
-
-  // OS icon selection based on OS version
-  const getOsIcon = () => {
-    const os = device.os_version?.toLowerCase() || '';
-    if (os.includes('windows')) return <Monitor className="h-3 w-3" />;
-    if (os.includes('linux')) return <Terminal className="h-3 w-3" />;
-    return <Smartphone className="h-3 w-3" />; // Default for Android
-  };
+export function DeviceStatusCard({ device }: DeviceStatusCardProps) {
+  const { deleteDeviceById } = useDevices();
+  const [isDeleting, setIsDeleting] = useState(false);
   
-  return { getNetworkIcon, getOsIcon };
-};
-
-export const DeviceStatusCard: FC<{device: DeviceStatus}> = ({ device }) => {
-  const { getNetworkIcon, getOsIcon } = getDeviceIcons(device);
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setIsDeleting(true);
+    await deleteDeviceById(device.id);
+    setIsDeleting(false);
+  };
 
   return (
-    <Link to={`/devices/${device.id}`}>
-      <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+    <Link to={`/devices/${device.id}`} className="block">
+      <Card className={`${device.isOnline ? "border-status-online/30" : "border-status-offline/30"} transition-all hover:shadow-md`}>
         <CardHeader className="pb-2">
           <div className="flex justify-between items-center">
-            <CardTitle className="text-base font-medium">{device.name}</CardTitle>
-            <div className={`h-2 w-2 rounded-full ${device.isOnline ? "bg-status-online" : "bg-status-offline"} animate-pulse-slow`}></div>
+            <CardTitle className="text-base font-semibold truncate">
+              {device.name}
+            </CardTitle>
+            <div className={`h-2.5 w-2.5 rounded-full ${device.isOnline ? "bg-status-online" : "bg-status-offline"} animate-pulse-slow`}></div>
           </div>
-          <p className="text-xs text-muted-foreground">{device.model} - {device.manufacturer}</p>
+          <p className="text-xs text-muted-foreground">
+            {device.manufacturer} {device.model}
+          </p>
         </CardHeader>
-        <CardContent className="space-y-2 pb-4">
-          <DeviceInfo label="Status">
-            {device.isOnline ? (
-              <span className="text-status-online flex items-center gap-1">
-                <SignalHigh className="h-3 w-3" />Online
-              </span>
-            ) : (
-              <span className="text-status-offline flex items-center gap-1">
-                <SignalLow className="h-3 w-3" />Offline
-              </span>
-            )}
-          </DeviceInfo>
-          <DeviceInfo label="Last Seen">{formatDistanceToNow(device.last_seen, { addSuffix: true })}</DeviceInfo>
-          <DeviceInfo label="Battery"><Battery className="h-3 w-3" />{device.battery_level}%</DeviceInfo>
-          <DeviceInfo label="Network">{getNetworkIcon()}{device.network_type || "Unknown"}</DeviceInfo>
-          <DeviceInfo label="OS">{getOsIcon()}{device.os_version}</DeviceInfo>
+        <CardContent>
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Battery className="h-4 w-4 text-muted-foreground" />
+                <span>{device.battery_level}%</span>
+              </div>
+              <span className="text-xs">{device.battery_status}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Server className="h-4 w-4 text-muted-foreground" />
+                <span>{device.network_type}</span>
+              </div>
+              <span className="text-xs truncate max-w-[120px]" title={device.ip_address}>{device.ip_address}</span>
+            </div>
+          </div>
         </CardContent>
+        <CardFooter className="pt-2 flex justify-between items-center">
+          <div className="text-xs text-muted-foreground">
+            Last seen {formatDistanceToNow(device.last_seen, { addSuffix: true })}
+          </div>
+          
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+              >
+                <Trash className="h-4 w-4" />
+                <span className="sr-only">Delete device</span>
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Device</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete {device.name}? This action cannot be undone and will permanently
+                  remove the device and all its telemetry data from the system.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {isDeleting ? "Deleting..." : "Delete Device"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </CardFooter>
       </Card>
     </Link>
   );
-};
+}
