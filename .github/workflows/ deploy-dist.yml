@@ -3,7 +3,7 @@ name: Build and Push to dist Branch
 on:
   push:
     branches:
-      - main   # change this to your source branch
+      - main
 
 permissions:
   contents: write
@@ -16,17 +16,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0          # needed to detect or create branches
+          fetch-depth: 0  # Required for full branch checkout and creation
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20'     # upgraded from 16 to 20
-
-      - name: Verify Node.js and NPM versions
-        run: |
-          echo "Node: $(node -v)"
-          echo "NPM:  $(npm -v)"
+          node-version: '18'
 
       - name: Install dependencies
         run: npm install
@@ -34,31 +29,38 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Configure Git
+      - name: Copy build output to temp directory
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          mkdir -p /tmp/temp-dist
+          cp -r dist/* /tmp/temp-dist/
+          # If hidden files are needed:
+          # cp -r dist/.[!.]* /tmp/temp-dist/
 
-      - name: Switch to dist branch (or create it)
+      - name: Switch to dist branch (create if doesn't exist)
         run: |
-          if git rev-parse --verify origin/dist; then
-            git checkout dist
+          git fetch origin
+          git reset --hard  # Discard uncommitted changes (like package-lock.json)
+          if git show-ref --quiet refs/remotes/origin/dist; then
+            git checkout --detach origin/dist
+            git checkout -B dist
           else
             git checkout --orphan dist
           fi
 
       - name: Clean old contents
         run: |
-          # remove everything except .git
-          git rm -rf . >/dev/null 2>&1 || true
+          git rm -rf . || true
 
-      - name: Copy build output
+      - name: Copy files from temp-dist to root
         run: |
-          cp -r dist/* .
-          # if you have hidden files in dist, uncomment:
-          # cp -r dist/.[!.]* .
+          cp -r /tmp/temp-dist/* .
 
-      - name: Commit & push to dist
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit and push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
