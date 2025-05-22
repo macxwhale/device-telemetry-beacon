@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { DeviceStatus } from "@/types/telemetry";
 import { getAllDevices, deleteDevice } from "@/services/telemetryService";
@@ -51,17 +50,11 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
       const result = await deleteDevice(deviceId);
       
       if (result.success) {
-        // Update local state
-        setDevices(prevDevices => 
-          prevDevices.filter(device => device.id !== deviceId)
-        );
-        
+        setDevices(prev => prev.filter(d => d.id !== deviceId));
         toast({
           title: "Device Deleted",
           description: result.message,
-          variant: "default",
         });
-        
         return true;
       } else {
         toast({
@@ -69,17 +62,15 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
           description: result.message || "Failed to delete device",
           variant: "destructive",
         });
-        
         return false;
       }
     } catch (err) {
-      console.error("Error deleting device:", err);
+      console.error("Error in deleteDeviceById:", err);
       toast({
         title: "Error",
-        description: "An unexpected error occurred while deleting the device",
+        description: "Failed to delete device",
         variant: "destructive",
       });
-      
       return false;
     }
   };

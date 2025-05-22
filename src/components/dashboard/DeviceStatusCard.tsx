@@ -1,6 +1,6 @@
 
 import { DeviceStatus } from "@/types/telemetry";
-import { Battery, Server, Smartphone, Trash } from "lucide-react";
+import { Battery, Server, Trash } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
@@ -16,11 +16,9 @@ interface DeviceStatusCardProps {
 export function DeviceStatusCard({ device }: DeviceStatusCardProps) {
   const { deleteDeviceById } = useDevices();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
+  const handleDelete = async () => {
     try {
       setIsDeleting(true);
       await deleteDeviceById(device.id);
@@ -28,6 +26,7 @@ export function DeviceStatusCard({ device }: DeviceStatusCardProps) {
       console.error("Failed to delete device:", error);
     } finally {
       setIsDeleting(false);
+      setIsDialogOpen(false);
     }
   };
 
@@ -68,22 +67,23 @@ export function DeviceStatusCard({ device }: DeviceStatusCardProps) {
             Last seen {formatDistanceToNow(device.last_seen, { addSuffix: true })}
           </div>
           
-          <AlertDialog>
+          <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <AlertDialogTrigger asChild>
               <Button
                 variant="ghost"
-                size="sm"
+                size="sm" 
                 className="h-7 px-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  setIsDialogOpen(true);
                 }}
               >
                 <Trash className="h-4 w-4" />
                 <span className="sr-only">Delete device</span>
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+            <AlertDialogContent onPointerDownOutside={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()}>
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete Device</AlertDialogTitle>
                 <AlertDialogDescription>
@@ -92,9 +92,20 @@ export function DeviceStatusCard({ device }: DeviceStatusCardProps) {
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+                <AlertDialogCancel 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                >
+                  Cancel
+                </AlertDialogCancel>
                 <AlertDialogAction 
-                  onClick={handleDelete}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDelete();
+                  }}
                   disabled={isDeleting}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >

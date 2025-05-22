@@ -17,9 +17,11 @@ export const getDeviceById = async (id: string): Promise<DeviceStatus | null> =>
 export const deleteDevice = async (id: string): Promise<{success: boolean; message: string}> => {
   console.log(`TelemetryService: Deleting device ${id}`);
   try {
-    return await deleteDeviceFromApi(id);
+    const response = await deleteDeviceFromApi(id);
+    console.log("Delete response:", response);
+    return response;
   } catch (error) {
-    console.error("Error deleting device:", error);
+    console.error("Error in deleteDevice:", error);
     return { 
       success: false, 
       message: (error as Error).message || 'Failed to delete device'
@@ -27,7 +29,7 @@ export const deleteDevice = async (id: string): Promise<{success: boolean; messa
   }
 };
 
-// Get device history (simulated data)
+// Get device history
 export const getDeviceHistory = async (deviceId: string): Promise<DeviceHistory[]> => {
   // Simulate history data
   const device = await getDeviceById(deviceId);
