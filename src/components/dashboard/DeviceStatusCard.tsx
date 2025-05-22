@@ -1,6 +1,5 @@
-
 import { DeviceStatus } from "@/types/telemetry";
-import { Battery, Server, Smartphone } from "lucide-react";
+import { Battery, Server, Smartphone, Trash } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
@@ -8,7 +7,6 @@ import { Button } from "../ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useState } from "react";
 import { useDevices } from "@/contexts/DeviceContext";
-import { Trash } from "lucide-react";
 
 interface DeviceStatusCardProps {
   device: DeviceStatus;

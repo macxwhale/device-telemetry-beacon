@@ -1,9 +1,9 @@
-import { DeviceStatus, DeviceHistory, TelemetryData } from "@/types/telemetry";
+
+import { DeviceStatus, DeviceHistory } from "@/types/telemetry";
 import { getAllDevicesFromApi, deleteDeviceFromApi } from "@/api/api-interface";
 
 // Get all device information
 export const getAllDevices = async (): Promise<DeviceStatus[]> => {
-  // Get devices from API which determines online status based on database settings
   return getAllDevicesFromApi();
 };
 
@@ -14,18 +14,20 @@ export const getDeviceById = async (id: string): Promise<DeviceStatus | null> =>
 };
 
 // Delete device and all related data
-export const deleteDevice = async (id: string): Promise<{ success: boolean; message: string }> => {
+export const deleteDevice = async (id: string): Promise<{success: boolean; message: string}> => {
+  console.log(`TelemetryService: Deleting device ${id}`);
   try {
-    // Use the API interface directly instead of making a fetch request
-    const result = await deleteDeviceFromApi(id);
-    return result;
+    return await deleteDeviceFromApi(id);
   } catch (error) {
     console.error("Error deleting device:", error);
-    return { success: false, message: (error as Error).message || 'Failed to delete device' };
+    return { 
+      success: false, 
+      message: (error as Error).message || 'Failed to delete device'
+    };
   }
 };
 
-// Get device history (simulated data for now)
+// Get device history (simulated data)
 export const getDeviceHistory = async (deviceId: string): Promise<DeviceHistory[]> => {
   // Simulate history data
   const device = await getDeviceById(deviceId);

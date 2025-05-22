@@ -22,5 +22,6 @@ export async function getAllDevicesFromApi(): Promise<DeviceStatus[]> {
 }
 
 export async function deleteDeviceFromApi(deviceId: string): Promise<{success: boolean; message: string}> {
+  console.log("API interface: forwarding device deletion request for ID:", deviceId);
   return deleteDeviceFromApiImplementation(deviceId);
 }

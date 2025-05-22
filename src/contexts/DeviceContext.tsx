@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { DeviceStatus } from "@/types/telemetry";
 import { getAllDevices, deleteDevice } from "@/services/telemetryService";
@@ -24,7 +23,7 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
   const [settings, setSettings] = useState<GeneralSettings | null>(null);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
-  // Fetch settings from database
+  // Load settings
   useEffect(() => {
     const loadSettings = async () => {
       try {
@@ -46,14 +45,16 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
 
   // Delete device functionality
   const deleteDeviceById = async (deviceId: string): Promise<boolean> => {
+    console.log(`DeviceContext: Deleting device ${deviceId}`);
     try {
       const result = await deleteDevice(deviceId);
       
       if (result.success) {
-        // Update local state to remove the device
-        setDevices(prevDevices => prevDevices.filter(device => device.id !== deviceId));
+        // Update local state
+        setDevices(prevDevices => 
+          prevDevices.filter(device => device.id !== deviceId)
+        );
         
-        // Show success notification
         toast({
           title: "Device Deleted",
           description: result.message,
@@ -62,7 +63,6 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
         
         return true;
       } else {
-        // Show error notification
         toast({
           title: "Error",
           description: result.message,
@@ -132,7 +132,6 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     fetchDevices();
     
-    // Only set up interval if settings are loaded and auto-refresh is enabled
     if (settings?.auto_refresh) {
       const interval = setInterval(() => {
         fetchDevices(false); // Don't show loading state on background refresh
@@ -141,11 +140,6 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
       return () => clearInterval(interval);
     }
   }, [fetchDevices, settings]);
-
-  // Public API for context consumers
-  const refreshDevices = async () => {
-    await fetchDevices(true); // Show loading state on manual refresh
-  };
 
   return (
     <DeviceContext.Provider value={{
