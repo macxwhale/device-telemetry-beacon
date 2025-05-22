@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { DeviceStatus } from "@/types/telemetry";
 import { getAllDevices, deleteDevice } from "@/services/telemetryService";
@@ -77,11 +78,9 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
 
   // Fetch devices from API
   const fetchDevices = useCallback(async (showLoadingState = !initialLoadComplete) => {
+    if (showLoadingState) setLoading(true);
+    
     try {
-      if (showLoadingState) {
-        setLoading(true);
-      }
-      
       const data = await getAllDevices();
       
       // Check for new devices
@@ -91,24 +90,19 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
       newDevices.forEach(device => {
         toast({
           title: "New Device Added",
-          description: `${device.name} (${device.model}) has been added to your network`,
+          description: `${device.name} (${device.model}) has been added`,
           variant: "default",
         });
       });
       
       // Update known device IDs
-      setKnownDeviceIds(prev => {
-        const updated = new Set(prev);
-        data.forEach(device => updated.add(device.id));
-        return updated;
-      });
+      const updated = new Set(knownDeviceIds);
+      data.forEach(device => updated.add(device.id));
+      setKnownDeviceIds(updated);
       
       setDevices(data);
       setError(null);
-      
-      if (!initialLoadComplete) {
-        setInitialLoadComplete(true);
-      }
+      if (!initialLoadComplete) setInitialLoadComplete(true);
     } catch (err) {
       setError("Failed to fetch devices");
       toast({

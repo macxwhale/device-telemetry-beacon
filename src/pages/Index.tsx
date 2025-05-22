@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { DeviceStats } from "@/components/dashboard/DeviceStats";
@@ -30,26 +29,36 @@ const Index = () => {
       {loading ? (
         <DashboardSkeleton />
       ) : (
-        <div className="space-y-6">
-          <DeviceStats devices={devices} />
-          
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <DeviceOverview devices={devices} />
-            <SystemInfoCard />
-          </div>
-          
-          <div>
-            <h2 className="text-lg font-medium mb-3">Recent Devices</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {devices.slice(0, 4).map(device => (
-                <DeviceStatusCard key={device.id} device={device} />
-              ))}
-            </div>
-          </div>
-        </div>
+        <DashboardContent devices={devices} />
       )}
     </Layout>
   );
 };
+
+// Extracted component to keep main component under 50 lines
+const DashboardContent = ({ devices }) => (
+  <div className="space-y-6">
+    <DeviceStats devices={devices} />
+    
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <DeviceOverview devices={devices} />
+      <SystemInfoCard />
+    </div>
+    
+    <RecentDevices devices={devices} />
+  </div>
+);
+
+// Recent devices component
+const RecentDevices = ({ devices }) => (
+  <div>
+    <h2 className="text-lg font-medium mb-3">Recent Devices</h2>
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {devices.slice(0, 4).map(device => (
+        <DeviceStatusCard key={device.id} device={device} />
+      ))}
+    </div>
+  </div>
+);
 
 export default Index;

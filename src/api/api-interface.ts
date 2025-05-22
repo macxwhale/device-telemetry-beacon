@@ -1,7 +1,5 @@
 
 import { DeviceStatus } from "../types/telemetry";
-
-// Non-JSX interface to the telemetry API
 import { 
   handleTelemetryApiImplementation, 
   getAllDevicesFromApiImplementation,
@@ -18,11 +16,11 @@ export async function getAllDevicesFromApi(): Promise<DeviceStatus[]> {
 }
 
 export async function deleteDeviceFromApi(deviceId: string): Promise<{success: boolean; message: string}> {
-  console.log("API interface: forwarding device deletion request for ID:", deviceId);
+  console.log(`API interface: deleting device ${deviceId}`);
   try {
     return await deleteDeviceFromApiImplementation(deviceId);
   } catch (error) {
-    console.error("Error in deleteDeviceFromApi:", error);
+    console.error("Error in API interface:", error);
     return {
       success: false,
       message: (error as Error).message || 'Failed to delete device'
