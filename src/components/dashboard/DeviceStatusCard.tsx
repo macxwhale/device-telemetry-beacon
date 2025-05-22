@@ -1,3 +1,4 @@
+
 import { DeviceStatus } from "@/types/telemetry";
 import { Battery, Server, Smartphone, Trash } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,9 +21,14 @@ export function DeviceStatusCard({ device }: DeviceStatusCardProps) {
     e.preventDefault();
     e.stopPropagation();
     
-    setIsDeleting(true);
-    await deleteDeviceById(device.id);
-    setIsDeleting(false);
+    try {
+      setIsDeleting(true);
+      await deleteDeviceById(device.id);
+    } catch (error) {
+      console.error("Failed to delete device:", error);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -77,7 +83,7 @@ export function DeviceStatusCard({ device }: DeviceStatusCardProps) {
                 <span className="sr-only">Delete device</span>
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent>
+            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete Device</AlertDialogTitle>
                 <AlertDialogDescription>
@@ -86,7 +92,7 @@ export function DeviceStatusCard({ device }: DeviceStatusCardProps) {
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
                 <AlertDialogAction 
                   onClick={handleDelete}
                   disabled={isDeleting}

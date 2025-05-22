@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { DeviceStatus } from "@/types/telemetry";
 import { getAllDevices, deleteDevice } from "@/services/telemetryService";
@@ -65,13 +66,14 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
       } else {
         toast({
           title: "Error",
-          description: result.message,
+          description: result.message || "Failed to delete device",
           variant: "destructive",
         });
         
         return false;
       }
     } catch (err) {
+      console.error("Error deleting device:", err);
       toast({
         title: "Error",
         description: "An unexpected error occurred while deleting the device",
