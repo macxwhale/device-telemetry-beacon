@@ -30,41 +30,29 @@ export async function deleteDeviceFromApiImplementation(deviceId: string): Promi
     const deviceDbId = device.id;
     const deviceName = device.device_name || "Unknown device";
     
-    // Delete all related records in this order (to respect foreign keys):
-    // 1. device_apps - apps installed on the device
+    // Delete all related records in this order (to respect foreign keys)
     const { error: appsError } = await supabase
       .from('device_apps')
       .delete()
       .eq('device_id', deviceDbId);
       
-    if (appsError) {
-      console.error("Error deleting device apps:", appsError);
-      // Continue with deletion even if this fails
-    }
+    if (appsError) console.error("Error deleting device apps:", appsError);
     
-    // 2. device_telemetry - structured telemetry data
     const { error: telemetryError } = await supabase
       .from('device_telemetry')
       .delete()
       .eq('device_id', deviceDbId);
       
-    if (telemetryError) {
-      console.error("Error deleting device telemetry:", telemetryError);
-      // Continue with deletion even if this fails
-    }
+    if (telemetryError) console.error("Error deleting device telemetry:", telemetryError);
     
-    // 3. telemetry_history - raw telemetry data history
     const { error: historyError } = await supabase
       .from('telemetry_history')
       .delete()
       .eq('device_id', deviceDbId);
       
-    if (historyError) {
-      console.error("Error deleting telemetry history:", historyError);
-      // Continue with deletion even if this fails
-    }
+    if (historyError) console.error("Error deleting telemetry history:", historyError);
     
-    // 4. Finally delete the device record itself
+    // Finally delete the device record itself
     const { error: deleteError } = await supabase
       .from('devices')
       .delete()

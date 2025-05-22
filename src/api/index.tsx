@@ -1,9 +1,11 @@
 
 import { DeviceStatus } from "../types/telemetry";
 import { toast } from "../hooks/use-toast";
-import { handleTelemetryApiImplementation, getAllDevicesFromApiImplementation, deleteDeviceFromApiImplementation } from './telemetry-api';
-import { createErrorResponse, createSuccessResponse } from './utils/response-helpers';
-import { validateJsonResponse } from './utils/response-helpers';
+import { 
+  handleTelemetryApiImplementation, 
+  getAllDevicesFromApiImplementation, 
+  deleteDeviceFromApiImplementation 
+} from './telemetry-api';
 
 // API key for simple authentication
 const API_KEY = "telm_sk_1234567890abcdef";

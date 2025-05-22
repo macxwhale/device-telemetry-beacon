@@ -5,7 +5,11 @@ import { DeviceStatus } from "../types/telemetry";
 // This file serves as a bridge between JSX and non-JSX code
 
 // Import from the refactored implementation
-import { handleTelemetryApiImplementation, getAllDevicesFromApiImplementation } from './telemetry-api';
+import { 
+  handleTelemetryApiImplementation, 
+  getAllDevicesFromApiImplementation,
+  deleteDeviceFromApiImplementation
+} from './telemetry-api';
 
 // Re-export only the necessary functions without JSX dependencies
 export function handleTelemetryApi(request: Request): Promise<Response> {
@@ -15,4 +19,8 @@ export function handleTelemetryApi(request: Request): Promise<Response> {
 
 export async function getAllDevicesFromApi(): Promise<DeviceStatus[]> {
   return getAllDevicesFromApiImplementation();
+}
+
+export async function deleteDeviceFromApi(deviceId: string): Promise<{success: boolean; message: string}> {
+  return deleteDeviceFromApiImplementation(deviceId);
 }

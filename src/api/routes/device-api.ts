@@ -24,11 +24,20 @@ export async function handleDeviceApi(
       );
     }
     
-    const result = await deleteDeviceFromApiImplementation(deviceId);
-    return createSuccessResponse(
-      result.success ? 200 : 400,
-      result
-    );
+    try {
+      const result = await deleteDeviceFromApiImplementation(deviceId);
+      return createSuccessResponse(
+        result.success ? 200 : 400,
+        result
+      );
+    } catch (error) {
+      console.error("Error in device API:", error);
+      return createErrorResponse(
+        500,
+        "Server error",
+        (error as Error).message
+      );
+    }
   }
   
   // Return undefined for any other method to let other handlers process it

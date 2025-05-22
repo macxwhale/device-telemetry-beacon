@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { DeviceStatus } from "@/types/telemetry";
 import { getAllDevices, deleteDevice } from "@/services/telemetryService";
@@ -151,7 +152,7 @@ export const DeviceProvider = ({ children }: { children: ReactNode }) => {
       devices,
       loading,
       error,
-      refreshDevices,
+      refreshDevices: async () => await fetchDevices(true),
       deleteDeviceById,
       settings
     }}>
