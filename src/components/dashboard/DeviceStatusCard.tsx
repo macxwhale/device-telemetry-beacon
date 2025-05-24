@@ -1,11 +1,11 @@
 
+import React, { memo, useCallback } from "react";
 import { DeviceStatus } from "@/types/telemetry";
 import { Battery, Server, Trash2 } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
 import { Button } from "../ui/button";
-import { useState } from "react";
 import { useDeleteDeviceMutation } from "@/hooks/useDevicesQuery";
 import {
   AlertDialog,
@@ -23,34 +23,48 @@ interface DeviceStatusCardProps {
   device: DeviceStatus;
 }
 
-export function DeviceStatusCard({ device }: DeviceStatusCardProps) {
+const DeviceStatusCard = memo(({ device }: DeviceStatusCardProps) => {
   const deleteDeviceMutation = useDeleteDeviceMutation();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   
-  const handleDelete = async () => {
+  const handleDelete = useCallback(async () => {
     try {
       await deleteDeviceMutation.mutateAsync(device.id);
-      setIsDialogOpen(false);
     } catch (error) {
       console.error("Delete failed:", error);
     }
-  };
+  }, [deleteDeviceMutation, device.id]);
 
-  const stopPropagation = (e: React.MouseEvent) => {
+  const stopPropagation = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-  };
+  }, []);
+
+  // Memoize computed values
+  const formattedLastSeen = React.useMemo(
+    () => formatDistanceToNow(device.last_seen, { addSuffix: true }),
+    [device.last_seen]
+  );
+
+  const statusColor = React.useMemo(
+    () => device.isOnline ? "bg-status-online" : "bg-status-offline",
+    [device.isOnline]
+  );
+
+  const borderColor = React.useMemo(
+    () => device.isOnline ? "border-status-online/30" : "border-status-offline/30",
+    [device.isOnline]
+  );
 
   return (
     <div className="h-full">
-      <Card className={`${device.isOnline ? "border-status-online/30" : "border-status-offline/30"} h-full transition-all hover:shadow-md`}>
+      <Card className={`${borderColor} h-full transition-all hover:shadow-md`}>
         <Link to={`/devices/${device.id}`} className="block h-full">
           <CardHeader className="pb-2">
             <div className="flex justify-between items-center">
               <CardTitle className="text-base font-semibold truncate">
                 {device.name}
               </CardTitle>
-              <div className={`h-2.5 w-2.5 rounded-full ${device.isOnline ? "bg-status-online" : "bg-status-offline"} animate-pulse-slow`}></div>
+              <div className={`h-2.5 w-2.5 rounded-full ${statusColor} animate-pulse-slow`}></div>
             </div>
             <p className="text-xs text-muted-foreground">
               {device.manufacturer} {device.model}
@@ -71,17 +85,19 @@ export function DeviceStatusCard({ device }: DeviceStatusCardProps) {
                   <Server className="h-4 w-4 text-muted-foreground" />
                   <span>{device.network_type}</span>
                 </div>
-                <span className="text-xs truncate max-w-[120px]" title={device.ip_address}>{device.ip_address}</span>
+                <span className="text-xs truncate max-w-[120px]" title={device.ip_address}>
+                  {device.ip_address}
+                </span>
               </div>
             </div>
           </CardContent>
           
           <CardFooter className="pt-2 flex justify-between items-center">
             <div className="text-xs text-muted-foreground">
-              Last seen {formatDistanceToNow(device.last_seen, { addSuffix: true })}
+              Last seen {formattedLastSeen}
             </div>
             
-            <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button
                   variant="ghost"
@@ -122,4 +138,8 @@ export function DeviceStatusCard({ device }: DeviceStatusCardProps) {
       </Card>
     </div>
   );
-}
+});
+
+DeviceStatusCard.displayName = 'DeviceStatusCard';
+
+export { DeviceStatusCard };
