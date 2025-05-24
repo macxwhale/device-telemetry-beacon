@@ -9,15 +9,18 @@ import { SystemInfoCard } from "@/components/dashboard/SystemInfoCard";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { useDevicesQuery } from "@/hooks/useDevicesQuery";
+import { useRealTimeUpdates } from "@/hooks/useRealTimeUpdates";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { DeviceStatus } from "@/types/telemetry";
 
 const Index = memo(() => {
   const { data: devices = [], isLoading, error, refetch } = useDevicesQuery();
+  const { refresh } = useRealTimeUpdates({ enabled: !isLoading });
   
   const handleRefresh = useCallback(() => {
     refetch();
-  }, [refetch]);
+    refresh();
+  }, [refetch, refresh]);
   
   useEffect(() => {
     document.title = "Device Telemetry Dashboard";

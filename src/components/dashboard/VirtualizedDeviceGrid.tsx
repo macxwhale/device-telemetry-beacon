@@ -6,22 +6,15 @@ import { DeviceStatusCard } from './DeviceStatusCard';
 
 interface VirtualizedDeviceGridProps {
   devices: DeviceStatus[];
-  searchTerm?: string;
+  selectedDevices?: string[];
+  onSelectionChange?: (deviceIds: string[]) => void;
 }
 
-export const VirtualizedDeviceGrid = ({ devices, searchTerm = '' }: VirtualizedDeviceGridProps) => {
-  // Memoize filtered devices to prevent unnecessary recalculations
-  const filteredDevices = useMemo(() => {
-    if (!searchTerm) return devices;
-    
-    const term = searchTerm.toLowerCase();
-    return devices.filter(device => 
-      device.name.toLowerCase().includes(term) ||
-      device.model.toLowerCase().includes(term) ||
-      device.manufacturer.toLowerCase().includes(term)
-    );
-  }, [devices, searchTerm]);
-
+export const VirtualizedDeviceGrid = ({ 
+  devices, 
+  selectedDevices = [],
+  onSelectionChange 
+}: VirtualizedDeviceGridProps) => {
   const parentRef = useMemo(() => ({ current: null as HTMLDivElement | null }), []);
 
   // Calculate how many items per row based on screen size
@@ -35,21 +28,29 @@ export const VirtualizedDeviceGrid = ({ devices, searchTerm = '' }: VirtualizedD
   };
 
   const itemsPerRow = getItemsPerRow();
-  const rowCount = Math.ceil(filteredDevices.length / itemsPerRow);
+  const rowCount = Math.ceil(devices.length / itemsPerRow);
 
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 200, // Estimated height of each row
-    overscan: 2, // Render 2 extra rows for smooth scrolling
+    estimateSize: () => 220, // Slightly increased for selection checkbox
+    overscan: 2,
   });
 
-  if (filteredDevices.length === 0) {
+  const handleDeviceSelection = (deviceId: string, selected: boolean) => {
+    if (!onSelectionChange) return;
+    
+    if (selected) {
+      onSelectionChange([...selectedDevices, deviceId]);
+    } else {
+      onSelectionChange(selectedDevices.filter(id => id !== deviceId));
+    }
+  };
+
+  if (devices.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-muted-foreground">
-          {searchTerm ? `No devices found matching "${searchTerm}"` : 'No devices found'}
-        </p>
+        <p className="text-muted-foreground">No devices found</p>
       </div>
     );
   }
@@ -69,8 +70,8 @@ export const VirtualizedDeviceGrid = ({ devices, searchTerm = '' }: VirtualizedD
       >
         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
           const startIndex = virtualRow.index * itemsPerRow;
-          const endIndex = Math.min(startIndex + itemsPerRow, filteredDevices.length);
-          const rowDevices = filteredDevices.slice(startIndex, endIndex);
+          const endIndex = Math.min(startIndex + itemsPerRow, devices.length);
+          const rowDevices = devices.slice(startIndex, endIndex);
 
           return (
             <div
@@ -86,7 +87,15 @@ export const VirtualizedDeviceGrid = ({ devices, searchTerm = '' }: VirtualizedD
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-2">
                 {rowDevices.map((device) => (
-                  <DeviceStatusCard key={device.id} device={device} />
+                  <DeviceStatusCard 
+                    key={device.id} 
+                    device={device}
+                    isSelected={selectedDevices.includes(device.id)}
+                    onSelectionChange={onSelectionChange ? 
+                      (selected) => handleDeviceSelection(device.id, selected) : 
+                      undefined
+                    }
+                  />
                 ))}
               </div>
             </div>
