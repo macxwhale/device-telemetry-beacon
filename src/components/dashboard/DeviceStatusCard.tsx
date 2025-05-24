@@ -87,8 +87,8 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = memo(({
             </span>
           </div>
           <div className="flex justify-between text-xs">
-            <span className="text-muted-foreground">Temperature</span>
-            <span>{device.temperature?.toFixed(1) || '--'}°C</span>
+            <span className="text-muted-foreground">OS Version</span>
+            <span>{device.os_version}</span>
           </div>
         </div>
         

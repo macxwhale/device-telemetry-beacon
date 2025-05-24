@@ -1,5 +1,5 @@
 
-import { memo, useState } from 'react';
+import { memo, useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
@@ -33,9 +33,20 @@ export const BulkActions = memo(({
   onBulkExport
 }: BulkActionsProps) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const checkboxRef = useRef<HTMLButtonElement>(null);
 
   const isAllSelected = devices.length > 0 && selectedDevices.length === devices.length;
   const isPartialSelected = selectedDevices.length > 0 && selectedDevices.length < devices.length;
+
+  // Set indeterminate state using useEffect
+  useEffect(() => {
+    if (checkboxRef.current) {
+      const checkboxElement = checkboxRef.current.querySelector('input[type="checkbox"]') as HTMLInputElement;
+      if (checkboxElement) {
+        checkboxElement.indeterminate = isPartialSelected;
+      }
+    }
+  }, [isPartialSelected]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -69,10 +80,8 @@ export const BulkActions = memo(({
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Checkbox
+                  ref={checkboxRef}
                   checked={isAllSelected}
-                  ref={(el) => {
-                    if (el) el.indeterminate = isPartialSelected;
-                  }}
                   onCheckedChange={handleSelectAll}
                 />
                 <span className="text-sm font-medium">
