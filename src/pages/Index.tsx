@@ -1,16 +1,18 @@
+
 import { useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { DeviceStats } from "@/components/dashboard/DeviceStats";
 import { DeviceOverview } from "@/components/dashboard/DeviceOverview";
 import { DeviceStatusCard } from "@/components/dashboard/DeviceStatusCard";
-import { useDevices } from "@/contexts/DeviceContext";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { SystemInfoCard } from "@/components/dashboard/SystemInfoCard";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
+import { useDevicesQuery } from "@/hooks/useDevicesQuery";
+import { ErrorMessage } from "@/components/ErrorMessage";
 
 const Index = () => {
-  const { devices, loading, refreshDevices } = useDevices();
+  const { data: devices = [], isLoading, error, refetch } = useDevicesQuery();
   
   useEffect(() => {
     document.title = "Device Telemetry Dashboard";
@@ -20,13 +22,18 @@ const Index = () => {
     <Layout>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Device Telemetry Dashboard</h1>
-        <Button variant="outline" size="sm" onClick={refreshDevices}>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>
       </div>
       
-      {loading ? (
+      {error ? (
+        <ErrorMessage 
+          message="Failed to load dashboard data" 
+          onRetry={() => refetch()} 
+        />
+      ) : isLoading ? (
         <DashboardSkeleton />
       ) : (
         <DashboardContent devices={devices} />

@@ -6,7 +6,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
 import { Button } from "../ui/button";
 import { useState } from "react";
-import { useDevices } from "@/contexts/DeviceContext";
+import { useDeleteDeviceMutation } from "@/hooks/useDevicesQuery";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,17 +24,15 @@ interface DeviceStatusCardProps {
 }
 
 export function DeviceStatusCard({ device }: DeviceStatusCardProps) {
-  const { deleteDeviceById } = useDevices();
-  const [isDeleting, setIsDeleting] = useState(false);
+  const deleteDeviceMutation = useDeleteDeviceMutation();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
   const handleDelete = async () => {
     try {
-      setIsDeleting(true);
-      await deleteDeviceById(device.id);
-    } finally {
-      setIsDeleting(false);
+      await deleteDeviceMutation.mutateAsync(device.id);
       setIsDialogOpen(false);
+    } catch (error) {
+      console.error("Delete failed:", error);
     }
   };
 
@@ -58,6 +56,7 @@ export function DeviceStatusCard({ device }: DeviceStatusCardProps) {
               {device.manufacturer} {device.model}
             </p>
           </CardHeader>
+          
           <CardContent>
             <div className="space-y-2 text-sm">
               <div className="flex items-center justify-between">
@@ -76,6 +75,7 @@ export function DeviceStatusCard({ device }: DeviceStatusCardProps) {
               </div>
             </div>
           </CardContent>
+          
           <CardFooter className="pt-2 flex justify-between items-center">
             <div className="text-xs text-muted-foreground">
               Last seen {formatDistanceToNow(device.last_seen, { addSuffix: true })}
@@ -86,11 +86,11 @@ export function DeviceStatusCard({ device }: DeviceStatusCardProps) {
                 <Button
                   variant="ghost"
                   size="sm" 
-                  className="h-7 px-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  className="h-7 px-2 text-destructive hover:bg-destructive/10"
                   onClick={stopPropagation}
+                  disabled={deleteDeviceMutation.isPending}
                 >
                   <Trash2 className="h-4 w-4" />
-                  <span className="sr-only">Delete device</span>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent onClick={stopPropagation}>
@@ -109,10 +109,10 @@ export function DeviceStatusCard({ device }: DeviceStatusCardProps) {
                       stopPropagation(e);
                       handleDelete();
                     }}
-                    disabled={isDeleting}
+                    disabled={deleteDeviceMutation.isPending}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
-                    {isDeleting ? "Deleting..." : "Delete Device"}
+                    {deleteDeviceMutation.isPending ? "Deleting..." : "Delete Device"}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>

@@ -1,15 +1,16 @@
 
 import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
-import { useDevices } from "@/contexts/DeviceContext";
 import { DeviceStatusCard } from "@/components/dashboard/DeviceStatusCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Search } from "lucide-react";
+import { useDevicesQuery } from "@/hooks/useDevicesQuery";
+import { ErrorMessage } from "@/components/ErrorMessage";
 
 const DevicesPage = () => {
-  const { devices, loading, refreshDevices } = useDevices();
+  const { data: devices = [], isLoading, error, refetch } = useDevicesQuery();
   const [searchTerm, setSearchTerm] = useState("");
   
   // Filter devices based on search term
@@ -41,14 +42,19 @@ const DevicesPage = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Button variant="outline" size="sm" onClick={refreshDevices}>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
         </div>
       </div>
       
-      {loading ? (
+      {error ? (
+        <ErrorMessage 
+          message="Failed to load devices" 
+          onRetry={() => refetch()} 
+        />
+      ) : isLoading ? (
         <DeviceGrid>
           {[...Array(8)].map((_, i) => (
             <Skeleton key={i} className="h-48" />
