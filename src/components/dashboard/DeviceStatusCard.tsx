@@ -57,7 +57,7 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = memo(({
   };
 
   const getStatusBorderColor = (isOnline: boolean) => {
-    return isOnline ? "border-l-green-500" : "border-l-red-500";
+    return isOnline ? "border-green-500" : "border-red-500";
   };
 
   const getNetworkIcon = (networkType: string) => {
@@ -68,7 +68,7 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = memo(({
   };
 
   return (
-    <Card className={`relative overflow-hidden transition-all duration-200 hover:shadow-lg border-l-4 ${getStatusBorderColor(device.isOnline)} ${isSelected ? 'ring-2 ring-blue-500 shadow-lg' : 'hover:shadow-md'}`}>
+    <Card className={`relative overflow-hidden transition-all duration-200 hover:shadow-lg border ${getStatusBorderColor(device.isOnline)} ${isSelected ? 'ring-2 ring-blue-500 shadow-lg' : 'hover:shadow-md'}`}>
       {/* Header Section */}
       <div className="p-4 pb-0">
         <div className="flex items-start justify-between mb-3">
