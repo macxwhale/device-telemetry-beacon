@@ -1,4 +1,3 @@
-
 import { FC, memo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +25,7 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = memo(({
   const deleteDeviceMutation = useDeleteDeviceMutation();
 
   const handleViewDetails = () => {
-    navigate(`/device/${device.id}`);
+    navigate(`/devices/${device.id}`);
   };
 
   const handleDelete = (e: React.MouseEvent) => {
