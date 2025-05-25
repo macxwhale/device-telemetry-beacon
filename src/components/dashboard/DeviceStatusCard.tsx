@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DeviceStatus } from "@/types/telemetry";
-import { Battery, Trash2, Eye } from "lucide-react";
+import { Battery, Trash2, Eye, Wifi, Smartphone } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useDeleteDeviceMutation } from "@/hooks/useDevicesQuery";
@@ -45,15 +45,28 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = memo(({
     return "text-red-500";
   };
 
-  const getStatusBadgeVariant = (isOnline: boolean) => {
-    return isOnline ? "default" : "destructive";
+  const getBatteryStatus = (level: number) => {
+    if (level > 60) return "Charging";
+    if (level > 20) return "Normal";
+    return "Low";
+  };
+
+  const getStatusColor = (isOnline: boolean) => {
+    return isOnline ? "bg-green-500" : "bg-red-500";
+  };
+
+  const getNetworkIcon = (networkType: string) => {
+    if (networkType?.toLowerCase().includes('wifi')) {
+      return <Wifi className="h-3 w-3" />;
+    }
+    return <Smartphone className="h-3 w-3" />;
   };
 
   return (
-    <Card className={`h-48 transition-colors ${isSelected ? 'ring-2 ring-primary' : ''}`}>
+    <Card className={`transition-colors hover:shadow-md ${isSelected ? 'ring-2 ring-primary' : ''}`}>
       <CardHeader className="p-4 pb-2">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
+        <div className="flex justify-between items-start">
+          <div className="flex items-center gap-2 flex-1">
             {onSelectionChange && (
               <Checkbox
                 checked={isSelected}
@@ -61,53 +74,59 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = memo(({
                 onClick={(e) => e.stopPropagation()}
               />
             )}
-            <h3 className="font-medium text-sm truncate flex-1">{device.name}</h3>
-          </div>
-          <div className="flex items-center gap-1">
-            <div 
-              className={`w-2 h-2 rounded-full ${device.isOnline ? 'bg-green-500' : 'bg-red-500'}`}
-            />
-            <Badge 
-              variant={getStatusBadgeVariant(device.isOnline)}
-              className="text-xs py-0 px-1"
-            >
-              {device.isOnline ? 'Online' : 'Offline'}
-            </Badge>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="font-medium text-sm truncate">{device.name}</h3>
+                <div 
+                  className={`w-2 h-2 rounded-full ${getStatusColor(device.isOnline)}`}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground truncate">{device.model}</p>
+            </div>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground truncate">{device.model}</p>
       </CardHeader>
       
-      <CardContent className="p-4 pt-0 space-y-2">
-        <div className="space-y-1">
-          <div className="flex justify-between text-xs">
-            <span className="text-muted-foreground">Battery</span>
-            <span className={getBatteryColor(device.battery_level)}>
-              {device.battery_level}%
-            </span>
-          </div>
-          <div className="flex justify-between text-xs">
-            <span className="text-muted-foreground">OS Version</span>
-            <span>{device.os_version}</span>
-          </div>
-        </div>
-        
-        <div className="flex justify-between items-center pt-2">
-          <span className="text-xs text-muted-foreground">
-            {formatDistanceToNow(new Date(device.last_seen), { addSuffix: true })}
-          </span>
-          <div className="flex items-center gap-1">
+      <CardContent className="p-4 pt-0 space-y-3">
+        {/* Battery Level */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
             <Battery className={`h-4 w-4 ${getBatteryColor(device.battery_level)}`} />
-            <span className="text-xs font-medium">{device.battery_level}%</span>
+            <span className="text-sm font-medium">{device.battery_level}%</span>
           </div>
+          <span className="text-xs text-muted-foreground">
+            {getBatteryStatus(device.battery_level)}
+          </span>
         </div>
 
-        <div className="flex justify-between items-center pt-1">
+        {/* Network Information */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {getNetworkIcon(device.network_type)}
+            <span className="text-sm">{device.network_type || 'Unknown'}</span>
+          </div>
+          <span className="text-xs text-muted-foreground font-mono">
+            {device.ip_address || '0.0.0.0'}
+          </span>
+        </div>
+
+        {/* Last Seen */}
+        <div className="flex justify-between items-center text-xs text-muted-foreground">
+          <span>
+            Last seen {formatDistanceToNow(new Date(device.last_seen), { addSuffix: true })}
+          </span>
+          <Badge variant={device.isOnline ? "default" : "destructive"} className="text-xs">
+            {device.isOnline ? 'Online' : 'Offline'}
+          </Badge>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-2 pt-2">
           <Button
             variant="outline"
             size="sm"
             onClick={handleViewDetails}
-            className="flex-1 mr-1"
+            className="flex-1"
           >
             <Eye className="h-3 w-3 mr-1" />
             View
@@ -117,7 +136,7 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = memo(({
             size="sm"
             onClick={handleDelete}
             disabled={deleteDeviceMutation.isPending}
-            className="px-2"
+            className="px-3"
           >
             <Trash2 className="h-3 w-3" />
           </Button>
