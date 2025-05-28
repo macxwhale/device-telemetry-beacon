@@ -33,7 +33,7 @@ export const VirtualizedDeviceGrid = ({
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 220, // Slightly increased for selection checkbox
+    estimateSize: () => 280, // Increased from 220 to prevent overlapping
     overscan: 2,
   });
 
@@ -83,19 +83,21 @@ export const VirtualizedDeviceGrid = ({
                 width: '100%',
                 height: `${virtualRow.size}px`,
                 transform: `translateY(${virtualRow.start}px)`,
+                padding: '8px', // Add padding to prevent card overlap
               }}
             >
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4 h-full">
                 {rowDevices.map((device) => (
-                  <DeviceStatusCard 
-                    key={device.id} 
-                    device={device}
-                    isSelected={selectedDevices.includes(device.id)}
-                    onSelectionChange={onSelectionChange ? 
-                      (selected) => handleDeviceSelection(device.id, selected) : 
-                      undefined
-                    }
-                  />
+                  <div key={device.id} className="h-fit">
+                    <DeviceStatusCard 
+                      device={device}
+                      isSelected={selectedDevices.includes(device.id)}
+                      onSelectionChange={onSelectionChange ? 
+                        (selected) => handleDeviceSelection(device.id, selected) : 
+                        undefined
+                      }
+                    />
+                  </div>
                 ))}
               </div>
             </div>
