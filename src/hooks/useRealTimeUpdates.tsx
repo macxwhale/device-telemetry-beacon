@@ -10,26 +10,41 @@ interface UseRealTimeUpdatesProps {
 
 export const useRealTimeUpdates = ({ 
   enabled = true, 
-  interval = 30000 // 30 seconds default
+  interval = 60000 // Increased to 60 seconds to reduce API calls
 }: UseRealTimeUpdatesProps = {}) => {
   const queryClient = useQueryClient();
   const intervalRef = useRef<NodeJS.Timeout>();
+  const lastUpdateRef = useRef<number>(0);
 
   useEffect(() => {
     if (!enabled) return;
 
     const updateData = () => {
+      const now = Date.now();
+      
+      // Prevent too frequent updates (minimum 30 seconds between updates)
+      if (now - lastUpdateRef.current < 30000) {
+        console.log("Skipping update - too frequent");
+        return;
+      }
+      
+      lastUpdateRef.current = now;
+      
       // Invalidate and refetch devices query
       queryClient.invalidateQueries({ queryKey: ['devices'] });
+      console.log("Real-time update triggered");
     };
 
     // Set up interval for real-time updates
     intervalRef.current = setInterval(updateData, interval);
 
-    // Also update when tab becomes visible
+    // Also update when tab becomes visible, but with rate limiting
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        updateData();
+        const now = Date.now();
+        if (now - lastUpdateRef.current >= 30000) { // Only update if 30+ seconds since last update
+          updateData();
+        }
       }
     };
 
@@ -43,9 +58,16 @@ export const useRealTimeUpdates = ({
     };
   }, [enabled, interval, queryClient]);
 
-  // Manual refresh function
+  // Manual refresh function with rate limiting
   const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['devices'] });
+    const now = Date.now();
+    if (now - lastUpdateRef.current >= 5000) { // Allow manual refresh every 5 seconds
+      lastUpdateRef.current = now;
+      queryClient.invalidateQueries({ queryKey: ['devices'] });
+      console.log("Manual refresh triggered");
+    } else {
+      console.log("Manual refresh rate limited");
+    }
   };
 
   return { refresh };

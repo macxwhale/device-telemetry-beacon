@@ -14,6 +14,53 @@ interface NotificationRequest {
   deviceName?: string;
 }
 
+// In-memory cache for notification tracking (in production, use Redis or database)
+const notificationCache = new Map<string, number>();
+const NOTIFICATION_COOLDOWN = 30 * 60 * 1000; // 30 minutes
+
+// Rate limiting per chat/bot combination
+const rateLimitCache = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX = 20; // Max 20 messages per minute per chat
+
+function canSendNotification(deviceId: string, type: string): boolean {
+  const key = `${deviceId}_${type}`;
+  const lastSent = notificationCache.get(key) || 0;
+  const now = Date.now();
+  
+  if (now - lastSent < NOTIFICATION_COOLDOWN) {
+    console.log(`Rate limit: Skipping ${type} for device ${deviceId} (last sent ${Math.round((now - lastSent) / 60000)} min ago)`);
+    return false;
+  }
+  
+  return true;
+}
+
+function checkTelegramRateLimit(chatId: string): boolean {
+  const now = Date.now();
+  const key = `telegram_${chatId}`;
+  const limit = rateLimitCache.get(key);
+  
+  if (!limit || now > limit.resetTime) {
+    // Reset or initialize rate limit
+    rateLimitCache.set(key, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+    return true;
+  }
+  
+  if (limit.count >= RATE_LIMIT_MAX) {
+    console.log(`Telegram rate limit exceeded for chat ${chatId}`);
+    return false;
+  }
+  
+  limit.count++;
+  return true;
+}
+
+function markNotificationSent(deviceId: string, type: string): void {
+  const key = `${deviceId}_${type}`;
+  notificationCache.set(key, Date.now());
+}
+
 serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -50,6 +97,20 @@ serve(async (req: Request) => {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
+    }
+    
+    // Check rate limiting for non-test notifications
+    if (type !== 'test' && deviceId) {
+      if (!canSendNotification(deviceId, type)) {
+        return new Response(JSON.stringify({
+          success: true,
+          message: `Notification rate limited for device ${deviceId}`,
+          sent: false,
+          reason: 'rate_limited'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
     }
     
     // Get notification settings
@@ -100,7 +161,8 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({
         success: true,
         message: `Notification type '${type}' is disabled`,
-        sent: false
+        sent: false,
+        reason: 'disabled'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -111,46 +173,64 @@ serve(async (req: Request) => {
     // Send Telegram notification if configured
     if (settings.telegram_bot_token && settings.telegram_chat_id) {
       try {
-        // Format notification message
-        let formattedMessage = message;
-        
-        if (deviceId && deviceName) {
-          formattedMessage = `[${deviceName} (${deviceId})]: ${message}`;
+        // Check Telegram rate limit
+        if (!checkTelegramRateLimit(settings.telegram_chat_id)) {
+          results.push({
+            channel: 'telegram',
+            success: false,
+            error: 'Rate limit exceeded - too many messages sent recently'
+          });
+        } else {
+          // Format notification message
+          let formattedMessage = message;
+          
+          if (deviceId && deviceName) {
+            formattedMessage = `[${deviceName} (${deviceId})]: ${message}`;
+          }
+          
+          // Add notification type emoji
+          let emoji = '📱';
+          switch (type) {
+            case 'device_offline': emoji = '🔌'; break;
+            case 'low_battery': emoji = '🪫'; break;
+            case 'security_issue': emoji = '⚠️'; break;
+            case 'new_device': emoji = '🆕'; break;
+            case 'test': emoji = '🧪'; break;
+          }
+          
+          formattedMessage = `${emoji} ${formattedMessage}`;
+          
+          // Use Telegram Bot API to send message
+          const telegramUrl = `https://api.telegram.org/bot${settings.telegram_bot_token}/sendMessage`;
+          const telegramResponse = await fetch(telegramUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              chat_id: settings.telegram_chat_id,
+              text: formattedMessage,
+              parse_mode: 'HTML'
+            })
+          });
+          
+          const telegramData = await telegramResponse.json();
+          
+          if (telegramData.ok) {
+            // Mark notification as sent for rate limiting
+            if (type !== 'test' && deviceId) {
+              markNotificationSent(deviceId, type);
+            }
+            
+            console.log(`Telegram notification sent successfully: ${formattedMessage}`);
+          }
+          
+          results.push({
+            channel: 'telegram',
+            success: telegramData.ok === true,
+            response: telegramData
+          });
         }
-        
-        // Add notification type emoji
-        let emoji = '📱';
-        switch (type) {
-          case 'device_offline': emoji = '🔌'; break;
-          case 'low_battery': emoji = '🪫'; break;
-          case 'security_issue': emoji = '⚠️'; break;
-          case 'new_device': emoji = '🆕'; break;
-          case 'test': emoji = '🧪'; break;
-        }
-        
-        formattedMessage = `${emoji} ${formattedMessage}`;
-        
-        // Use Telegram Bot API to send message
-        const telegramUrl = `https://api.telegram.org/bot${settings.telegram_bot_token}/sendMessage`;
-        const telegramResponse = await fetch(telegramUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            chat_id: settings.telegram_chat_id,
-            text: formattedMessage,
-            parse_mode: 'HTML'
-          })
-        });
-        
-        const telegramData = await telegramResponse.json();
-        
-        results.push({
-          channel: 'telegram',
-          success: telegramData.ok === true,
-          response: telegramData
-        });
       } catch (telegramError) {
         console.error('Error sending Telegram notification:', telegramError);
         results.push({
@@ -161,9 +241,8 @@ serve(async (req: Request) => {
       }
     }
     
-    // Send email notification if configured (would be implemented in a real system)
+    // Send email notification if configured (placeholder)
     if (settings.email_notifications) {
-      // This is a placeholder - in a real application, you'd implement email sending here
       results.push({
         channel: 'email',
         success: true,
@@ -173,7 +252,8 @@ serve(async (req: Request) => {
     
     return new Response(JSON.stringify({
       success: results.some(r => r.success),
-      results
+      results,
+      rateLimited: type !== 'test' && deviceId ? !canSendNotification(deviceId, type) : false
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
