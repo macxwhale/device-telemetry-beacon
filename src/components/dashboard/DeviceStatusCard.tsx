@@ -1,3 +1,4 @@
+
 import { FC, memo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -82,13 +83,13 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = memo(({
             )}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <h3 className="font-semibold text-gray-900 truncate">{device.name}</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">{device.name}</h3>
                 <div 
                   className={`w-2 h-2 rounded-full ${getStatusColor(device.isOnline)}`}
                   title={device.isOnline ? 'Online' : 'Offline'}
                 />
               </div>
-              <p className="text-sm text-gray-500 truncate">{device.model}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{device.model}</p>
             </div>
           </div>
         </div>
@@ -97,11 +98,11 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = memo(({
         <div className="flex justify-between items-center mb-4">
           <Badge 
             variant={device.isOnline ? "default" : "destructive"} 
-            className={`text-xs px-2 py-1 ${device.isOnline ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}`}
+            className={`text-xs px-2 py-1 ${device.isOnline ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 border-green-200 dark:border-green-700' : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 border-red-200 dark:border-red-700'}`}
           >
             {device.isOnline ? 'Active' : 'Inactive'}
           </Badge>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-500 dark:text-gray-400">
             {formatDistanceToNow(new Date(device.last_seen), { addSuffix: true })}
           </span>
         </div>
@@ -111,12 +112,12 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = memo(({
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <Battery className={`h-4 w-4 ${getBatteryColor(device.battery_level)}`} />
-              <span className="text-sm font-medium text-gray-700">Battery</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Battery</span>
             </div>
-            <span className="text-sm font-semibold text-gray-900">{device.battery_level}%</span>
+            <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{device.battery_level}%</span>
           </div>
           <div className="relative">
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
               <div 
                 className={`h-2 rounded-full transition-all duration-300 ${getBatteryBarColor(device.battery_level)}`}
                 style={{ width: `${device.battery_level}%` }}
@@ -131,8 +132,8 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = memo(({
           <div className="flex items-center gap-2">
             {getNetworkIcon(device.network_type)}
             <div>
-              <p className="text-xs text-gray-500">Network</p>
-              <p className="text-sm font-medium text-gray-900 truncate">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Network</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                 {device.network_type || 'Unknown'}
               </p>
             </div>
@@ -140,10 +141,10 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = memo(({
 
           {/* IP Address */}
           <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-gray-500" />
+            <MapPin className="h-4 w-4 text-gray-500 dark:text-gray-400" />
             <div>
-              <p className="text-xs text-gray-500">IP Address</p>
-              <p className="text-sm font-medium text-gray-900 font-mono">
+              <p className="text-xs text-gray-500 dark:text-gray-400">IP Address</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 font-mono">
                 {device.ip_address || '0.0.0.0'}
               </p>
             </div>
@@ -168,7 +169,7 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = memo(({
             size="sm"
             onClick={handleDelete}
             disabled={deleteDeviceMutation.isPending}
-            className="h-8 px-2 text-red-600 border-red-200 hover:bg-red-50"
+            className="h-8 px-2 text-red-600 border-red-200 hover:bg-red-50 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-950"
           >
             <Trash2 className="h-3 w-3" />
           </Button>
