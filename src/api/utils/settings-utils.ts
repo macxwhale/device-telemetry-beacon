@@ -12,9 +12,10 @@ const OFFLINE_THRESHOLD_CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
  * Get offline threshold from database settings with caching
  */
 export async function getOfflineThreshold(): Promise<number> {
+  const now = Date.now();
+  
   try {
     // Check cache first
-    const now = Date.now();
     if (offlineThresholdCache !== null && (now - offlineThresholdCacheTime) < OFFLINE_THRESHOLD_CACHE_DURATION) {
       return offlineThresholdCache;
     }
