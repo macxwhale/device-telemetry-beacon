@@ -1,7 +1,6 @@
 
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { DeviceStatus } from '@/types/telemetry';
 
 interface UseRealTimeUpdatesProps {
   enabled?: boolean;
@@ -10,7 +9,7 @@ interface UseRealTimeUpdatesProps {
 
 export const useRealTimeUpdates = ({ 
   enabled = true, 
-  interval = 60000 // Increased to 60 seconds to reduce API calls
+  interval = 120000 // Increased to 2 minutes to reduce API calls
 }: UseRealTimeUpdatesProps = {}) => {
   const queryClient = useQueryClient();
   const intervalRef = useRef<NodeJS.Timeout>();
@@ -22,8 +21,8 @@ export const useRealTimeUpdates = ({
     const updateData = () => {
       const now = Date.now();
       
-      // Prevent too frequent updates (minimum 30 seconds between updates)
-      if (now - lastUpdateRef.current < 30000) {
+      // Prevent too frequent updates (minimum 60 seconds between updates)
+      if (now - lastUpdateRef.current < 60000) {
         console.log("Skipping update - too frequent");
         return;
       }
@@ -42,7 +41,7 @@ export const useRealTimeUpdates = ({
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         const now = Date.now();
-        if (now - lastUpdateRef.current >= 30000) { // Only update if 30+ seconds since last update
+        if (now - lastUpdateRef.current >= 60000) { // Only update if 60+ seconds since last update
           updateData();
         }
       }
@@ -61,7 +60,7 @@ export const useRealTimeUpdates = ({
   // Manual refresh function with rate limiting
   const refresh = () => {
     const now = Date.now();
-    if (now - lastUpdateRef.current >= 5000) { // Allow manual refresh every 5 seconds
+    if (now - lastUpdateRef.current >= 10000) { // Allow manual refresh every 10 seconds
       lastUpdateRef.current = now;
       queryClient.invalidateQueries({ queryKey: ['devices'] });
       console.log("Manual refresh triggered");

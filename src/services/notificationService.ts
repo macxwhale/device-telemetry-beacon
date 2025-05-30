@@ -1,6 +1,8 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { DeviceNotificationTracker } from "./deviceNotificationTracker";
+import { sendEmailNotification } from "./emailService";
 
 export interface NotificationSettings {
   id?: string;
@@ -17,10 +19,6 @@ export interface NotificationSettings {
 let settingsCache: NotificationSettings | null = null;
 let settingsCacheTime = 0;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-
-// Track last notification times to prevent spam
-const lastNotificationTimes = new Map<string, number>();
-const NOTIFICATION_COOLDOWN = 30 * 60 * 1000; // 30 minutes cooldown
 
 // Get notification settings with caching
 export const getNotificationSettings = async (): Promise<NotificationSettings | null> => {
@@ -127,27 +125,7 @@ export const saveNotificationSettings = async (settings: NotificationSettings): 
   }
 };
 
-// Check if we can send a notification (rate limiting)
-const canSendNotification = (deviceId: string, notificationType: string): boolean => {
-  const key = `${deviceId}_${notificationType}`;
-  const lastTime = lastNotificationTimes.get(key) || 0;
-  const now = Date.now();
-  
-  if (now - lastTime < NOTIFICATION_COOLDOWN) {
-    console.log(`Rate limiting: Skipping ${notificationType} notification for device ${deviceId}. Last sent ${Math.round((now - lastTime) / 60000)} minutes ago.`);
-    return false;
-  }
-  
-  return true;
-};
-
-// Mark notification as sent
-const markNotificationSent = (deviceId: string, notificationType: string) => {
-  const key = `${deviceId}_${notificationType}`;
-  lastNotificationTimes.set(key, Date.now());
-};
-
-// Send a notification with rate limiting
+// Send a notification with improved rate limiting and device age checking
 export const sendNotification = async (
   deviceId: string,
   deviceName: string,
@@ -155,9 +133,9 @@ export const sendNotification = async (
   type: 'device_offline' | 'low_battery' | 'security_issue' | 'new_device'
 ): Promise<boolean> => {
   try {
-    // Check rate limiting
-    if (!canSendNotification(deviceId, type)) {
-      return false; // Skip sending due to rate limit
+    // Check if we can send notification (includes device age and rate limiting)
+    if (!(await DeviceNotificationTracker.canSendNotification(deviceId, type))) {
+      return false; // Skip sending due to rate limit or device age
     }
 
     const settings = await getNotificationSettings();
@@ -188,40 +166,65 @@ export const sendNotification = async (
       return false;
     }
 
-    // Only proceed if Telegram is configured
-    if (!settings.telegram_bot_token || !settings.telegram_chat_id) {
-      console.log("Telegram not configured, skipping notification");
-      return false;
+    let notificationSent = false;
+
+    // Send Telegram notification if configured
+    if (settings.telegram_bot_token && settings.telegram_chat_id) {
+      try {
+        const supabaseUrl = "https://byvbunvegjwzgytavgkv.supabase.co";
+        const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5dmJ1bnZlZ2p3emd5dGF2Z2t2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3NzM3MzMsImV4cCI6MjA2MjM0OTczM30.JaYx-kQuM2_L2li9I3a0fy9bUIwFP1e40iIRM7gVBFA";
+        
+        const response = await fetch(`${supabaseUrl}/functions/v1/send-notification`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseKey}`
+          },
+          body: JSON.stringify({
+            message,
+            type,
+            deviceId,
+            deviceName
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          notificationSent = true;
+          console.log(`Telegram notification sent successfully for device ${deviceName}`);
+        } else {
+          console.error("Telegram notification failed:", result.error);
+        }
+      } catch (error) {
+        console.error("Error sending Telegram notification:", error);
+      }
     }
 
-    const supabaseUrl = "https://byvbunvegjwzgytavgkv.supabase.co";
-    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5dmJ1bnZlZ2p3emd5dGF2Z2t2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3NzM3MzMsImV4cCI6MjA2MjM0OTczM30.JaYx-kQuM2_L2li9I3a0fy9bUIwFP1e40iIRM7gVBFA";
-    
-    const response = await fetch(`${supabaseUrl}/functions/v1/send-notification`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseKey}`
-      },
-      body: JSON.stringify({
-        message,
-        type,
-        deviceId,
-        deviceName
-      })
-    });
-    
-    const result = await response.json();
-    
-    if (!result.success) {
-      throw new Error(result.error || "Failed to send notification");
+    // Send email notification if configured
+    if (settings.email_notifications) {
+      try {
+        const emailSent = await sendEmailNotification({
+          deviceId,
+          deviceName,
+          message,
+          type
+        });
+        if (emailSent) {
+          notificationSent = true;
+        }
+      } catch (error) {
+        console.error("Error sending email notification:", error);
+      }
     }
-    
-    // Mark notification as sent
-    markNotificationSent(deviceId, type);
-    
-    console.log(`Notification sent successfully for device ${deviceName} (${deviceId}): ${message}`);
-    return true;
+
+    // Mark notification as sent if any channel succeeded
+    if (notificationSent) {
+      await DeviceNotificationTracker.markNotificationSent(deviceId, type);
+      console.log(`Notification sent successfully for device ${deviceName} (${deviceId}): ${message}`);
+    }
+
+    return notificationSent;
   } catch (error) {
     console.error("Error sending notification:", error);
     return false;
