@@ -20,6 +20,33 @@ const corsHeaders = {
   "Access-Control-Max-Age": "86400",
 };
 
+// Function to send new device notification
+async function sendNewDeviceNotification(deviceId: string, deviceName: string) {
+  try {
+    console.log(`Sending new device notification for: ${deviceName} (${deviceId})`);
+    
+    const notificationPayload = {
+      message: `New device detected: ${deviceName} (ID: ${deviceId})`,
+      type: 'new_device',
+      deviceId: deviceId,
+      deviceName: deviceName
+    };
+    
+    const response = await supabase.functions.invoke('send-notification', {
+      body: notificationPayload
+    });
+    
+    if (response.error) {
+      console.error("Error sending new device notification:", response.error);
+    } else {
+      console.log("New device notification sent successfully:", response.data);
+    }
+  } catch (error) {
+    console.error("Exception while sending new device notification:", error);
+    // Don't throw - we don't want notification failures to break telemetry processing
+  }
+}
+
 // Main handler function
 serve(async (req) => {
   console.log("Telemetry Edge Function: processing request");
@@ -73,10 +100,8 @@ serve(async (req) => {
     let bodyText = await req.text();
     console.log("Raw request body in telemetry API (first 1000 chars):", bodyText.substring(0, 1000));
     
-    // Parse JSON body
     let data;
     try {
-      // Remove any extra curly braces that might be causing JSON parse errors
       bodyText = bodyText.trim();
       if (bodyText.startsWith('{{') && bodyText.endsWith('}}')) {
         bodyText = bodyText.substring(1, bodyText.length - 1);
@@ -90,7 +115,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ 
         error: "Invalid JSON format", 
         details: (parseError as Error).message,
-        received_data: bodyText.substring(0, 200) + "...", // Include part of the raw data for debugging
+        received_data: bodyText.substring(0, 200) + "...",
         tip: "Make sure you're sending valid JSON without duplicate curly braces"
       }), {
         status: 400,
@@ -103,7 +128,6 @@ serve(async (req) => {
     
     console.log("Received telemetry data structure:", JSON.stringify(Object.keys(data)));
     
-    // Extract device identification from all possible paths
     const deviceId = 
       data?.android_id || 
       data?.device_id || 
@@ -119,7 +143,7 @@ serve(async (req) => {
         required: "android_id or device_info.android_id must be provided",
         received_keys: Object.keys(data),
         device_info: data.device_info ? JSON.stringify(data.device_info) : "No device_info found",
-        data_sample: JSON.stringify(data).substring(0, 500) // Include sample of the data for debugging
+        data_sample: JSON.stringify(data).substring(0, 500)
       }), {
         status: 400,
         headers: { 
@@ -154,13 +178,19 @@ serve(async (req) => {
     }
     
     let deviceDbId;
+    let isNewDevice = false;
     
     // Insert or update device in database
     if (!existingDevice) {
-      // Create new device
+      // This is a NEW device - we'll send a notification
+      isNewDevice = true;
+      const deviceName = data?.device_info?.device_name || "Unknown Device";
+      
+      console.log(`NEW DEVICE DETECTED: ${deviceName} (${deviceId})`);
+      
       const deviceData = {
         android_id: deviceId,
-        device_name: data?.device_info?.device_name || "Unknown Device",
+        device_name: deviceName,
         manufacturer: data?.device_info?.manufacturer || "Unknown",
         model: data?.device_info?.model || "Unknown Model",
         last_seen: timestamp
@@ -188,6 +218,10 @@ serve(async (req) => {
       
       deviceDbId = newDevice?.id;
       console.log("Created new device in database with ID:", deviceDbId);
+      
+      // Send new device notification in the background
+      sendNewDeviceNotification(deviceId, deviceName);
+      
     } else {
       // Update existing device
       deviceDbId = existingDevice.id;
@@ -244,12 +278,10 @@ serve(async (req) => {
       });
     }
     
-    // Process installed apps if present
     if (data?.app_info?.installed_apps && Array.isArray(data.app_info.installed_apps)) {
       const apps = data.app_info.installed_apps;
       console.log(`Processing ${apps.length} apps for device ${deviceId}`);
       
-      // Prepare app data for database
       const appRows = apps.map((app: string) => ({
         device_id: deviceDbId,
         app_package: app
@@ -265,21 +297,21 @@ serve(async (req) => {
           
         if (appsError) {
           console.error(`Warning: Error storing app data:`, appsError);
-          // Continue even if app storage fails
         } else {
           console.log(`Successfully added ${apps.length} apps for device`);
         }
       }
     }
     
-    // Return success response
+    // Return success response with new device indicator
     const response = {
       success: true, 
       message: "Telemetry data received and stored in database",
       device_id: deviceId,
       timestamp: timestamp,
       received_data_size: JSON.stringify(data).length,
-      received_keys: Object.keys(data)
+      received_keys: Object.keys(data),
+      new_device: isNewDevice
     };
     
     console.log("Sending response:", JSON.stringify(response));
