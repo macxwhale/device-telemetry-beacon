@@ -90,11 +90,7 @@ const DevicesPage = () => {
 
         <DeviceStats devices={devices} />
 
-        <DeviceFilters 
-          devices={devices}
-          selectedDevices={selectedDevices}
-          onSelectionChange={setSelectedDevices}
-        />
+        <DeviceFilters devices={devices} />
 
         {showBulkActions && (
           <BulkActions 
