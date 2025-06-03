@@ -1,156 +1,125 @@
 
-import { useEffect, useState, useCallback, memo } from "react";
+import { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
-import { VirtualizedDeviceGrid } from "@/components/dashboard/VirtualizedDeviceGrid";
+import { DeviceStatusCard } from "@/components/dashboard/DeviceStatusCard";
 import { DeviceFilters } from "@/components/dashboard/DeviceFilters";
+import { DeviceStats } from "@/components/dashboard/DeviceStats";
 import { BulkActions } from "@/components/dashboard/BulkActions";
-import { DeviceCardSkeleton } from "@/components/ui/skeletons";
-import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { DeviceMonitorButton } from "@/components/dashboard/DeviceMonitorButton";
+import { VirtualizedDeviceGrid } from "@/components/dashboard/VirtualizedDeviceGrid";
 import { useDevicesQuery } from "@/hooks/useDevicesQuery";
 import { useRealTimeUpdates } from "@/hooks/useRealTimeUpdates";
-import { ErrorMessage } from "@/components/ErrorMessage";
-import { FilterProvider, useFilter } from "@/contexts/FilterContext";
-import { toast } from "@/hooks/use-toast";
+import { DeviceStatus } from "@/types/telemetry";
+import { FilterContext } from "@/contexts/FilterContext";
+import { Button } from "@/components/ui/button";
+import { RefreshCw, Plus } from "lucide-react";
 
-const DevicesPageContent = memo(() => {
-  const { data: devices = [], isLoading, error, refetch } = useDevicesQuery();
-  const { filteredDevices, setDevices } = useFilter();
+const DevicesPage = () => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "online" | "offline">("all");
   const [selectedDevices, setSelectedDevices] = useState<string[]>([]);
-  const { refresh } = useRealTimeUpdates({ enabled: !isLoading });
+  const [showBulkActions, setShowBulkActions] = useState(false);
 
-  // Update filter context when devices change
-  useEffect(() => {
-    setDevices(devices);
-  }, [devices, setDevices]);
-  
-  // Memoize the refresh callback
-  const handleRefresh = useCallback(() => {
-    refetch();
-    refresh();
-  }, [refetch, refresh]);
+  const { data: devices = [], isLoading, error, refetch } = useDevicesQuery();
+  const { refresh } = useRealTimeUpdates();
 
-  const handleBulkDelete = useCallback((deviceIds: string[]) => {
-    // This would integrate with your delete mutation
-    toast({
-      title: "Bulk Delete",
-      description: `Would delete ${deviceIds.length} devices`,
-    });
-    console.log('Bulk delete:', deviceIds);
-  }, []);
-
-  const handleBulkExport = useCallback((deviceIds: string[]) => {
-    const selectedDeviceData = devices.filter(device => deviceIds.includes(device.id));
-    const jsonData = JSON.stringify(selectedDeviceData, null, 2);
-    const blob = new Blob([jsonData], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `devices-export-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
-    toast({
-      title: "Export Complete",
-      description: `Exported ${deviceIds.length} devices`,
-    });
-  }, [devices]);
-  
   useEffect(() => {
     document.title = "Devices - Device Telemetry";
   }, []);
-  
-  return (
-    <Layout>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Devices</h1>
-          {!isLoading && (
-            <p className="text-sm text-muted-foreground">
-              {filteredDevices.length} of {devices.length} devices
-            </p>
-          )}
-        </div>
-        
-        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isLoading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-      </div>
-      
-      {error ? (
-        <ErrorMessage 
-          message="Failed to load devices" 
-          onRetry={handleRefresh} 
-        />
-      ) : isLoading ? (
-        <div className="space-y-6">
-          {/* Loading skeleton for filters */}
-          <div className="h-32 bg-muted animate-pulse rounded-lg" />
-          
-          <DeviceGrid>
-            {Array.from({ length: 8 }).map((_, i) => (
-              <DeviceCardSkeleton key={i} />
-            ))}
-          </DeviceGrid>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          <DeviceFilters devices={devices} />
-          
-          <BulkActions
-            devices={filteredDevices}
-            selectedDevices={selectedDevices}
-            onSelectionChange={setSelectedDevices}
-            onBulkDelete={handleBulkDelete}
-            onBulkExport={handleBulkExport}
-          />
 
-          {filteredDevices.length === 0 ? (
-            <EmptyState />
+  // Filter devices based on search and status
+  const filteredDevices = devices.filter((device: DeviceStatus) => {
+    const matchesSearch = device.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         device.model?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         device.manufacturer?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesStatus = statusFilter === "all" || 
+                         (statusFilter === "online" && device.isOnline) ||
+                         (statusFilter === "offline" && !device.isOnline);
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleRefresh = () => {
+    refresh();
+    refetch();
+  };
+
+  const handleSelectionChange = (deviceIds: string[]) => {
+    setSelectedDevices(deviceIds);
+    setShowBulkActions(deviceIds.length > 0);
+  };
+
+  if (error) {
+    return (
+      <Layout>
+        <div className="text-center py-12">
+          <p className="text-red-500">Error loading devices: {error.message}</p>
+          <Button onClick={handleRefresh} className="mt-4">
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Retry
+          </Button>
+        </div>
+      </Layout>
+    );
+  }
+
+  return (
+    <FilterContext.Provider value={{
+      searchQuery,
+      setSearchQuery,
+      statusFilter,
+      setStatusFilter
+    }}>
+      <Layout>
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">Devices</h1>
+              <p className="text-muted-foreground">
+                Monitor and manage your connected devices
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <DeviceMonitorButton />
+              <Button onClick={handleRefresh} variant="outline" size="sm">
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Refresh
+              </Button>
+            </div>
+          </div>
+
+          <DeviceStats devices={devices} />
+
+          <DeviceFilters />
+
+          {showBulkActions && (
+            <BulkActions 
+              selectedDevices={selectedDevices}
+              onClose={() => {
+                setSelectedDevices([]);
+                setShowBulkActions(false);
+              }}
+            />
+          )}
+
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="h-64 bg-gray-200 animate-pulse rounded-lg" />
+              ))}
+            </div>
           ) : (
-            <VirtualizedDeviceGrid 
+            <VirtualizedDeviceGrid
               devices={filteredDevices}
               selectedDevices={selectedDevices}
-              onSelectionChange={setSelectedDevices}
+              onSelectionChange={handleSelectionChange}
             />
           )}
         </div>
-      )}
-    </Layout>
+      </Layout>
+    </FilterContext.Provider>
   );
-});
-
-DevicesPageContent.displayName = 'DevicesPageContent';
-
-const DevicesPage = memo(() => {
-  return (
-    <FilterProvider>
-      <DevicesPageContent />
-    </FilterProvider>
-  );
-});
-
-DevicesPage.displayName = 'DevicesPage';
-
-// Memoized components to prevent unnecessary re-renders
-const DeviceGrid = memo(({ children }: { children: React.ReactNode }) => (
-  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-    {children}
-  </div>
-));
-
-DeviceGrid.displayName = 'DeviceGrid';
-
-const EmptyState = memo(() => (
-  <div className="text-center py-12">
-    <p className="text-muted-foreground mb-2">No devices found with current filters</p>
-    <p className="text-sm text-muted-foreground">Try adjusting your search or filter criteria</p>
-  </div>
-));
-
-EmptyState.displayName = 'EmptyState';
+};
 
 export default DevicesPage;

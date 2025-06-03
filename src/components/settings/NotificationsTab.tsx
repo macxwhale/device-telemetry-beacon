@@ -31,11 +31,16 @@ import {
   NotificationSettings,
 } from "@/services/notificationService";
 
+interface ExtendedNotificationSettings extends NotificationSettings {
+  battery_threshold?: number;
+  offline_threshold?: number;
+}
+
 const NotificationsTab = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   
-  const form = useForm<NotificationSettings>({
+  const form = useForm<ExtendedNotificationSettings>({
     defaultValues: {
       notify_device_offline: true,
       notify_low_battery: true,
@@ -44,6 +49,8 @@ const NotificationsTab = () => {
       email_notifications: "",
       telegram_bot_token: "",
       telegram_chat_id: "",
+      battery_threshold: 20,
+      offline_threshold: 15,
     },
   });
   
@@ -53,7 +60,15 @@ const NotificationsTab = () => {
       try {
         const settings = await getNotificationSettings();
         if (settings) {
-          form.reset(settings);
+          // Extract thresholds from additional_settings
+          const batteryThreshold = settings.additional_settings?.battery_threshold || 20;
+          const offlineThreshold = settings.additional_settings?.offline_threshold || 15;
+          
+          form.reset({
+            ...settings,
+            battery_threshold: batteryThreshold,
+            offline_threshold: offlineThreshold,
+          });
         }
       } catch (error) {
         console.error("Error loading notification settings:", error);
@@ -65,10 +80,23 @@ const NotificationsTab = () => {
     loadSettings();
   }, [form]);
 
-  const handleSaveNotifications = async (data: NotificationSettings) => {
+  const handleSaveNotifications = async (data: ExtendedNotificationSettings) => {
     setIsLoading(true);
     try {
-      await saveNotificationSettings(data);
+      // Prepare settings with thresholds in additional_settings
+      const settingsToSave: NotificationSettings = {
+        ...data,
+        additional_settings: {
+          battery_threshold: data.battery_threshold || 20,
+          offline_threshold: data.offline_threshold || 15,
+        },
+      };
+      
+      // Remove the threshold fields from the main object
+      delete (settingsToSave as any).battery_threshold;
+      delete (settingsToSave as any).offline_threshold;
+      
+      await saveNotificationSettings(settingsToSave);
     } finally {
       setIsLoading(false);
     }
@@ -168,6 +196,62 @@ const NotificationsTab = () => {
                         />
                       </FormControl>
                       <FormLabel className="!mt-0">New device detected</FormLabel>
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            <Separator />
+
+            <div>
+              <h3 className="text-lg font-medium">Alert Thresholds</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Configure when alerts should be triggered.
+              </p>
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="battery_threshold"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Battery Alert Threshold (%)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="5"
+                          max="50"
+                          placeholder="20"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 20)}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Alert when battery level drops below this percentage.
+                      </FormDescription>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="offline_threshold"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Offline Alert Threshold (minutes)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="120"
+                          placeholder="15"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 15)}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Alert when device hasn't been seen for this many minutes.
+                      </FormDescription>
                     </FormItem>
                   )}
                 />
