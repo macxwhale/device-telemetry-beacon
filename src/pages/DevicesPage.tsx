@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { DeviceStatusCard } from "@/components/dashboard/DeviceStatusCard";
 import { DeviceFilters } from "@/components/dashboard/DeviceFilters";
@@ -11,7 +11,7 @@ import { useDevicesQuery } from "@/hooks/useDevicesQuery";
 import { useRealTimeUpdates } from "@/hooks/useRealTimeUpdates";
 import { DeviceStatus } from "@/types/telemetry";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Plus } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 const DevicesPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -39,10 +39,16 @@ const DevicesPage = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const handleRefresh = () => {
-    refresh();
-    refetch();
-  };
+  const handleRefresh = useCallback(async () => {
+    console.log("Devices page refresh button clicked");
+    try {
+      await refetch();
+      refresh();
+      console.log("Devices page refresh completed");
+    } catch (error) {
+      console.error("Devices page refresh failed:", error);
+    }
+  }, [refetch, refresh]);
 
   const handleSelectionChange = (deviceIds: string[]) => {
     setSelectedDevices(deviceIds);
@@ -75,8 +81,8 @@ const DevicesPage = () => {
           </div>
           <div className="flex items-center gap-2">
             <DeviceMonitorButton />
-            <Button onClick={handleRefresh} variant="outline" size="sm">
-              <RefreshCw className="mr-2 h-4 w-4" />
+            <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isLoading}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
           </div>
@@ -84,7 +90,11 @@ const DevicesPage = () => {
 
         <DeviceStats devices={devices} />
 
-        <DeviceFilters devices={devices} />
+        <DeviceFilters 
+          devices={devices}
+          selectedDevices={selectedDevices}
+          onSelectionChange={setSelectedDevices}
+        />
 
         {showBulkActions && (
           <BulkActions 

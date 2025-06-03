@@ -60,12 +60,14 @@ export const useRealTimeUpdates = ({
   // Manual refresh function with rate limiting
   const refresh = () => {
     const now = Date.now();
-    if (now - lastUpdateRef.current >= 10000) { // Allow manual refresh every 10 seconds
+    if (now - lastUpdateRef.current >= 5000) { // Allow manual refresh every 5 seconds (reduced from 10)
       lastUpdateRef.current = now;
       queryClient.invalidateQueries({ queryKey: ['devices'] });
       console.log("Manual refresh triggered");
+      return true;
     } else {
       console.log("Manual refresh rate limited");
+      return false;
     }
   };
 

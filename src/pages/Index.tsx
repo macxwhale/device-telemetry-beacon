@@ -17,9 +17,15 @@ const Index = memo(() => {
   const { data: devices = [], isLoading, error, refetch } = useDevicesQuery();
   const { refresh } = useRealTimeUpdates({ enabled: !isLoading });
   
-  const handleRefresh = useCallback(() => {
-    refetch();
-    refresh();
+  const handleRefresh = useCallback(async () => {
+    console.log("Dashboard refresh button clicked");
+    try {
+      await refetch();
+      refresh();
+      console.log("Dashboard refresh completed");
+    } catch (error) {
+      console.error("Dashboard refresh failed:", error);
+    }
   }, [refetch, refresh]);
   
   useEffect(() => {
@@ -68,9 +74,7 @@ const DashboardContent = memo(({ devices }: { devices: DeviceStatus[] }) => (
 
 DashboardContent.displayName = 'DashboardContent';
 
-// Memoized recent devices component
 const RecentDevices = memo(({ devices }: { devices: DeviceStatus[] }) => {
-  // Memoize the recent devices slice
   const recentDevices = devices.slice(0, 4);
   
   return (
