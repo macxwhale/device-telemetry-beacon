@@ -88,6 +88,7 @@ const DevicesPage = () => {
 
         {showBulkActions && (
           <BulkActions 
+            devices={filteredDevices}
             selectedDevices={selectedDevices}
             onSelectionChange={setSelectedDevices}
           />

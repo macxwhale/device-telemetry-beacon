@@ -110,6 +110,18 @@ export const DeviceFilters = memo(({ devices }: DeviceFiltersProps) => {
     setSortOrder('asc');
   };
 
+  const handleStatusFilterChange = (value: string) => {
+    setStatusFilter(value as 'all' | 'online' | 'offline');
+  };
+
+  const handleBatteryFilterChange = (value: string) => {
+    setBatteryFilter(value as 'all' | 'low' | 'normal');
+  };
+
+  const handleSortByChange = (value: string) => {
+    setSortBy(value as 'name' | 'lastSeen' | 'battery');
+  };
+
   return (
     <Card className="mb-6">
       <CardContent className="p-4 space-y-4">
@@ -126,7 +138,7 @@ export const DeviceFilters = memo(({ devices }: DeviceFiltersProps) => {
           </div>
 
           {/* Status Filter */}
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
             <SelectTrigger className="w-full sm:w-32">
               <SelectValue />
             </SelectTrigger>
@@ -138,7 +150,7 @@ export const DeviceFilters = memo(({ devices }: DeviceFiltersProps) => {
           </Select>
 
           {/* Battery Filter */}
-          <Select value={batteryFilter} onValueChange={setBatteryFilter}>
+          <Select value={batteryFilter} onValueChange={handleBatteryFilterChange}>
             <SelectTrigger className="w-full sm:w-32">
               <SelectValue />
             </SelectTrigger>
@@ -169,7 +181,7 @@ export const DeviceFilters = memo(({ devices }: DeviceFiltersProps) => {
           {/* Sort Controls */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Sort by:</span>
-            <Select value={sortBy} onValueChange={setSortBy}>
+            <Select value={sortBy} onValueChange={handleSortByChange}>
               <SelectTrigger className="w-32">
                 <SelectValue />
               </SelectTrigger>
