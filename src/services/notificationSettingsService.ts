@@ -11,6 +11,10 @@ export interface NotificationSettings {
   email_notifications: string | null;
   telegram_bot_token: string | null;
   telegram_chat_id: string | null;
+  additional_settings?: {
+    battery_threshold?: number;
+    offline_threshold?: number;
+  };
 }
 
 // Cache for notification settings to reduce database calls

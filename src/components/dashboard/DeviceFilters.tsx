@@ -1,12 +1,11 @@
 
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Search, Filter, X, ArrowUpDown } from 'lucide-react';
-import { useFilter } from '@/contexts/FilterContext';
 import { DeviceStatus } from '@/types/telemetry';
 
 interface DeviceFiltersProps {
@@ -14,34 +13,101 @@ interface DeviceFiltersProps {
 }
 
 export const DeviceFilters = memo(({ devices }: DeviceFiltersProps) => {
-  const {
-    filters,
-    setSearchTerm,
-    setStatusFilter,
-    setBatteryFilter,
-    setManufacturerFilter,
-    setSortBy,
-    setSortOrder,
-    clearFilters,
-    filteredDevices
-  } = useFilter();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'offline'>('all');
+  const [batteryFilter, setBatteryFilter] = useState<'all' | 'low' | 'normal'>('all');
+  const [manufacturerFilter, setManufacturerFilter] = useState('all');
+  const [sortBy, setSortBy] = useState<'name' | 'lastSeen' | 'battery'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const manufacturers = useMemo(() => {
     const unique = [...new Set(devices.map(d => d.manufacturer))];
     return unique.sort();
   }, [devices]);
 
+  const filteredDevices = useMemo(() => {
+    let filtered = [...devices];
+
+    // Search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(device =>
+        device.name.toLowerCase().includes(term) ||
+        device.model.toLowerCase().includes(term) ||
+        device.manufacturer.toLowerCase().includes(term)
+      );
+    }
+
+    // Status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(device =>
+        statusFilter === 'online' ? device.isOnline : !device.isOnline
+      );
+    }
+
+    // Battery filter
+    if (batteryFilter !== 'all') {
+      filtered = filtered.filter(device =>
+        batteryFilter === 'low' ? device.battery_level < 20 : device.battery_level >= 20
+      );
+    }
+
+    // Manufacturer filter
+    if (manufacturerFilter !== 'all') {
+      filtered = filtered.filter(device =>
+        device.manufacturer === manufacturerFilter
+      );
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+      let aVal: any, bVal: any;
+      
+      switch (sortBy) {
+        case 'name':
+          aVal = a.name.toLowerCase();
+          bVal = b.name.toLowerCase();
+          break;
+        case 'lastSeen':
+          aVal = new Date(a.last_seen).getTime();
+          bVal = new Date(b.last_seen).getTime();
+          break;
+        case 'battery':
+          aVal = a.battery_level;
+          bVal = b.battery_level;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return filtered;
+  }, [devices, searchTerm, statusFilter, batteryFilter, manufacturerFilter, sortBy, sortOrder]);
+
   const activeFiltersCount = useMemo(() => {
     let count = 0;
-    if (filters.searchTerm) count++;
-    if (filters.statusFilter !== 'all') count++;
-    if (filters.batteryFilter !== 'all') count++;
-    if (filters.manufacturerFilter !== 'all') count++;
+    if (searchTerm) count++;
+    if (statusFilter !== 'all') count++;
+    if (batteryFilter !== 'all') count++;
+    if (manufacturerFilter !== 'all') count++;
     return count;
-  }, [filters]);
+  }, [searchTerm, statusFilter, batteryFilter, manufacturerFilter]);
 
   const handleSortToggle = () => {
-    setSortOrder(filters.sortOrder === 'asc' ? 'desc' : 'asc');
+    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+  };
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setBatteryFilter('all');
+    setManufacturerFilter('all');
+    setSortBy('name');
+    setSortOrder('asc');
   };
 
   return (
@@ -54,13 +120,13 @@ export const DeviceFilters = memo(({ devices }: DeviceFiltersProps) => {
             <Input
               placeholder="Search devices..."
               className="pl-8"
-              value={filters.searchTerm}
+              value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
 
           {/* Status Filter */}
-          <Select value={filters.statusFilter} onValueChange={setStatusFilter}>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full sm:w-32">
               <SelectValue />
             </SelectTrigger>
@@ -72,7 +138,7 @@ export const DeviceFilters = memo(({ devices }: DeviceFiltersProps) => {
           </Select>
 
           {/* Battery Filter */}
-          <Select value={filters.batteryFilter} onValueChange={setBatteryFilter}>
+          <Select value={batteryFilter} onValueChange={setBatteryFilter}>
             <SelectTrigger className="w-full sm:w-32">
               <SelectValue />
             </SelectTrigger>
@@ -84,7 +150,7 @@ export const DeviceFilters = memo(({ devices }: DeviceFiltersProps) => {
           </Select>
 
           {/* Manufacturer Filter */}
-          <Select value={filters.manufacturerFilter} onValueChange={setManufacturerFilter}>
+          <Select value={manufacturerFilter} onValueChange={setManufacturerFilter}>
             <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="Manufacturer" />
             </SelectTrigger>
@@ -103,7 +169,7 @@ export const DeviceFilters = memo(({ devices }: DeviceFiltersProps) => {
           {/* Sort Controls */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Sort by:</span>
-            <Select value={filters.sortBy} onValueChange={setSortBy}>
+            <Select value={sortBy} onValueChange={setSortBy}>
               <SelectTrigger className="w-32">
                 <SelectValue />
               </SelectTrigger>

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { DeviceStatus } from '@/types/telemetry';
 
@@ -24,7 +23,7 @@ interface FilterContextType {
   setDevices: (devices: DeviceStatus[]) => void;
 }
 
-const FilterContext = createContext<FilterContextType | undefined>(undefined);
+export const FilterContext = createContext<FilterContextType | undefined>(undefined);
 
 const initialFilters: FilterState = {
   searchTerm: '',
