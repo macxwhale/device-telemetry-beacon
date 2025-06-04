@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -294,7 +295,7 @@ export const AdvancedAnalyticsPanel = ({ devices, selectedDeviceId }: AdvancedAn
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Average Response Time</span>
-                    <Badge variant="outline">< 100ms</Badge>
+                    <Badge variant="outline">&lt; 100ms</Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Data Sync Success Rate</span>
