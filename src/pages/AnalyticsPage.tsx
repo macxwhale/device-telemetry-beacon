@@ -1,4 +1,3 @@
-
 import { useEffect, memo } from 'react';
 import { Layout } from '@/components/Layout';
 import { DeviceAnalytics } from '@/components/dashboard/DeviceAnalytics';
@@ -17,6 +16,9 @@ import {
   Download,
   TrendingUp 
 } from 'lucide-react';
+import { AdvancedAnalytics } from "@/components/analytics/AdvancedAnalytics";
+import { SecurityMonitoringDashboard } from "@/components/security/SecurityMonitoringDashboard";
+import { DeviceGroupManager } from "@/components/groups/DeviceGroupManager";
 
 const AnalyticsPage = memo(() => {
   const navigate = useNavigate();
@@ -110,44 +112,30 @@ const AnalyticsPage = memo(() => {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">Analytics Dashboard</h1>
-            <p className="text-muted-foreground">
-              Comprehensive device analytics and security monitoring
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handleExportReport}>
-              <Download className="h-4 w-4 mr-2" />
-              Export Report
-            </Button>
-            <Button variant="outline" onClick={handleRefresh} disabled={isLoading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold">Advanced Analytics</h1>
+          <p className="text-muted-foreground">
+            Comprehensive insights into your device fleet
+          </p>
         </div>
 
         <Tabs defaultValue="analytics" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Device Analytics
-            </TabsTrigger>
-            <TabsTrigger value="security" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              Security Monitor
-            </TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="security">Security</TabsTrigger>
+            <TabsTrigger value="groups">Groups</TabsTrigger>
           </TabsList>
-
+          
           <TabsContent value="analytics" className="space-y-6">
-            <DeviceAnalytics devices={devices} />
+            <AdvancedAnalytics devices={devices} />
           </TabsContent>
-
+          
           <TabsContent value="security" className="space-y-6">
-            <SecurityMonitor devices={devices} onViewDevice={handleViewDevice} />
+            <SecurityMonitoringDashboard />
+          </TabsContent>
+          
+          <TabsContent value="groups" className="space-y-6">
+            <DeviceGroupManager />
           </TabsContent>
         </Tabs>
       </div>

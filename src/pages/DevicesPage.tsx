@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { DeviceStatusCard } from "@/components/dashboard/DeviceStatusCard";
@@ -12,6 +11,7 @@ import { useRealTimeUpdates } from "@/hooks/useRealTimeUpdates";
 import { DeviceStatus } from "@/types/telemetry";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
+import { DeviceGroupManager } from "@/components/groups/DeviceGroupManager";
 
 const DevicesPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -89,6 +89,8 @@ const DevicesPage = () => {
         </div>
 
         <DeviceStats devices={devices} />
+
+        <DeviceGroupManager />
 
         <DeviceFilters devices={devices} />
 

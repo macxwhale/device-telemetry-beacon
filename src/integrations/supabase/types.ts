@@ -9,6 +9,41 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      device_analytics: {
+        Row: {
+          device_id: string | null
+          id: string
+          metadata: Json | null
+          metric_type: string
+          metric_value: number
+          recorded_at: string | null
+        }
+        Insert: {
+          device_id?: string | null
+          id?: string
+          metadata?: Json | null
+          metric_type: string
+          metric_value: number
+          recorded_at?: string | null
+        }
+        Update: {
+          device_id?: string | null
+          id?: string
+          metadata?: Json | null
+          metric_type?: string
+          metric_value?: number
+          recorded_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_analytics_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       device_apps: {
         Row: {
           app_package: string
@@ -31,6 +66,167 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "device_apps_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      device_group_memberships: {
+        Row: {
+          added_at: string | null
+          device_id: string | null
+          group_id: string | null
+          id: string
+        }
+        Insert: {
+          added_at?: string | null
+          device_id?: string | null
+          group_id?: string | null
+          id?: string
+        }
+        Update: {
+          added_at?: string | null
+          device_id?: string | null
+          group_id?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_group_memberships_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_group_memberships_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "device_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      device_groups: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      device_policies: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          enabled: boolean | null
+          id: string
+          name: string
+          rules: Json
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          enabled?: boolean | null
+          id?: string
+          name: string
+          rules: Json
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          enabled?: boolean | null
+          id?: string
+          name?: string
+          rules?: Json
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      device_policy_assignments: {
+        Row: {
+          assigned_at: string | null
+          device_id: string | null
+          id: string
+          policy_id: string | null
+        }
+        Insert: {
+          assigned_at?: string | null
+          device_id?: string | null
+          id?: string
+          policy_id?: string | null
+        }
+        Update: {
+          assigned_at?: string | null
+          device_id?: string | null
+          id?: string
+          policy_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_policy_assignments_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_policy_assignments_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "device_policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      device_tags: {
+        Row: {
+          created_at: string | null
+          device_id: string | null
+          id: string
+          tag_name: string
+          tag_value: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          device_id?: string | null
+          id?: string
+          tag_name: string
+          tag_value?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          device_id?: string | null
+          id?: string
+          tag_name?: string
+          tag_value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_tags_device_id_fkey"
             columns: ["device_id"]
             isOneToOne: false
             referencedRelation: "devices"
@@ -243,6 +439,50 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      security_events: {
+        Row: {
+          created_at: string | null
+          description: string
+          device_id: string | null
+          event_type: string
+          id: string
+          metadata: Json | null
+          resolved: boolean | null
+          resolved_at: string | null
+          severity: string
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          device_id?: string | null
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          severity: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          device_id?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_events_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       telemetry_history: {
         Row: {
