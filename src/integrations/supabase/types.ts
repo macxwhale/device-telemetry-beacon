@@ -9,6 +9,97 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      automation_executions: {
+        Row: {
+          completed_at: string | null
+          error_message: string | null
+          execution_status: string
+          id: string
+          results: Json | null
+          rule_id: string | null
+          started_at: string | null
+          trigger_data: Json | null
+        }
+        Insert: {
+          completed_at?: string | null
+          error_message?: string | null
+          execution_status?: string
+          id?: string
+          results?: Json | null
+          rule_id?: string | null
+          started_at?: string | null
+          trigger_data?: Json | null
+        }
+        Update: {
+          completed_at?: string | null
+          error_message?: string | null
+          execution_status?: string
+          id?: string
+          results?: Json | null
+          rule_id?: string | null
+          started_at?: string | null
+          trigger_data?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_executions_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "automation_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_rules: {
+        Row: {
+          actions: Json
+          created_at: string | null
+          created_by: string
+          description: string | null
+          enabled: boolean | null
+          id: string
+          name: string
+          organization_id: string | null
+          trigger_conditions: Json
+          trigger_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          actions: Json
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          enabled?: boolean | null
+          id?: string
+          name: string
+          organization_id?: string | null
+          trigger_conditions: Json
+          trigger_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          actions?: Json
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          enabled?: boolean | null
+          id?: string
+          name?: string
+          organization_id?: string | null
+          trigger_conditions?: Json
+          trigger_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_rules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       device_analytics: {
         Row: {
           device_id: string | null
@@ -440,6 +531,83 @@ export type Database = {
         }
         Relationships: []
       }
+      organizations: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          settings: Json | null
+          slug: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          settings?: Json | null
+          slug: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          settings?: Json | null
+          slug?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      permissions: {
+        Row: {
+          action: string
+          description: string | null
+          id: string
+          name: string
+          resource: string
+        }
+        Insert: {
+          action: string
+          description?: string | null
+          id?: string
+          name: string
+          resource: string
+        }
+        Update: {
+          action?: string
+          description?: string | null
+          id?: string
+          name?: string
+          resource?: string
+        }
+        Relationships: []
+      }
+      role_permissions: {
+        Row: {
+          id: string
+          permission_id: string | null
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          id?: string
+          permission_id?: string | null
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          id?: string
+          permission_id?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       security_events: {
         Row: {
           created_at: string | null
@@ -513,6 +681,159 @@ export type Database = {
           },
         ]
       }
+      user_organizations: {
+        Row: {
+          id: string
+          joined_at: string | null
+          organization_id: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string | null
+          organization_id?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string | null
+          organization_id?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_organizations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          expires_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          expires_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          expires_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      webhook_deliveries: {
+        Row: {
+          created_at: string | null
+          delivered_at: string | null
+          delivery_status: string
+          event_type: string
+          id: string
+          payload: Json
+          response_body: string | null
+          response_status: number | null
+          retry_count: number | null
+          webhook_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          delivered_at?: string | null
+          delivery_status?: string
+          event_type: string
+          id?: string
+          payload: Json
+          response_body?: string | null
+          response_status?: number | null
+          retry_count?: number | null
+          webhook_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          delivered_at?: string | null
+          delivery_status?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          response_body?: string | null
+          response_status?: number | null
+          retry_count?: number | null
+          webhook_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_deliveries_webhook_id_fkey"
+            columns: ["webhook_id"]
+            isOneToOne: false
+            referencedRelation: "webhook_endpoints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhook_endpoints: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          enabled: boolean | null
+          events: string[]
+          id: string
+          last_triggered: string | null
+          name: string
+          organization_id: string | null
+          secret_key: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          enabled?: boolean | null
+          events: string[]
+          id?: string
+          last_triggered?: string | null
+          name: string
+          organization_id?: string | null
+          secret_key?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          enabled?: boolean | null
+          events?: string[]
+          id?: string
+          last_triggered?: string | null
+          name?: string
+          organization_id?: string | null
+          secret_key?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_endpoints_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -522,12 +843,17 @@ export type Database = {
         Args: { sql: string }
         Returns: Json[]
       }
+      get_user_role: {
+        Args: { user_uuid: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
       send_telegram_notification: {
         Args: { message: string; bot_token: string; chat_id: string }
         Returns: Json
       }
     }
     Enums: {
+      app_role: "admin" | "manager" | "operator" | "viewer"
       battery_status:
         | "Charging"
         | "Discharging"
@@ -650,6 +976,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "manager", "operator", "viewer"],
       battery_status: [
         "Charging",
         "Discharging",

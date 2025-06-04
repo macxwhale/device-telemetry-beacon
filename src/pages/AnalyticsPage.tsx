@@ -1,3 +1,4 @@
+
 import { useEffect, memo } from 'react';
 import { Layout } from '@/components/Layout';
 import { DeviceAnalytics } from '@/components/dashboard/DeviceAnalytics';
@@ -14,11 +15,13 @@ import {
   Shield, 
   RefreshCw, 
   Download,
-  TrendingUp 
+  TrendingUp,
+  Zap
 } from 'lucide-react';
 import { AdvancedAnalytics } from "@/components/analytics/AdvancedAnalytics";
 import { SecurityMonitoringDashboard } from "@/components/security/SecurityMonitoringDashboard";
 import { DeviceGroupManager } from "@/components/groups/DeviceGroupManager";
+import { AutomationDashboard } from "@/components/automation/AutomationDashboard";
 
 const AnalyticsPage = memo(() => {
   const navigate = useNavigate();
@@ -113,16 +116,17 @@ const AnalyticsPage = memo(() => {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">Advanced Analytics</h1>
+          <h1 className="text-2xl font-bold">Advanced Analytics & Automation</h1>
           <p className="text-muted-foreground">
-            Comprehensive insights into your device fleet
+            Comprehensive insights, automation, and integrations for your device fleet
           </p>
         </div>
 
         <Tabs defaultValue="analytics" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="security">Security</TabsTrigger>
+            <TabsTrigger value="automation">Automation</TabsTrigger>
             <TabsTrigger value="groups">Groups</TabsTrigger>
           </TabsList>
           
@@ -132,6 +136,10 @@ const AnalyticsPage = memo(() => {
           
           <TabsContent value="security" className="space-y-6">
             <SecurityMonitoringDashboard />
+          </TabsContent>
+          
+          <TabsContent value="automation" className="space-y-6">
+            <AutomationDashboard />
           </TabsContent>
           
           <TabsContent value="groups" className="space-y-6">
