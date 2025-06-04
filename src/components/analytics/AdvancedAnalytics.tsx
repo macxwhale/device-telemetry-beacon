@@ -1,202 +1,153 @@
 
+import React, { useState } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, TrendingDown, Activity, Shield, Battery, Wifi } from 'lucide-react';
 import { DeviceStatus } from '@/types/telemetry';
+import { AdvancedAnalyticsPanel } from './AdvancedAnalyticsPanel';
+import { RealTimeAnalyticsDashboard } from './RealTimeAnalyticsDashboard';
+import { 
+  BarChart3, 
+  Activity, 
+  TrendingUp,
+  Eye
+} from 'lucide-react';
 
 interface AdvancedAnalyticsProps {
   devices: DeviceStatus[];
 }
 
 export const AdvancedAnalytics = ({ devices }: AdvancedAnalyticsProps) => {
-  // Generate sample time series data for battery levels
-  const batteryTrendData = Array.from({ length: 24 }, (_, i) => ({
-    hour: `${i}:00`,
-    avgBattery: Math.floor(Math.random() * 30) + 60,
-    devices: Math.floor(Math.random() * 50) + 50
-  }));
-
-  // Device status distribution
-  const statusData = [
-    { name: 'Online', value: devices.filter(d => d.isOnline).length, color: '#10B981' },
-    { name: 'Offline', value: devices.filter(d => !d.isOnline).length, color: '#EF4444' }
-  ];
-
-  // Manufacturer distribution
-  const manufacturerCounts = devices.reduce((acc, device) => {
-    const manufacturer = device.manufacturer || 'Unknown';
-    acc[manufacturer] = (acc[manufacturer] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const manufacturerData = Object.entries(manufacturerCounts).map(([name, count]) => ({
-    name,
-    count
-  }));
-
-  // Network type distribution
-  const networkCounts = devices.reduce((acc, device) => {
-    const networkType = device.network_type || 'Unknown';
-    acc[networkType] = (acc[networkType] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const networkData = Object.entries(networkCounts).map(([name, count]) => ({
-    name,
-    count
-  }));
-
-  const avgBattery = Math.round(devices.reduce((sum, d) => sum + (d.battery_level || 0), 0) / devices.length);
-  const onlineCount = devices.filter(d => d.isOnline).length;
-  const onlinePercentage = Math.round((onlineCount / devices.length) * 100);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
 
   return (
     <div className="space-y-6">
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Devices</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{devices.length}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-600 flex items-center">
-                <TrendingUp className="h-3 w-3 mr-1" />
-                +12% from last month
-              </span>
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Online Devices</CardTitle>
-            <Wifi className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{onlineCount}</div>
-            <p className="text-xs text-muted-foreground">
-              {onlinePercentage}% of total devices
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Battery</CardTitle>
-            <Battery className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{avgBattery}%</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-red-600 flex items-center">
-                <TrendingDown className="h-3 w-3 mr-1" />
-                -5% from yesterday
-              </span>
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Security Events</CardTitle>
-            <Shield className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">3</div>
-            <p className="text-xs text-muted-foreground">
-              2 unresolved alerts
-            </p>
-          </CardContent>
-        </Card>
+      <div>
+        <h2 className="text-2xl font-bold">Advanced Analytics</h2>
+        <p className="text-muted-foreground">
+          Real-time insights, predictive analytics, and comprehensive device intelligence
+        </p>
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Battery Levels Over Time</CardTitle>
-            <CardDescription>Average battery levels throughout the day</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={batteryTrendData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="hour" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="avgBattery" stroke="#3B82F6" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="realtime" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="realtime" className="flex items-center space-x-2">
+            <Activity className="h-4 w-4" />
+            <span>Real-time</span>
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center space-x-2">
+            <BarChart3 className="h-4 w-4" />
+            <span>Analytics</span>
+          </TabsTrigger>
+          <TabsTrigger value="insights" className="flex items-center space-x-2">
+            <TrendingUp className="h-4 w-4" />
+            <span>Insights</span>
+          </TabsTrigger>
+        </TabsList>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Device Status</CardTitle>
-            <CardDescription>Online vs offline devices</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={statusData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, value }) => `${name}: ${value}`}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {statusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <TabsContent value="realtime">
+          <RealTimeAnalyticsDashboard />
+        </TabsContent>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Device Manufacturers</CardTitle>
-            <CardDescription>Distribution by manufacturer</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={manufacturerData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="#8B5CF6" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <TabsContent value="analytics">
+          <AdvancedAnalyticsPanel 
+            devices={devices} 
+            selectedDeviceId={selectedDeviceId}
+          />
+        </TabsContent>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Network Types</CardTitle>
-            <CardDescription>Device connectivity distribution</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={networkData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="#06B6D4" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+        <TabsContent value="insights">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Eye className="h-5 w-5" />
+                  <span>Predictive Insights</span>
+                </CardTitle>
+                <CardDescription>
+                  AI-powered predictions and recommendations
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                    <h4 className="font-medium text-blue-800 dark:text-blue-200">
+                      Battery Optimization Opportunity
+                    </h4>
+                    <p className="text-sm text-blue-600 dark:text-blue-300 mt-1">
+                      Based on usage patterns, 3 devices could benefit from optimized charging schedules.
+                    </p>
+                  </div>
+                  <div className="p-4 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
+                    <h4 className="font-medium text-yellow-800 dark:text-yellow-200">
+                      Maintenance Prediction
+                    </h4>
+                    <p className="text-sm text-yellow-600 dark:text-yellow-300 mt-1">
+                      Device performance degradation detected. Recommend maintenance within 2 weeks.
+                    </p>
+                  </div>
+                  <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg">
+                    <h4 className="font-medium text-green-800 dark:text-green-200">
+                      Fleet Performance
+                    </h4>
+                    <p className="text-sm text-green-600 dark:text-green-300 mt-1">
+                      Overall fleet health is excellent. Performance is 15% above baseline.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Performance Benchmarks</CardTitle>
+                <CardDescription>
+                  Compare your fleet against industry standards
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Device Uptime</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-16 bg-gray-200 rounded-full h-2">
+                        <div className="bg-green-500 h-2 rounded-full" style={{ width: '95%' }} />
+                      </div>
+                      <span className="text-sm font-medium">95%</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Security Score</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-16 bg-gray-200 rounded-full h-2">
+                        <div className="bg-blue-500 h-2 rounded-full" style={{ width: '88%' }} />
+                      </div>
+                      <span className="text-sm font-medium">88%</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Battery Efficiency</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-16 bg-gray-200 rounded-full h-2">
+                        <div className="bg-yellow-500 h-2 rounded-full" style={{ width: '72%' }} />
+                      </div>
+                      <span className="text-sm font-medium">72%</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Network Performance</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-16 bg-gray-200 rounded-full h-2">
+                        <div className="bg-green-500 h-2 rounded-full" style={{ width: '91%' }} />
+                      </div>
+                      <span className="text-sm font-medium">91%</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
