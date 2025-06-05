@@ -8,6 +8,7 @@ import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 import { Toaster } from "@/components/ui/sonner";
 import TestApiPage from "./pages/TestApiPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
 import { DeviceProvider } from "./contexts/DeviceContext";
 import LoginPage from "./pages/LoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -67,6 +68,14 @@ function App() {
                   <ProtectedRoute>
                     <ErrorBoundary>
                       <DeviceDetailPage />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="/analytics" element={
+                  <ProtectedRoute>
+                    <ErrorBoundary>
+                      <AnalyticsPage />
                     </ErrorBoundary>
                   </ProtectedRoute>
                 } />

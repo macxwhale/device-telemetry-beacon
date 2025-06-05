@@ -1,5 +1,6 @@
+
 import { useState } from "react";
-import { Activity, BarChart3, LogOut, MenuIcon, PlayCircle, Settings, Smartphone, X } from "lucide-react";
+import { Activity, BarChart3, LogOut, MenuIcon, PlayCircle, Settings, Smartphone, X, TrendingUp } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -78,6 +79,9 @@ export function TelemetrySidebar() {
               </SidebarLink>
               <SidebarLink to="/devices" icon={<Smartphone className="h-5 w-5" />}>
                 Devices
+              </SidebarLink>
+              <SidebarLink to="/analytics" icon={<TrendingUp className="h-5 w-5" />}>
+                Analytics
               </SidebarLink>
               <SidebarLink to="/test-api" icon={<PlayCircle className="h-5 w-5" />}>
                 Test API
