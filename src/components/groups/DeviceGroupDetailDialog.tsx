@@ -56,10 +56,11 @@ export const DeviceGroupDetailDialog = ({
     if (group) {
       setEditedGroup({ ...group });
       setIsEditing(false);
+      setSelectedDevices([]); // Clear selections when group changes
     }
   }, [group]);
 
-  // Get devices assigned to this group
+  // Get devices assigned to this group - ensure we're filtering by current group
   const assignedDevices = group ? allDevices.filter(device => 
     memberships.some(m => m.device_id === device.id && m.group_id === group.id)
   ) : [];
@@ -68,6 +69,13 @@ export const DeviceGroupDetailDialog = ({
   const availableDevices = group ? allDevices.filter(device => 
     !memberships.some(m => m.device_id === device.id && m.group_id === group.id)
   ) : [];
+
+  console.log('Group ID:', group?.id);
+  console.log('All devices:', allDevices.length);
+  console.log('All memberships:', memberships.length);
+  console.log('Assigned devices:', assignedDevices.length);
+  console.log('Available devices:', availableDevices.length);
+  console.log('Selected devices:', selectedDevices);
 
   const colorOptions = [
     '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'
@@ -99,20 +107,27 @@ export const DeviceGroupDetailDialog = ({
   const handleAssignDevices = async () => {
     if (!group || selectedDevices.length === 0) return;
 
+    console.log(`Starting assignment of ${selectedDevices.length} devices to group ${group.id}`);
+
     try {
-      // Assign each selected device
+      // Assign each selected device sequentially
       for (const deviceId of selectedDevices) {
+        console.log(`Assigning device ${deviceId} to group ${group.id}`);
         await assignDevice.mutateAsync({
           deviceId,
           groupId: group.id
         });
       }
       
-      // Clear selected devices
+      console.log('All devices assigned successfully');
+      
+      // Clear selected devices immediately
       setSelectedDevices([]);
       
-      // Refresh memberships to update UI
+      // Force refresh memberships data
       await refetchMemberships();
+      
+      console.log('Memberships refreshed');
     } catch (error) {
       console.error('Failed to assign devices:', error);
     }
@@ -121,14 +136,20 @@ export const DeviceGroupDetailDialog = ({
   const handleRemoveDevice = async (deviceId: string) => {
     if (!group) return;
 
+    console.log(`Removing device ${deviceId} from group ${group.id}`);
+
     try {
       await removeDevice.mutateAsync({
         deviceId,
         groupId: group.id
       });
       
-      // Refresh memberships to update UI
+      console.log('Device removed successfully');
+      
+      // Force refresh memberships data
       await refetchMemberships();
+      
+      console.log('Memberships refreshed after removal');
     } catch (error) {
       console.error('Failed to remove device:', error);
     }

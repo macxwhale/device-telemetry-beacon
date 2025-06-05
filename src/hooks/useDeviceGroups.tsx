@@ -153,6 +153,19 @@ export const useAssignDeviceToGroup = () => {
     mutationFn: async ({ deviceId, groupId }: { deviceId: string; groupId: string }) => {
       console.log(`Assigning device ${deviceId} to group ${groupId}`);
       
+      // Check if assignment already exists
+      const { data: existing } = await supabase
+        .from('device_group_memberships')
+        .select('id')
+        .eq('device_id', deviceId)
+        .eq('group_id', groupId)
+        .maybeSingle();
+      
+      if (existing) {
+        console.log('Assignment already exists, skipping');
+        return existing;
+      }
+      
       const { data, error } = await supabase
         .from('device_group_memberships')
         .insert({ device_id: deviceId, group_id: groupId })
@@ -167,17 +180,20 @@ export const useAssignDeviceToGroup = () => {
       console.log('Assignment successful:', data);
       return data;
     },
-    onSuccess: () => {
-      // Invalidate both memberships and groups queries
+    onSuccess: (data, variables) => {
+      console.log(`Successfully assigned device ${variables.deviceId} to group ${variables.groupId}`);
+      
+      // Invalidate all relevant queries
       queryClient.invalidateQueries({ queryKey: ['device-group-memberships'] });
       queryClient.invalidateQueries({ queryKey: ['device-groups'] });
+      
       toast({
         title: "Device Assigned",
         description: "Device has been assigned to group successfully.",
       });
     },
-    onError: (error) => {
-      console.error('Assign device error:', error);
+    onError: (error, variables) => {
+      console.error(`Failed to assign device ${variables.deviceId} to group ${variables.groupId}:`, error);
       toast({
         title: "Error",
         description: "Failed to assign device to group.",
@@ -207,17 +223,20 @@ export const useRemoveDeviceFromGroup = () => {
       
       console.log('Removal successful');
     },
-    onSuccess: () => {
-      // Invalidate both memberships and groups queries
+    onSuccess: (data, variables) => {
+      console.log(`Successfully removed device ${variables.deviceId} from group ${variables.groupId}`);
+      
+      // Invalidate all relevant queries
       queryClient.invalidateQueries({ queryKey: ['device-group-memberships'] });
       queryClient.invalidateQueries({ queryKey: ['device-groups'] });
+      
       toast({
         title: "Device Removed",
         description: "Device has been removed from group successfully.",
       });
     },
-    onError: (error) => {
-      console.error('Remove device error:', error);
+    onError: (error, variables) => {
+      console.error(`Failed to remove device ${variables.deviceId} from group ${variables.groupId}:`, error);
       toast({
         title: "Error",
         description: "Failed to remove device from group.",
