@@ -60,6 +60,7 @@ export const useCreateDeviceGroup = () => {
       });
     },
     onError: (error) => {
+      console.error('Create group error:', error);
       toast({
         title: "Error",
         description: "Failed to create device group.",
@@ -97,6 +98,7 @@ export const useUpdateDeviceGroup = () => {
       });
     },
     onError: (error) => {
+      console.error('Update group error:', error);
       toast({
         title: "Error",
         description: "Failed to update device group.",
@@ -134,6 +136,7 @@ export const useDeleteDeviceGroup = () => {
       });
     },
     onError: (error) => {
+      console.error('Delete group error:', error);
       toast({
         title: "Error",
         description: "Failed to delete device group.",
@@ -148,23 +151,33 @@ export const useAssignDeviceToGroup = () => {
   
   return useMutation({
     mutationFn: async ({ deviceId, groupId }: { deviceId: string; groupId: string }) => {
+      console.log(`Assigning device ${deviceId} to group ${groupId}`);
+      
       const { data, error } = await supabase
         .from('device_group_memberships')
         .insert({ device_id: deviceId, group_id: groupId })
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Assignment error:', error);
+        throw error;
+      }
+      
+      console.log('Assignment successful:', data);
       return data;
     },
     onSuccess: () => {
+      // Invalidate both memberships and groups queries
       queryClient.invalidateQueries({ queryKey: ['device-group-memberships'] });
+      queryClient.invalidateQueries({ queryKey: ['device-groups'] });
       toast({
         title: "Device Assigned",
         description: "Device has been assigned to group successfully.",
       });
     },
     onError: (error) => {
+      console.error('Assign device error:', error);
       toast({
         title: "Error",
         description: "Failed to assign device to group.",
@@ -179,22 +192,32 @@ export const useRemoveDeviceFromGroup = () => {
   
   return useMutation({
     mutationFn: async ({ deviceId, groupId }: { deviceId: string; groupId: string }) => {
+      console.log(`Removing device ${deviceId} from group ${groupId}`);
+      
       const { error } = await supabase
         .from('device_group_memberships')
         .delete()
         .eq('device_id', deviceId)
         .eq('group_id', groupId);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Removal error:', error);
+        throw error;
+      }
+      
+      console.log('Removal successful');
     },
     onSuccess: () => {
+      // Invalidate both memberships and groups queries
       queryClient.invalidateQueries({ queryKey: ['device-group-memberships'] });
+      queryClient.invalidateQueries({ queryKey: ['device-groups'] });
       toast({
         title: "Device Removed",
         description: "Device has been removed from group successfully.",
       });
     },
     onError: (error) => {
+      console.error('Remove device error:', error);
       toast({
         title: "Error",
         description: "Failed to remove device from group.",

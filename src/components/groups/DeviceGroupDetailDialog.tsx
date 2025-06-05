@@ -22,7 +22,7 @@ import {
 import { DeviceGroup } from '@/types/groups';
 import { DeviceStatus } from '@/types/telemetry';
 import { useDevicesQuery } from '@/hooks/useDevicesQuery';
-import { useDeviceGroupMemberships, useAssignDeviceToGroup } from '@/hooks/useDeviceGroups';
+import { useDeviceGroupMemberships, useAssignDeviceToGroup, useRemoveDeviceFromGroup } from '@/hooks/useDeviceGroups';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -48,8 +48,9 @@ export const DeviceGroupDetailDialog = ({
   const [selectedDevices, setSelectedDevices] = useState<string[]>([]);
 
   const { data: allDevices = [] } = useDevicesQuery();
-  const { data: memberships = [] } = useDeviceGroupMemberships();
+  const { data: memberships = [], refetch: refetchMemberships } = useDeviceGroupMemberships();
   const assignDevice = useAssignDeviceToGroup();
+  const removeDevice = useRemoveDeviceFromGroup();
 
   useEffect(() => {
     if (group) {
@@ -99,15 +100,37 @@ export const DeviceGroupDetailDialog = ({
     if (!group || selectedDevices.length === 0) return;
 
     try {
+      // Assign each selected device
       for (const deviceId of selectedDevices) {
         await assignDevice.mutateAsync({
           deviceId,
           groupId: group.id
         });
       }
+      
+      // Clear selected devices
       setSelectedDevices([]);
+      
+      // Refresh memberships to update UI
+      await refetchMemberships();
     } catch (error) {
       console.error('Failed to assign devices:', error);
+    }
+  };
+
+  const handleRemoveDevice = async (deviceId: string) => {
+    if (!group) return;
+
+    try {
+      await removeDevice.mutateAsync({
+        deviceId,
+        groupId: group.id
+      });
+      
+      // Refresh memberships to update UI
+      await refetchMemberships();
+    } catch (error) {
+      console.error('Failed to remove device:', error);
     }
   };
 
@@ -253,7 +276,7 @@ export const DeviceGroupDetailDialog = ({
                           className="w-full"
                         >
                           <Plus className="h-4 w-4 mr-2" />
-                          Assign {selectedDevices.length} Device(s)
+                          {assignDevice.isPending ? 'Assigning...' : `Assign ${selectedDevices.length} Device(s)`}
                         </Button>
                       )}
                     </div>
@@ -296,6 +319,8 @@ export const DeviceGroupDetailDialog = ({
                                 size="sm"
                                 variant="ghost"
                                 className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => handleRemoveDevice(device.id)}
+                                disabled={removeDevice.isPending}
                               >
                                 <X className="h-4 w-4" />
                               </Button>
