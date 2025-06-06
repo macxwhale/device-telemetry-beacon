@@ -4,6 +4,7 @@ import { Layout } from "@/components/Layout";
 import { DeviceStats } from "@/components/dashboard/DeviceStats";
 import { DeviceOverview } from "@/components/dashboard/DeviceOverview";
 import { DeviceStatusCard } from "@/components/dashboard/DeviceStatusCard";
+import { DeviceStatusChecker } from "@/components/dashboard/DeviceStatusChecker";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { SystemInfoCard } from "@/components/dashboard/SystemInfoCard";
 import { Button } from "@/components/ui/button";
@@ -18,13 +19,13 @@ const Index = memo(() => {
   const { refresh } = useRealTimeUpdates({ enabled: !isLoading });
   
   const handleRefresh = useCallback(async () => {
-    console.log("Dashboard refresh button clicked");
+    console.log("🔄 Dashboard refresh button clicked");
     try {
       await refetch();
       refresh();
-      console.log("Dashboard refresh completed");
+      console.log("✅ Dashboard refresh completed");
     } catch (error) {
-      console.error("Dashboard refresh failed:", error);
+      console.error("❌ Dashboard refresh failed:", error);
     }
   }, [refetch, refresh]);
   
@@ -61,6 +62,9 @@ Index.displayName = 'Index';
 // Memoized dashboard content to prevent unnecessary re-renders
 const DashboardContent = memo(({ devices }: { devices: DeviceStatus[] }) => (
   <div className="space-y-6">
+    {/* Enhanced Device Status Monitor */}
+    <DeviceStatusChecker />
+    
     <DeviceStats devices={devices} />
     
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

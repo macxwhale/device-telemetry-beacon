@@ -73,7 +73,7 @@ const DevicesPage = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <DeviceMonitorButton />
+            <DeviceMonitorButton variant="default" size="sm" />
             <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isLoading}>
               <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
