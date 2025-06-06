@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DeviceGroup, DeviceGroupMembership } from '@/types/groups';
@@ -151,35 +150,25 @@ export const useAssignDeviceToGroup = () => {
   
   return useMutation({
     mutationFn: async ({ deviceId, groupId }: { deviceId: string; groupId: string }) => {
-      console.log(`🌸 Starting assignment: device ${deviceId} to group ${groupId}`);
+      console.log(`🌈 Calling Edge Function for device ${deviceId} to group ${groupId}`);
+      console.log('🌈 Calling Edge Function...');
       
-      // Check if assignment already exists
-      const { data: existing } = await supabase
-        .from('device_group_memberships')
-        .select('id')
-        .eq('device_id', deviceId)
-        .eq('group_id', groupId)
-        .maybeSingle();
-      
-      if (existing) {
-        console.log('💡 Assignment already exists, skipping');
-        return existing;
-      }
-      
-      console.log('🚀 Creating new assignment in database...');
-      const { data, error } = await supabase
-        .from('device_group_memberships')
-        .insert({ device_id: deviceId, group_id: groupId })
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('💔 Assignment database error:', error);
+      try {
+        const { data, error } = await supabase.functions.invoke('assign-device-to-group', {
+          body: { deviceId, groupId }
+        });
+
+        if (error) {
+          console.error('💔 Edge Function error:', error);
+          throw new Error(error.message || 'Edge Function call failed');
+        }
+
+        console.log('✅ Edge Function response:', data);
+        return data;
+      } catch (error) {
+        console.error('💔 Failed to call Edge Function:', error);
         throw error;
       }
-      
-      console.log('✅ Assignment database operation successful:', data);
-      return data;
     },
     onSuccess: (data, variables) => {
       console.log(`🎉 Successfully assigned device ${variables.deviceId} to group ${variables.groupId}`);
@@ -189,15 +178,15 @@ export const useAssignDeviceToGroup = () => {
       queryClient.invalidateQueries({ queryKey: ['device-groups'] });
       
       toast({
-        title: "Device Assigned! 🎉",
-        description: "Device has been assigned to group successfully.",
+        title: data.alreadyExists ? "Already Assigned! 💛" : "Device Assigned! 🎉",
+        description: data.message || "Device has been assigned to group successfully.",
       });
     },
     onError: (error, variables) => {
       console.error(`💔 Failed to assign device ${variables.deviceId} to group ${variables.groupId}:`, error);
       toast({
         title: "Assignment Failed 😞",
-        description: "Failed to assign device to group. Please try again.",
+        description: "Oops! Let's try again 🌼",
         variant: "destructive",
       });
     }

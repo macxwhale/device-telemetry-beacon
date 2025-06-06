@@ -115,14 +115,32 @@ export const DeviceGroupDetailDialog = ({
     console.log('Group ID:', group.id);
 
     try {
-      // Assign each selected device sequentially
+      // Assign each selected device sequentially with retry logic
       for (const deviceId of selectedDevices) {
         console.log(`🌸 Assigning device ${deviceId} to group ${group.id}`);
-        await assignDevice.mutateAsync({
-          deviceId,
-          groupId: group.id
-        });
-        console.log(`✅ Successfully assigned device ${deviceId}`);
+        
+        let retryCount = 0;
+        const maxRetries = 1;
+        
+        while (retryCount <= maxRetries) {
+          try {
+            await assignDevice.mutateAsync({
+              deviceId,
+              groupId: group.id
+            });
+            console.log(`✅ Successfully assigned device ${deviceId}`);
+            break; // Success, exit retry loop
+          } catch (error) {
+            retryCount++;
+            if (retryCount <= maxRetries) {
+              console.log(`🔄 Retrying assignment for device ${deviceId} (attempt ${retryCount + 1})`);
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+            } else {
+              console.error(`💔 Failed to assign device ${deviceId} after ${maxRetries + 1} attempts:`, error);
+              throw error; // Re-throw after max retries
+            }
+          }
+        }
       }
       
       console.log('🎉 All devices assigned successfully!');
