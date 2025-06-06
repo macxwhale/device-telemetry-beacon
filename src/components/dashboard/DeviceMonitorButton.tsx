@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Shield, AlertTriangle, CheckCircle, Wifi } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle, Wifi, RotateCcw } from 'lucide-react';
 import { triggerDeviceMonitoring } from '@/services/deviceMonitorService';
 
 interface DeviceMonitorButtonProps {
@@ -17,10 +17,14 @@ export const DeviceMonitorButton = ({
 }: DeviceMonitorButtonProps) => {
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [lastCheckResult, setLastCheckResult] = useState<boolean | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
-  const handleMonitoring = async () => {
+  const handleMonitoring = async (isRetry = false) => {
     setIsMonitoring(true);
-    setLastCheckResult(null);
+    if (!isRetry) {
+      setLastCheckResult(null);
+      setRetryCount(0);
+    }
     
     try {
       console.log("🚀 Device monitoring button clicked!");
@@ -29,15 +33,26 @@ export const DeviceMonitorButton = ({
       
       if (success) {
         console.log("🎉 Device monitoring completed successfully!");
+        setRetryCount(0);
       } else {
         console.log("😞 Device monitoring failed");
+        if (!isRetry && retryCount < 2) {
+          setRetryCount(prev => prev + 1);
+        }
       }
     } catch (error) {
       console.error("💥 Unexpected error in button handler:", error);
       setLastCheckResult(false);
+      if (!isRetry && retryCount < 2) {
+        setRetryCount(prev => prev + 1);
+      }
     } finally {
       setIsMonitoring(false);
     }
+  };
+
+  const handleRetry = () => {
+    handleMonitoring(true);
   };
 
   // Choose the right icon based on state
@@ -68,22 +83,36 @@ export const DeviceMonitorButton = ({
     }
     
     if (lastCheckResult === false) {
-      return "Check Failed";
+      return retryCount > 0 ? "Retry Available" : "Check Failed";
     }
     
     return "Check Device Status";
   };
 
   return (
-    <Button
-      onClick={handleMonitoring}
-      disabled={isMonitoring}
-      variant={variant}
-      size={size}
-      className={`flex items-center gap-2 transition-all duration-200 ${className}`}
-    >
-      {getIcon()}
-      {getText()}
-    </Button>
+    <div className="flex items-center gap-2">
+      <Button
+        onClick={() => handleMonitoring()}
+        disabled={isMonitoring}
+        variant={variant}
+        size={size}
+        className={`flex items-center gap-2 transition-all duration-200 ${className}`}
+      >
+        {getIcon()}
+        {getText()}
+      </Button>
+      
+      {lastCheckResult === false && retryCount > 0 && !isMonitoring && (
+        <Button
+          onClick={handleRetry}
+          variant="ghost"
+          size="sm"
+          className="flex items-center gap-1 text-xs"
+        >
+          <RotateCcw className="h-3 w-3" />
+          Retry
+        </Button>
+      )}
+    </div>
   );
 };

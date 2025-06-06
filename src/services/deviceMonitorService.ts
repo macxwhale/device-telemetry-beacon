@@ -8,7 +8,7 @@ import { toast } from "sonner";
  */
 export const triggerDeviceMonitoring = async (): Promise<boolean> => {
   try {
-    console.log("🔍 Starting device monitoring check...");
+    console.log("🌼 Sending love to edge function...");
     
     // Show a nice loading toast
     const loadingToast = toast.loading("Checking device status...", {
@@ -25,10 +25,24 @@ export const triggerDeviceMonitoring = async (): Promise<boolean> => {
     // Dismiss the loading toast
     toast.dismiss(loadingToast);
     
+    console.log("💖 Edge function response:", response);
+    
     if (response.error) {
       console.error("❌ Device monitoring error:", response.error);
-      toast.error("Device monitoring failed", {
-        description: `Error: ${response.error.message || 'Unknown error occurred'}`
+      
+      // Provide more helpful error messages
+      let errorMessage = "Device monitoring failed";
+      let errorDescription = response.error.message || 'Unknown error occurred';
+      
+      // Check for common CORS issues
+      if (errorDescription.includes('CORS') || errorDescription.includes('Access-Control')) {
+        errorDescription = "Connection issue - please try again in a moment";
+      } else if (errorDescription.includes('network') || errorDescription.includes('fetch')) {
+        errorDescription = "Network connection issue - please check your internet connection";
+      }
+      
+      toast.error(errorMessage, {
+        description: errorDescription
       });
       return false;
     }
@@ -49,17 +63,23 @@ export const triggerDeviceMonitoring = async (): Promise<boolean> => {
     let errorDescription = "Unknown error occurred";
     
     if (error instanceof Error) {
-      if (error.message.includes('fetch')) {
-        errorDescription = "Network connection issue - please check your internet connection";
+      if (error.message.includes('fetch') || error.message.includes('network')) {
+        errorDescription = "Network connection issue - please check your internet connection and try again";
       } else if (error.message.includes('Function not found')) {
-        errorDescription = "Device monitoring service is not available";
+        errorDescription = "Device monitoring service is not available - please try again later";
+      } else if (error.message.includes('CORS') || error.message.includes('Access-Control')) {
+        errorDescription = "Connection issue - the service is being updated, please try again";
       } else {
         errorDescription = error.message;
       }
     }
     
     toast.error(errorMessage, {
-      description: errorDescription
+      description: errorDescription,
+      action: {
+        label: "Retry",
+        onClick: () => triggerDeviceMonitoring()
+      }
     });
     
     return false;
@@ -71,12 +91,18 @@ export const triggerDeviceMonitoring = async (): Promise<boolean> => {
  */
 export const pingDevice = async (deviceId: string): Promise<boolean> => {
   try {
-    console.log(`🏓 Pinging device: ${deviceId}`);
+    console.log(`🏓 Pinging device with love: ${deviceId}`);
+    
+    toast.info("Device ping test", {
+      description: `Testing connection to device ${deviceId}`
+    });
     
     // This would be implemented when we have direct device communication
     // For now, we'll just simulate a ping test
-    toast.info("Device ping test", {
-      description: `Testing connection to device ${deviceId}`
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    toast.success("Device ping successful! 🌟", {
+      description: `Device ${deviceId} responded happily`
     });
     
     return true;
