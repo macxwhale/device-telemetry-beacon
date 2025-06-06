@@ -4,26 +4,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowUpDown } from 'lucide-react';
 
 interface DeviceSortControlsProps {
-  sortBy: 'name' | 'lastSeen' | 'battery';
+  sortBy: string;
   sortOrder: 'asc' | 'desc';
-  onSortByChange: (value: 'name' | 'lastSeen' | 'battery') => void;
-  onSortOrderToggle: () => void;
+  onSortByChange: (value: string) => void;
+  onSortOrderChange: (value: 'asc' | 'desc') => void;
 }
 
 export const DeviceSortControls = ({ 
   sortBy, 
   sortOrder, 
   onSortByChange, 
-  onSortOrderToggle 
+  onSortOrderChange 
 }: DeviceSortControlsProps) => {
-  const handleSortByChange = (value: string) => {
-    onSortByChange(value as 'name' | 'lastSeen' | 'battery');
+  const toggleSortOrder = () => {
+    onSortOrderChange(sortOrder === 'asc' ? 'desc' : 'asc');
   };
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-muted-foreground">Sort by:</span>
-      <Select value={sortBy} onValueChange={handleSortByChange}>
+      <Select value={sortBy} onValueChange={onSortByChange}>
         <SelectTrigger className="w-32">
           <SelectValue />
         </SelectTrigger>
@@ -36,7 +35,7 @@ export const DeviceSortControls = ({
       <Button
         variant="outline"
         size="sm"
-        onClick={onSortOrderToggle}
+        onClick={toggleSortOrder}
         className="px-2"
       >
         <ArrowUpDown className="h-4 w-4" />

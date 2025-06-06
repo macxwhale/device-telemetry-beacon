@@ -2,17 +2,13 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface DeviceBatteryFilterProps {
-  value: 'all' | 'low' | 'normal';
-  onChange: (value: 'all' | 'low' | 'normal') => void;
+  value: string;
+  onChange: (value: string) => void;
 }
 
 export const DeviceBatteryFilter = ({ value, onChange }: DeviceBatteryFilterProps) => {
-  const handleChange = (newValue: string) => {
-    onChange(newValue as 'all' | 'low' | 'normal');
-  };
-
   return (
-    <Select value={value} onValueChange={handleChange}>
+    <Select value={value} onValueChange={onChange}>
       <SelectTrigger className="w-full sm:w-32">
         <SelectValue />
       </SelectTrigger>
