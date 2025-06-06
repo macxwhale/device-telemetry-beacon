@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -396,7 +395,6 @@ export const DeviceGroupDetailDialog = ({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete Group
-            </Button>
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
