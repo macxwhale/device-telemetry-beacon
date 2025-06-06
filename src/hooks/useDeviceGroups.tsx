@@ -55,12 +55,12 @@ export const useCreateDeviceGroup = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['device-groups'] });
       toast({
-        title: "Group Created",
+        title: "Group Created 🎉",
         description: "Device group has been created successfully.",
       });
     },
     onError: (error) => {
-      console.error('Create group error:', error);
+      console.error('💔 Create group error:', error);
       toast({
         title: "Error",
         description: "Failed to create device group.",
@@ -93,12 +93,12 @@ export const useUpdateDeviceGroup = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['device-groups'] });
       toast({
-        title: "Group Updated",
+        title: "Group Updated ✨",
         description: "Device group has been updated successfully.",
       });
     },
     onError: (error) => {
-      console.error('Update group error:', error);
+      console.error('💔 Update group error:', error);
       toast({
         title: "Error",
         description: "Failed to update device group.",
@@ -131,12 +131,12 @@ export const useDeleteDeviceGroup = () => {
       queryClient.invalidateQueries({ queryKey: ['device-groups'] });
       queryClient.invalidateQueries({ queryKey: ['device-group-memberships'] });
       toast({
-        title: "Group Deleted",
+        title: "Group Deleted 🗑️",
         description: "Device group has been deleted successfully.",
       });
     },
     onError: (error) => {
-      console.error('Delete group error:', error);
+      console.error('💔 Delete group error:', error);
       toast({
         title: "Error",
         description: "Failed to delete device group.",
@@ -151,7 +151,7 @@ export const useAssignDeviceToGroup = () => {
   
   return useMutation({
     mutationFn: async ({ deviceId, groupId }: { deviceId: string; groupId: string }) => {
-      console.log(`Assigning device ${deviceId} to group ${groupId}`);
+      console.log(`🌸 Starting assignment: device ${deviceId} to group ${groupId}`);
       
       // Check if assignment already exists
       const { data: existing } = await supabase
@@ -162,10 +162,11 @@ export const useAssignDeviceToGroup = () => {
         .maybeSingle();
       
       if (existing) {
-        console.log('Assignment already exists, skipping');
+        console.log('💡 Assignment already exists, skipping');
         return existing;
       }
       
+      console.log('🚀 Creating new assignment in database...');
       const { data, error } = await supabase
         .from('device_group_memberships')
         .insert({ device_id: deviceId, group_id: groupId })
@@ -173,30 +174,30 @@ export const useAssignDeviceToGroup = () => {
         .single();
       
       if (error) {
-        console.error('Assignment error:', error);
+        console.error('💔 Assignment database error:', error);
         throw error;
       }
       
-      console.log('Assignment successful:', data);
+      console.log('✅ Assignment database operation successful:', data);
       return data;
     },
     onSuccess: (data, variables) => {
-      console.log(`Successfully assigned device ${variables.deviceId} to group ${variables.groupId}`);
+      console.log(`🎉 Successfully assigned device ${variables.deviceId} to group ${variables.groupId}`);
       
-      // Invalidate all relevant queries
+      // Invalidate all relevant queries to refresh the UI
       queryClient.invalidateQueries({ queryKey: ['device-group-memberships'] });
       queryClient.invalidateQueries({ queryKey: ['device-groups'] });
       
       toast({
-        title: "Device Assigned",
+        title: "Device Assigned! 🎉",
         description: "Device has been assigned to group successfully.",
       });
     },
     onError: (error, variables) => {
-      console.error(`Failed to assign device ${variables.deviceId} to group ${variables.groupId}:`, error);
+      console.error(`💔 Failed to assign device ${variables.deviceId} to group ${variables.groupId}:`, error);
       toast({
-        title: "Error",
-        description: "Failed to assign device to group.",
+        title: "Assignment Failed 😞",
+        description: "Failed to assign device to group. Please try again.",
         variant: "destructive",
       });
     }
@@ -208,7 +209,7 @@ export const useRemoveDeviceFromGroup = () => {
   
   return useMutation({
     mutationFn: async ({ deviceId, groupId }: { deviceId: string; groupId: string }) => {
-      console.log(`Removing device ${deviceId} from group ${groupId}`);
+      console.log(`🗑️ Removing device ${deviceId} from group ${groupId}`);
       
       const { error } = await supabase
         .from('device_group_memberships')
@@ -217,29 +218,29 @@ export const useRemoveDeviceFromGroup = () => {
         .eq('group_id', groupId);
       
       if (error) {
-        console.error('Removal error:', error);
+        console.error('💔 Removal error:', error);
         throw error;
       }
       
-      console.log('Removal successful');
+      console.log('✅ Removal successful');
     },
     onSuccess: (data, variables) => {
-      console.log(`Successfully removed device ${variables.deviceId} from group ${variables.groupId}`);
+      console.log(`🎉 Successfully removed device ${variables.deviceId} from group ${variables.groupId}`);
       
       // Invalidate all relevant queries
       queryClient.invalidateQueries({ queryKey: ['device-group-memberships'] });
       queryClient.invalidateQueries({ queryKey: ['device-groups'] });
       
       toast({
-        title: "Device Removed",
+        title: "Device Removed! 🗑️",
         description: "Device has been removed from group successfully.",
       });
     },
     onError: (error, variables) => {
-      console.error(`Failed to remove device ${variables.deviceId} from group ${variables.groupId}:`, error);
+      console.error(`💔 Failed to remove device ${variables.deviceId} from group ${variables.groupId}:`, error);
       toast({
-        title: "Error",
-        description: "Failed to remove device from group.",
+        title: "Removal Failed 😞",
+        description: "Failed to remove device from group. Please try again.",
         variant: "destructive",
       });
     }

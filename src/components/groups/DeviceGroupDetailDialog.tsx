@@ -70,6 +70,7 @@ export const DeviceGroupDetailDialog = ({
     !memberships.some(m => m.device_id === device.id && m.group_id === group.id)
   ) : [];
 
+  console.log('🌈 Group Detail Dialog Debug Info:');
   console.log('Group ID:', group?.id);
   console.log('All devices:', allDevices.length);
   console.log('All memberships:', memberships.length);
@@ -105,21 +106,27 @@ export const DeviceGroupDetailDialog = ({
   };
 
   const handleAssignDevices = async () => {
-    if (!group || selectedDevices.length === 0) return;
+    if (!group || selectedDevices.length === 0) {
+      console.log('🚫 Cannot assign devices: no group or no devices selected');
+      return;
+    }
 
-    console.log(`Starting assignment of ${selectedDevices.length} devices to group ${group.id}`);
+    console.log(`🌈 Button clicked! Starting assignment of ${selectedDevices.length} devices to group ${group.id}`);
+    console.log('Device IDs to assign:', selectedDevices);
+    console.log('Group ID:', group.id);
 
     try {
       // Assign each selected device sequentially
       for (const deviceId of selectedDevices) {
-        console.log(`Assigning device ${deviceId} to group ${group.id}`);
+        console.log(`🌸 Assigning device ${deviceId} to group ${group.id}`);
         await assignDevice.mutateAsync({
           deviceId,
           groupId: group.id
         });
+        console.log(`✅ Successfully assigned device ${deviceId}`);
       }
       
-      console.log('All devices assigned successfully');
+      console.log('🎉 All devices assigned successfully!');
       
       // Clear selected devices immediately
       setSelectedDevices([]);
@@ -127,16 +134,16 @@ export const DeviceGroupDetailDialog = ({
       // Force refresh memberships data
       await refetchMemberships();
       
-      console.log('Memberships refreshed');
+      console.log('🔄 Memberships refreshed');
     } catch (error) {
-      console.error('Failed to assign devices:', error);
+      console.error('💔 Failed to assign devices:', error);
     }
   };
 
   const handleRemoveDevice = async (deviceId: string) => {
     if (!group) return;
 
-    console.log(`Removing device ${deviceId} from group ${group.id}`);
+    console.log(`🗑️ Removing device ${deviceId} from group ${group.id}`);
 
     try {
       await removeDevice.mutateAsync({
@@ -144,14 +151,14 @@ export const DeviceGroupDetailDialog = ({
         groupId: group.id
       });
       
-      console.log('Device removed successfully');
+      console.log('✅ Device removed successfully');
       
       // Force refresh memberships data
       await refetchMemberships();
       
-      console.log('Memberships refreshed after removal');
+      console.log('🔄 Memberships refreshed after removal');
     } catch (error) {
-      console.error('Failed to remove device:', error);
+      console.error('💔 Failed to remove device:', error);
     }
   };
 
@@ -272,10 +279,19 @@ export const DeviceGroupDetailDialog = ({
                             <Checkbox
                               checked={selectedDevices.includes(device.id)}
                               onCheckedChange={(checked) => {
+                                console.log(`🌈 Checkbox changed for device ${device.id}: ${checked}`);
                                 if (checked) {
-                                  setSelectedDevices(prev => [...prev, device.id]);
+                                  setSelectedDevices(prev => {
+                                    const newSelection = [...prev, device.id];
+                                    console.log('New selection:', newSelection);
+                                    return newSelection;
+                                  });
                                 } else {
-                                  setSelectedDevices(prev => prev.filter(id => id !== device.id));
+                                  setSelectedDevices(prev => {
+                                    const newSelection = prev.filter(id => id !== device.id);
+                                    console.log('New selection after removal:', newSelection);
+                                    return newSelection;
+                                  });
                                 }
                               }}
                             />
@@ -292,12 +308,18 @@ export const DeviceGroupDetailDialog = ({
                       
                       {selectedDevices.length > 0 && (
                         <Button 
-                          onClick={handleAssignDevices}
+                          onClick={() => {
+                            console.log('🌈 Assign button clicked!');
+                            console.log('Selected devices count:', selectedDevices.length);
+                            console.log('Selected device IDs:', selectedDevices);
+                            console.log('Target group ID:', group?.id);
+                            handleAssignDevices();
+                          }}
                           disabled={assignDevice.isPending}
                           className="w-full"
                         >
                           <Plus className="h-4 w-4 mr-2" />
-                          {assignDevice.isPending ? 'Assigning...' : `Assign ${selectedDevices.length} Device(s)`}
+                          {assignDevice.isPending ? '💛 Assigning...' : `🎉 Assign ${selectedDevices.length} Device(s)`}
                         </Button>
                       )}
                     </div>
@@ -374,6 +396,7 @@ export const DeviceGroupDetailDialog = ({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete Group
+            </Button>
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
