@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DeviceGroup, DeviceGroupMembership } from '@/types/groups';
 import { toast } from '@/hooks/use-toast';
+import { ensureUUID } from '@/lib/uuid-utils';
 
 export const useDeviceGroups = () => {
   return useQuery({
@@ -150,12 +151,19 @@ export const useAssignDeviceToGroup = () => {
   
   return useMutation({
     mutationFn: async ({ deviceId, groupId }: { deviceId: string; groupId: string }) => {
-      console.log(`🌈 Calling Edge Function for device ${deviceId} to group ${groupId}`);
+      // Format IDs to proper UUID format before sending
+      const formattedDeviceId = ensureUUID(deviceId, 'Device ID');
+      const formattedGroupId = ensureUUID(groupId, 'Group ID');
+      
+      console.log(`🌈 Calling Edge Function for device ${formattedDeviceId} to group ${formattedGroupId}`);
       console.log('🌈 Calling Edge Function...');
       
       try {
         const { data, error } = await supabase.functions.invoke('assign-device-to-group', {
-          body: { deviceId, groupId }
+          body: { 
+            deviceId: formattedDeviceId, 
+            groupId: formattedGroupId 
+          }
         });
 
         if (error) {

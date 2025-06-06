@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -6,6 +5,31 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
+// Helper function to validate UUID format
+function isValidUUID(uuid: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+}
+
+// Helper function to format string to UUID if it looks like one
+function formatToUUID(str: string): string {
+  // Remove any existing hyphens first
+  const cleanStr = str.replace(/-/g, '');
+  
+  // Check if it's the right length for a UUID (32 hex characters)
+  if (cleanStr.length === 32 && /^[0-9a-f]+$/i.test(cleanStr)) {
+    return `${cleanStr.slice(0,8)}-${cleanStr.slice(8,12)}-${cleanStr.slice(12,16)}-${cleanStr.slice(16,20)}-${cleanStr.slice(20)}`;
+  }
+  
+  // If it's already a valid UUID, return as is
+  if (isValidUUID(str)) {
+    return str;
+  }
+  
+  // Otherwise, return the original string (will fail validation)
+  return str;
 }
 
 serve(async (req) => {
@@ -32,6 +56,43 @@ serve(async (req) => {
       )
     }
 
+    // Format and validate UUIDs
+    const formattedDeviceId = formatToUUID(deviceId);
+    const formattedGroupId = formatToUUID(groupId);
+
+    console.log('✨ Formatted UUIDs:', { 
+      original: { deviceId, groupId },
+      formatted: { deviceId: formattedDeviceId, groupId: formattedGroupId }
+    });
+
+    if (!isValidUUID(formattedDeviceId)) {
+      console.log('💔 Invalid device ID format:', formattedDeviceId)
+      return new Response(
+        JSON.stringify({ 
+          error: 'Device ID must be a valid UUID format! 🌈',
+          example: '123e4567-e89b-12d3-a456-426614174000'
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    if (!isValidUUID(formattedGroupId)) {
+      console.log('💔 Invalid group ID format:', formattedGroupId)
+      return new Response(
+        JSON.stringify({ 
+          error: 'Group ID must be a valid UUID format! 🌈',
+          example: '123e4567-e89b-12d3-a456-426614174000'
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
     // Create supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -40,12 +101,12 @@ serve(async (req) => {
 
     console.log('🌸 Checking if assignment already exists...')
     
-    // Check if assignment already exists
+    // Check if assignment already exists using formatted UUIDs
     const { data: existing, error: checkError } = await supabase
       .from('device_group_memberships')
       .select('id')
-      .eq('device_id', deviceId)
-      .eq('group_id', groupId)
+      .eq('device_id', formattedDeviceId)
+      .eq('group_id', formattedGroupId)
       .maybeSingle()
 
     if (checkError) {
@@ -75,12 +136,12 @@ serve(async (req) => {
 
     console.log('🚀 Creating new assignment in database...')
     
-    // Create new assignment
+    // Create new assignment using formatted UUIDs
     const { data, error } = await supabase
       .from('device_group_memberships')
       .insert({ 
-        device_id: deviceId, 
-        group_id: groupId 
+        device_id: formattedDeviceId, 
+        group_id: formattedGroupId 
       })
       .select()
       .single()
