@@ -1,6 +1,6 @@
+
 import { useEffect, useState, useCallback } from "react";
 import { Layout } from "@/components/Layout";
-import { DeviceStatusCard } from "@/components/dashboard/DeviceStatusCard";
 import { DeviceFilters } from "@/components/dashboard/DeviceFilters";
 import { DeviceStats } from "@/components/dashboard/DeviceStats";
 import { BulkActions } from "@/components/dashboard/BulkActions";
@@ -8,7 +8,7 @@ import { DeviceMonitorButton } from "@/components/dashboard/DeviceMonitorButton"
 import { VirtualizedDeviceGrid } from "@/components/dashboard/VirtualizedDeviceGrid";
 import { useDevicesQuery } from "@/hooks/useDevicesQuery";
 import { useRealTimeUpdates } from "@/hooks/useRealTimeUpdates";
-import { DeviceStatus } from "@/types/telemetry";
+import { useDeviceStatus } from "@/hooks/useDeviceStatus";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { DeviceGroupManager } from "@/components/groups/DeviceGroupManager";
@@ -21,23 +21,16 @@ const DevicesPage = () => {
 
   const { data: devices = [], isLoading, error, refetch } = useDevicesQuery();
   const { refresh } = useRealTimeUpdates();
+  
+  const { filteredDevices, stats } = useDeviceStatus({
+    devices,
+    statusFilter,
+    searchQuery
+  });
 
   useEffect(() => {
     document.title = "Devices - Device Telemetry";
   }, []);
-
-  // Filter devices based on search and status
-  const filteredDevices = devices.filter((device: DeviceStatus) => {
-    const matchesSearch = device.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         device.model?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         device.manufacturer?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = statusFilter === "all" || 
-                         (statusFilter === "online" && device.isOnline) ||
-                         (statusFilter === "offline" && !device.isOnline);
-    
-    return matchesSearch && matchesStatus;
-  });
 
   const handleRefresh = useCallback(async () => {
     console.log("Devices page refresh button clicked");
@@ -92,7 +85,13 @@ const DevicesPage = () => {
 
         <DeviceGroupManager />
 
-        <DeviceFilters devices={devices} />
+        <DeviceFilters 
+          devices={devices}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+        />
 
         {showBulkActions && (
           <BulkActions 

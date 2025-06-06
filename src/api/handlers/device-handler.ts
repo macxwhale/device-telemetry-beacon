@@ -65,6 +65,8 @@ export async function getAllDevicesFromApiImplementation(): Promise<DeviceStatus
       const timeSinceLastSeen = currentTime - lastSeenTime;
       const isOnline = timeSinceLastSeen < offlineThresholdMs;
       
+      console.log(`Device ${device.android_id}: last seen ${device.last_seen}, time diff: ${timeSinceLastSeen}ms, threshold: ${offlineThresholdMs}ms, online: ${isOnline}`);
+      
       // Convert database record to DeviceStatus format
       return {
         id: device.android_id,
@@ -82,6 +84,8 @@ export async function getAllDevicesFromApiImplementation(): Promise<DeviceStatus
         telemetry: telemetryData
       };
     }));
+    
+    console.log(`Processed ${result.length} devices, online: ${result.filter(d => d.isOnline).length}, offline: ${result.filter(d => !d.isOnline).length}`);
     
     return result;
   } catch (error) {

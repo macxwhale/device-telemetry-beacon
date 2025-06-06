@@ -4,7 +4,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Progress } from "@/components/ui/progress";
 import { DeviceStatus } from "@/types/telemetry";
 import { Battery, Trash2, Eye, Wifi, Smartphone, MapPin } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -52,13 +51,19 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = memo(({
     return "bg-red-500";
   };
 
-  const getStatusColor = (isOnline: boolean) => {
-    return isOnline ? "bg-green-500" : "bg-red-500";
+  // Determine actual device status based on last_seen and current time
+  const isDeviceOnline = () => {
+    if (!device.last_seen) return false;
+    const lastSeenTime = new Date(device.last_seen).getTime();
+    const currentTime = new Date().getTime();
+    const timeDiff = currentTime - lastSeenTime;
+    // Consider device offline if not seen for more than 15 minutes (900000 ms)
+    return timeDiff < 900000;
   };
 
-  const getStatusBorderColor = (isOnline: boolean) => {
-    return isOnline ? "border-green-500" : "border-red-500";
-  };
+  const deviceOnlineStatus = isDeviceOnline();
+  const statusColor = deviceOnlineStatus ? "bg-green-500" : "bg-red-500";
+  const statusBorderColor = deviceOnlineStatus ? "border-green-500" : "border-red-500";
 
   const getNetworkIcon = (networkType: string) => {
     if (networkType?.toLowerCase().includes('wifi')) {
@@ -68,7 +73,7 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = memo(({
   };
 
   return (
-    <Card className={`relative overflow-hidden transition-all duration-200 hover:shadow-lg border ${getStatusBorderColor(device.isOnline)} ${isSelected ? 'ring-2 ring-blue-500 shadow-lg' : 'hover:shadow-md'}`}>
+    <Card className={`relative overflow-hidden transition-all duration-200 hover:shadow-lg border ${statusBorderColor} ${isSelected ? 'ring-2 ring-blue-500 shadow-lg' : 'hover:shadow-md'}`}>
       {/* Header Section */}
       <div className="p-4 pb-0">
         <div className="flex items-start justify-between mb-3">
@@ -85,8 +90,8 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = memo(({
               <div className="flex items-center gap-2 mb-1">
                 <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">{device.name}</h3>
                 <div 
-                  className={`w-2 h-2 rounded-full ${getStatusColor(device.isOnline)}`}
-                  title={device.isOnline ? 'Online' : 'Offline'}
+                  className={`w-2 h-2 rounded-full ${statusColor} ${deviceOnlineStatus ? 'animate-pulse' : ''}`}
+                  title={deviceOnlineStatus ? 'Online' : 'Offline'}
                 />
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{device.model}</p>
@@ -94,16 +99,16 @@ export const DeviceStatusCard: FC<DeviceStatusCardProps> = memo(({
           </div>
         </div>
 
-        {/* Status Badge */}
+        {/* Status Badge with real-time status */}
         <div className="flex justify-between items-center mb-4">
           <Badge 
-            variant={device.isOnline ? "default" : "destructive"} 
-            className={`text-xs px-2 py-1 ${device.isOnline ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 border-green-200 dark:border-green-700' : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 border-red-200 dark:border-red-700'}`}
+            variant={deviceOnlineStatus ? "default" : "destructive"} 
+            className={`text-xs px-2 py-1 ${deviceOnlineStatus ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 border-green-200 dark:border-green-700' : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 border-red-200 dark:border-red-700'}`}
           >
-            {device.isOnline ? 'Active' : 'Inactive'}
+            {deviceOnlineStatus ? 'Online' : 'Offline'}
           </Badge>
           <span className="text-xs text-gray-500 dark:text-gray-400">
-            {formatDistanceToNow(new Date(device.last_seen), { addSuffix: true })}
+            {device.last_seen ? formatDistanceToNow(new Date(device.last_seen), { addSuffix: true }) : 'Never seen'}
           </span>
         </div>
 
