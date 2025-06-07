@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,8 @@ import {
   Plus, 
   X,
   Smartphone,
-  Calendar
+  Calendar,
+  AlertCircle
 } from 'lucide-react';
 import { DeviceGroup } from '@/types/groups';
 import { DeviceStatus } from '@/types/telemetry';
@@ -53,7 +55,7 @@ export const DeviceGroupDetailDialog = ({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedDevices, setSelectedDevices] = useState<string[]>([]);
 
-  const { data: allDevices = [] } = useDevicesQuery();
+  const { data: allDevices = [], isLoading: devicesLoading, error: devicesError } = useDevicesQuery();
   const { data: memberships = [], refetch: refetchMemberships } = useDeviceGroupMemberships();
   const { data: groupDevices = [], refetch: refetchGroupDevices } = useGroupDevices(group?.id);
   const assignDevice = useAssignDeviceToGroup();
@@ -94,6 +96,8 @@ export const DeviceGroupDetailDialog = ({
   console.log('🔍 Group Detail Dialog Debug Info:');
   console.log('Group ID:', group?.id);
   console.log('All devices:', allDevices.length);
+  console.log('Devices loading:', devicesLoading);
+  console.log('Devices error:', devicesError);
   console.log('Group devices:', groupDevices.length);
   console.log('Assigned devices:', assignedDevices.length);
   console.log('Available devices:', availableDevices.length);
@@ -344,13 +348,39 @@ export const DeviceGroupDetailDialog = ({
                 </CardContent>
               </Card>
 
-              {/* Assign New Devices - Updated to use device.id */}
-              {availableDevices.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Assign Devices</CardTitle>
-                  </CardHeader>
-                  <CardContent>
+              {/* Assign New Devices - Always show this section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Assign Devices</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {devicesLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                        <p className="text-sm text-muted-foreground">Loading devices...</p>
+                      </div>
+                    </div>
+                  ) : devicesError ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="text-center">
+                        <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
+                        <p className="text-sm text-destructive">Failed to load devices</p>
+                        <p className="text-xs text-muted-foreground">{devicesError.message}</p>
+                      </div>
+                    </div>
+                  ) : availableDevices.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Smartphone className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No available devices to assign</p>
+                      <p className="text-xs mt-1">
+                        {allDevices.length === 0 
+                          ? "No devices found in your system" 
+                          : "All devices are already assigned to this group"
+                        }
+                      </p>
+                    </div>
+                  ) : (
                     <div className="space-y-3">
                       <ScrollArea className="h-40">
                         {availableDevices.map((device) => (
@@ -397,9 +427,9 @@ export const DeviceGroupDetailDialog = ({
                         </Button>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
-              )}
+                  )}
+                </CardContent>
+              </Card>
             </div>
 
             {/* Assigned Devices - Updated to use device.id */}
@@ -477,7 +507,7 @@ export const DeviceGroupDetailDialog = ({
             >
               Delete Group
             </AlertDialogAction>
-          </AlertDialogFooter>
+            </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
