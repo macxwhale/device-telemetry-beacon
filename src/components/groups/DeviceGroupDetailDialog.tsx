@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -102,6 +101,12 @@ export const DeviceGroupDetailDialog = ({
   console.log('Assigned devices:', assignedDevices.length);
   console.log('Available devices:', availableDevices.length);
   console.log('Selected devices:', selectedDevices);
+  
+  // Enhanced debugging for device filtering
+  console.log('📊 Detailed Device Analysis:');
+  console.log('All devices details:', allDevices.map(d => ({ id: d.id, name: d.name, isValidUUID: isSupabaseUUID(d.id) })));
+  console.log('Assigned device IDs:', Array.from(assignedDeviceIds));
+  console.log('Available devices details:', availableDevices.map(d => ({ id: d.id, name: d.name })));
 
   const colorOptions = [
     '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'
@@ -369,62 +374,73 @@ export const DeviceGroupDetailDialog = ({
                         <p className="text-xs text-muted-foreground">{devicesError.message}</p>
                       </div>
                     </div>
-                  ) : availableDevices.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Smartphone className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No available devices to assign</p>
-                      <p className="text-xs mt-1">
-                        {allDevices.length === 0 
-                          ? "No devices found in your system" 
-                          : "All devices are already assigned to this group"
-                        }
-                      </p>
-                    </div>
                   ) : (
-                    <div className="space-y-3">
-                      <ScrollArea className="h-40">
-                        {availableDevices.map((device) => (
-                          <div key={device.id} className="flex items-center space-x-2 p-2">
-                            <Checkbox
-                              checked={selectedDevices.includes(device.id)}
-                              onCheckedChange={(checked) => {
-                                console.log(`🌈 Checkbox changed for device ${device.id}: ${checked}`);
-                                if (checked) {
-                                  setSelectedDevices(prev => {
-                                    const newSelection = [...prev, device.id]; // Using device.id
-                                    console.log('New selection:', newSelection);
-                                    return newSelection;
-                                  });
-                                } else {
-                                  setSelectedDevices(prev => {
-                                    const newSelection = prev.filter(id => id !== device.id); // Using device.id
-                                    console.log('New selection after removal:', newSelection);
-                                    return newSelection;
-                                  });
-                                }
-                              }}
-                            />
-                            <div className="flex-1">
-                              <p className="font-medium">{device.name}</p>
-                              <p className="text-sm text-muted-foreground">{device.model}</p>
-                              <p className="text-xs text-muted-foreground">UUID: {device.id}</p>
-                            </div>
-                            <Badge variant={device.isOnline ? "default" : "secondary"}>
-                              {device.isOnline ? 'Online' : 'Offline'}
-                            </Badge>
-                          </div>
-                        ))}
-                      </ScrollArea>
+                    <div>
+                      <div className="mb-4 p-3 bg-muted rounded text-sm">
+                        <strong>Debug Info:</strong>
+                        <br />Total devices: {allDevices.length}
+                        <br />Assigned to group: {assignedDevices.length}
+                        <br />Available: {availableDevices.length}
+                      </div>
                       
-                      {selectedDevices.length > 0 && (
-                        <Button 
-                          onClick={handleAssignDevices}
-                          disabled={assignDevice.isPending}
-                          className="w-full"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          {assignDevice.isPending ? '💛 Assigning...' : `🎉 Assign ${selectedDevices.length} Device(s)`}
-                        </Button>
+                      {availableDevices.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Smartphone className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>No available devices to assign</p>
+                          <p className="text-xs mt-1">
+                            {allDevices.length === 0 
+                              ? "No devices found in your system" 
+                              : "All devices are already assigned to this group"
+                            }
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <ScrollArea className="h-40">
+                            {availableDevices.map((device) => (
+                              <div key={device.id} className="flex items-center space-x-2 p-2">
+                                <Checkbox
+                                  checked={selectedDevices.includes(device.id)}
+                                  onCheckedChange={(checked) => {
+                                    console.log(`🌈 Checkbox changed for device ${device.id}: ${checked}`);
+                                    if (checked) {
+                                      setSelectedDevices(prev => {
+                                        const newSelection = [...prev, device.id]; // Using device.id
+                                        console.log('New selection:', newSelection);
+                                        return newSelection;
+                                      });
+                                    } else {
+                                      setSelectedDevices(prev => {
+                                        const newSelection = prev.filter(id => id !== device.id); // Using device.id
+                                        console.log('New selection after removal:', newSelection);
+                                        return newSelection;
+                                      });
+                                    }
+                                  }}
+                                />
+                                <div className="flex-1">
+                                  <p className="font-medium">{device.name}</p>
+                                  <p className="text-sm text-muted-foreground">{device.model}</p>
+                                  <p className="text-xs text-muted-foreground">UUID: {device.id}</p>
+                                </div>
+                                <Badge variant={device.isOnline ? "default" : "secondary"}>
+                                  {device.isOnline ? 'Online' : 'Offline'}
+                                </Badge>
+                              </div>
+                            ))}
+                          </ScrollArea>
+                          
+                          {selectedDevices.length > 0 && (
+                            <Button 
+                              onClick={handleAssignDevices}
+                              disabled={assignDevice.isPending}
+                              className="w-full"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              {assignDevice.isPending ? '💛 Assigning...' : `🎉 Assign ${selectedDevices.length} Device(s)`}
+                            </Button>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}
@@ -507,7 +523,7 @@ export const DeviceGroupDetailDialog = ({
             >
               Delete Group
             </AlertDialogAction>
-            </AlertDialogFooter>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
