@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 import { DeviceGroup } from '@/types/groups';
 import { DeviceStatus } from '@/types/telemetry';
+import { isSupabaseUUID } from '@/types/device-ids';
 import { useDevicesQuery } from '@/hooks/useDevicesQuery';
 import { 
   useDeviceGroupMemberships, 
@@ -59,6 +61,12 @@ export const DeviceGroupDetailDialog = ({
 
   useEffect(() => {
     if (group) {
+      // Validate group ID is a Supabase UUID
+      if (!isSupabaseUUID(group.id)) {
+        console.error('❌ Invalid group ID format:', group.id);
+        return;
+      }
+      
       setEditedGroup({ ...group });
       setIsEditing(false);
       setSelectedDevices([]);
@@ -72,11 +80,18 @@ export const DeviceGroupDetailDialog = ({
   // Get devices assigned to this group using the new hook
   const assignedDevices = groupDevices;
 
-  // Get available devices (not in this group) - filter by device UUIDs
+  // Get available devices (not in this group) - filter by Supabase UUIDs
   const assignedDeviceIds = new Set(assignedDevices.map(device => device.id));
-  const availableDevices = allDevices.filter(device => !assignedDeviceIds.has(device.id));
+  const availableDevices = allDevices.filter(device => {
+    // Ensure we're working with Supabase UUIDs
+    if (!isSupabaseUUID(device.id)) {
+      console.warn('⚠️ Device has invalid Supabase UUID:', device.id);
+      return false;
+    }
+    return !assignedDeviceIds.has(device.id);
+  });
 
-  console.log('🌈 Group Detail Dialog Debug Info:');
+  console.log('🔍 Group Detail Dialog Debug Info:');
   console.log('Group ID:', group?.id);
   console.log('All devices:', allDevices.length);
   console.log('Group devices:', groupDevices.length);
@@ -117,9 +132,32 @@ export const DeviceGroupDetailDialog = ({
       return;
     }
 
+    // Validate group ID
+    if (!isSupabaseUUID(group.id)) {
+      console.error('❌ Invalid group ID format:', group.id);
+      toast({
+        title: "Invalid Group ID",
+        description: "Group ID must be a valid Supabase UUID.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     console.log(`🌈 Button clicked! Starting assignment of ${selectedDevices.length} devices to group ${group.id}`);
     console.log('Device IDs to assign:', selectedDevices);
     console.log('Group ID:', group.id);
+
+    // Validate all selected device IDs are Supabase UUIDs
+    const invalidDevices = selectedDevices.filter(deviceId => !isSupabaseUUID(deviceId));
+    if (invalidDevices.length > 0) {
+      console.error('❌ Invalid device ID formats:', invalidDevices);
+      toast({
+        title: "Invalid Device IDs",
+        description: "All device IDs must be valid Supabase UUIDs.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       // Assign each selected device sequentially with retry logic
@@ -132,8 +170,8 @@ export const DeviceGroupDetailDialog = ({
         while (retryCount <= maxRetries) {
           try {
             await assignDevice.mutateAsync({
-              deviceId,
-              groupId: group.id
+              deviceId, // Supabase UUID
+              groupId: group.id // Supabase UUID
             });
             console.log(`✅ Successfully assigned device ${deviceId}`);
             break; // Success, exit retry loop
@@ -170,12 +208,23 @@ export const DeviceGroupDetailDialog = ({
   const handleRemoveDevice = async (deviceId: string) => {
     if (!group) return;
 
+    // Validate IDs are Supabase UUIDs
+    if (!isSupabaseUUID(deviceId) || !isSupabaseUUID(group.id)) {
+      console.error('❌ Invalid ID format - Device:', deviceId, 'Group:', group.id);
+      toast({
+        title: "Invalid ID Format",
+        description: "Both device and group IDs must be valid Supabase UUIDs.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     console.log(`🗑️ Removing device ${deviceId} from group ${group.id}`);
 
     try {
       await removeDevice.mutateAsync({
-        deviceId,
-        groupId: group.id
+        deviceId, // Supabase UUID
+        groupId: group.id // Supabase UUID
       });
       
       console.log('✅ Device removed successfully');
@@ -328,6 +377,7 @@ export const DeviceGroupDetailDialog = ({
                             <div className="flex-1">
                               <p className="font-medium">{device.name}</p>
                               <p className="text-sm text-muted-foreground">{device.model}</p>
+                              <p className="text-xs text-muted-foreground">UUID: {device.id}</p>
                             </div>
                             <Badge variant={device.isOnline ? "default" : "secondary"}>
                               {device.isOnline ? 'Online' : 'Offline'}
@@ -338,13 +388,7 @@ export const DeviceGroupDetailDialog = ({
                       
                       {selectedDevices.length > 0 && (
                         <Button 
-                          onClick={() => {
-                            console.log('🌈 Assign button clicked!');
-                            console.log('Selected devices count:', selectedDevices.length);
-                            console.log('Selected device IDs:', selectedDevices);
-                            console.log('Target group ID:', group?.id);
-                            handleAssignDevices();
-                          }}
+                          onClick={handleAssignDevices}
                           disabled={assignDevice.isPending}
                           className="w-full"
                         >
@@ -383,7 +427,10 @@ export const DeviceGroupDetailDialog = ({
                                   {device.manufacturer} {device.model}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  ID: {device.android_id || device.id}
+                                  UUID: {device.id}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Android ID: {device.android_id}
                                 </p>
                               </div>
                             </div>

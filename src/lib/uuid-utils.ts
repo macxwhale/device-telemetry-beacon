@@ -4,6 +4,9 @@ export function isValidUUID(uuid: string): boolean {
   return uuidRegex.test(uuid);
 }
 
+// Alias for consistency with new type system
+export const isSupabaseUUID = isValidUUID;
+
 export function formatToUUID(str: string): string {
   // Remove any existing hyphens first
   const cleanStr = str.replace(/-/g, '');
@@ -30,8 +33,13 @@ export function ensureUUID(id: string, context?: string): string {
   return formatted;
 }
 
-// New function to handle hybrid device IDs (android_id-uuid format)
+// Legacy functions - kept for backward compatibility but marked as deprecated
+/**
+ * @deprecated Use isSupabaseUUID instead for consistency
+ */
 export function extractDeviceUUID(deviceId: string): string {
+  console.warn('⚠️ extractDeviceUUID is deprecated. Use Supabase UUIDs directly.');
+  
   // Check if it's a hybrid format (android_id-uuid)
   const hybridMatch = deviceId.match(/^[0-9a-f]+-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
   if (hybridMatch) {
@@ -42,7 +50,12 @@ export function extractDeviceUUID(deviceId: string): string {
   return formatToUUID(deviceId);
 }
 
+/**
+ * @deprecated Use isSupabaseUUID instead for consistency
+ */
 export function isValidDeviceId(deviceId: string): boolean {
+  console.warn('⚠️ isValidDeviceId is deprecated. Use isSupabaseUUID for standard validation.');
+  
   // Accept either pure UUIDs or hybrid android_id-uuid format
   const hybridPattern = /^[0-9a-f]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

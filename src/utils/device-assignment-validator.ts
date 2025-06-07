@@ -1,5 +1,5 @@
 
-import { isValidUUID, formatToUUID, isValidDeviceId } from '@/lib/uuid-utils';
+import { isSupabaseUUID } from '@/types/device-ids';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -22,27 +22,22 @@ export class DeviceAssignmentValidator {
       warnings: []
     };
 
-    // Validate device ID (accepts both UUID and hybrid android_id-uuid format)
+    // Validate device ID is a Supabase UUID
     if (!data.deviceId) {
       result.errors.push('Device ID is required');
       result.isValid = false;
-    } else if (!isValidDeviceId(data.deviceId)) {
-      result.errors.push(`Invalid device ID format: ${data.deviceId}. Expected UUID or android_id-uuid format.`);
+    } else if (!isSupabaseUUID(data.deviceId)) {
+      result.errors.push(`Invalid device ID format: ${data.deviceId}. Must be a Supabase UUID.`);
       result.isValid = false;
     }
 
-    // Validate group ID
+    // Validate group ID is a Supabase UUID
     if (!data.groupId) {
       result.errors.push('Group ID is required');
       result.isValid = false;
-    } else {
-      const formattedGroupId = formatToUUID(data.groupId);
-      if (!isValidUUID(formattedGroupId)) {
-        result.errors.push(`Invalid group ID format: ${data.groupId}`);
-        result.isValid = false;
-      } else if (formattedGroupId !== data.groupId) {
-        result.warnings.push(`Group ID will be formatted: ${data.groupId} → ${formattedGroupId}`);
-      }
+    } else if (!isSupabaseUUID(data.groupId)) {
+      result.errors.push(`Invalid group ID format: ${data.groupId}. Must be a Supabase UUID.`);
+      result.isValid = false;
     }
 
     // Check existence flags if provided
@@ -61,40 +56,40 @@ export class DeviceAssignmentValidator {
 
   static generateTestCases(): AssignmentData[] {
     return [
-      // Valid cases
+      // Valid case - both proper Supabase UUIDs
       {
         deviceId: '123e4567-e89b-12d3-a456-426614174000',
         groupId: '987fcdeb-51a2-43d1-9876-123456789abc',
         deviceExists: true,
         groupExists: true
       },
-      // Hybrid device ID format (android_id-uuid)
-      {
-        deviceId: '110151380690111-18bd997a-d674-4afe-a05c-4fa964a7f5fc',
-        groupId: '987fcdeb-51a2-43d1-9876-123456789abc',
-        deviceExists: true,
-        groupExists: true
-      },
-      // Invalid UUID formats
+      // Invalid device ID format
       {
         deviceId: 'invalid-uuid',
         groupId: '987fcdeb-51a2-43d1-9876-123456789abc',
         deviceExists: true,
         groupExists: true
       },
-      // Missing hyphens (should be auto-formatted for group)
+      // Invalid group ID format
       {
         deviceId: '123e4567-e89b-12d3-a456-426614174000',
-        groupId: '987fcdeb51a243d19876123456789abc',
+        groupId: 'invalid-group-id',
         deviceExists: true,
         groupExists: true
       },
-      // Missing data
+      // Missing device ID
       {
         deviceId: '',
         groupId: '987fcdeb-51a2-43d1-9876-123456789abc',
         deviceExists: false,
         groupExists: true
+      },
+      // Missing group ID
+      {
+        deviceId: '123e4567-e89b-12d3-a456-426614174000',
+        groupId: '',
+        deviceExists: true,
+        groupExists: false
       }
     ];
   }
