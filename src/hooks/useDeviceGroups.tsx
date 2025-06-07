@@ -23,6 +23,8 @@ export const useDeviceGroupMemberships = (deviceId?: string) => {
   return useQuery({
     queryKey: ['device-group-memberships', deviceId],
     queryFn: async (): Promise<DeviceGroupMembership[]> => {
+      console.log('🔍 Fetching device group memberships...');
+      
       let query = supabase
         .from('device_group_memberships')
         .select('*');
@@ -32,9 +34,73 @@ export const useDeviceGroupMemberships = (deviceId?: string) => {
       }
       
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error('💔 Error fetching memberships:', error);
+        throw error;
+      }
+      
+      console.log('✅ Fetched memberships:', data?.length || 0, 'records');
+      console.log('📋 Membership data:', data);
+      
       return data || [];
-    }
+    },
+    staleTime: 0, // Always refetch to ensure fresh data
+    refetchOnWindowFocus: true
+  });
+};
+
+// New hook specifically for getting devices assigned to a group
+export const useGroupDevices = (groupId?: string) => {
+  return useQuery({
+    queryKey: ['group-devices', groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      
+      console.log(`🔍 Fetching devices for group ${groupId}...`);
+      
+      // Get memberships for this group and join with device data
+      const { data, error } = await supabase
+        .from('device_group_memberships')
+        .select(`
+          *,
+          devices (
+            id,
+            android_id,
+            device_name,
+            manufacturer,
+            model,
+            last_seen
+          )
+        `)
+        .eq('group_id', groupId);
+      
+      if (error) {
+        console.error('💔 Error fetching group devices:', error);
+        throw error;
+      }
+      
+      console.log(`✅ Found ${data?.length || 0} devices for group ${groupId}`);
+      console.log('📋 Group devices data:', data);
+      
+      // Transform the data to match the expected format
+      const devices = data?.map(membership => ({
+        id: membership.devices.id,
+        android_id: membership.devices.android_id,
+        name: membership.devices.device_name || 'Unknown Device',
+        manufacturer: membership.devices.manufacturer || 'Unknown',
+        model: membership.devices.model || 'Unknown',
+        last_seen: membership.devices.last_seen,
+        // Calculate if device is online (within last 5 minutes)
+        isOnline: membership.devices.last_seen ? 
+          (Date.now() - new Date(membership.devices.last_seen).getTime()) < 5 * 60 * 1000 : false,
+        membership_id: membership.id
+      })) || [];
+      
+      return devices;
+    },
+    enabled: !!groupId,
+    staleTime: 0,
+    refetchOnWindowFocus: true
   });
 };
 
@@ -130,6 +196,7 @@ export const useDeleteDeviceGroup = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['device-groups'] });
       queryClient.invalidateQueries({ queryKey: ['device-group-memberships'] });
+      queryClient.invalidateQueries({ queryKey: ['group-devices'] });
       toast({
         title: "Group Deleted 🗑️",
         description: "Device group has been deleted successfully.",
@@ -183,6 +250,7 @@ export const useAssignDeviceToGroup = () => {
       // Invalidate all relevant queries to refresh the UI
       queryClient.invalidateQueries({ queryKey: ['device-group-memberships'] });
       queryClient.invalidateQueries({ queryKey: ['device-groups'] });
+      queryClient.invalidateQueries({ queryKey: ['group-devices'] });
       
       toast({
         title: data.alreadyExists ? "Already Assigned! 💛" : "Device Assigned! 🎉",
@@ -226,6 +294,7 @@ export const useRemoveDeviceFromGroup = () => {
       // Invalidate all relevant queries
       queryClient.invalidateQueries({ queryKey: ['device-group-memberships'] });
       queryClient.invalidateQueries({ queryKey: ['device-groups'] });
+      queryClient.invalidateQueries({ queryKey: ['group-devices'] });
       
       toast({
         title: "Device Removed! 🗑️",

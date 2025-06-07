@@ -21,7 +21,12 @@ import {
 import { DeviceGroup } from '@/types/groups';
 import { DeviceStatus } from '@/types/telemetry';
 import { useDevicesQuery } from '@/hooks/useDevicesQuery';
-import { useDeviceGroupMemberships, useAssignDeviceToGroup, useRemoveDeviceFromGroup } from '@/hooks/useDeviceGroups';
+import { 
+  useDeviceGroupMemberships, 
+  useAssignDeviceToGroup, 
+  useRemoveDeviceFromGroup,
+  useGroupDevices 
+} from '@/hooks/useDeviceGroups';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -48,6 +53,7 @@ export const DeviceGroupDetailDialog = ({
 
   const { data: allDevices = [] } = useDevicesQuery();
   const { data: memberships = [], refetch: refetchMemberships } = useDeviceGroupMemberships();
+  const { data: groupDevices = [], refetch: refetchGroupDevices } = useGroupDevices(group?.id);
   const assignDevice = useAssignDeviceToGroup();
   const removeDevice = useRemoveDeviceFromGroup();
 
@@ -55,24 +61,25 @@ export const DeviceGroupDetailDialog = ({
     if (group) {
       setEditedGroup({ ...group });
       setIsEditing(false);
-      setSelectedDevices([]); // Clear selections when group changes
+      setSelectedDevices([]);
+      
+      // Refetch data when group changes
+      refetchMemberships();
+      refetchGroupDevices();
     }
-  }, [group]);
+  }, [group, refetchMemberships, refetchGroupDevices]);
 
-  // Get devices assigned to this group - ensure we're filtering by current group
-  const assignedDevices = group ? allDevices.filter(device => 
-    memberships.some(m => m.device_id === device.id && m.group_id === group.id)
-  ) : [];
+  // Get devices assigned to this group using the new hook
+  const assignedDevices = groupDevices;
 
-  // Get available devices (not in this group)
-  const availableDevices = group ? allDevices.filter(device => 
-    !memberships.some(m => m.device_id === device.id && m.group_id === group.id)
-  ) : [];
+  // Get available devices (not in this group) - filter by device UUIDs
+  const assignedDeviceIds = new Set(assignedDevices.map(device => device.id));
+  const availableDevices = allDevices.filter(device => !assignedDeviceIds.has(device.id));
 
   console.log('🌈 Group Detail Dialog Debug Info:');
   console.log('Group ID:', group?.id);
   console.log('All devices:', allDevices.length);
-  console.log('All memberships:', memberships.length);
+  console.log('Group devices:', groupDevices.length);
   console.log('Assigned devices:', assignedDevices.length);
   console.log('Available devices:', availableDevices.length);
   console.log('Selected devices:', selectedDevices);
@@ -148,10 +155,13 @@ export const DeviceGroupDetailDialog = ({
       // Clear selected devices immediately
       setSelectedDevices([]);
       
-      // Force refresh memberships data
-      await refetchMemberships();
+      // Force refresh both membership and group device data
+      await Promise.all([
+        refetchMemberships(),
+        refetchGroupDevices()
+      ]);
       
-      console.log('🔄 Memberships refreshed');
+      console.log('🔄 Data refreshed');
     } catch (error) {
       console.error('💔 Failed to assign devices:', error);
     }
@@ -170,10 +180,13 @@ export const DeviceGroupDetailDialog = ({
       
       console.log('✅ Device removed successfully');
       
-      // Force refresh memberships data
-      await refetchMemberships();
+      // Force refresh both membership and group device data
+      await Promise.all([
+        refetchMemberships(),
+        refetchGroupDevices()
+      ]);
       
-      console.log('🔄 Memberships refreshed after removal');
+      console.log('🔄 Data refreshed after removal');
     } catch (error) {
       console.error('💔 Failed to remove device:', error);
     }
@@ -368,6 +381,9 @@ export const DeviceGroupDetailDialog = ({
                                 <p className="font-medium">{device.name}</p>
                                 <p className="text-sm text-muted-foreground">
                                   {device.manufacturer} {device.model}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  ID: {device.android_id || device.id}
                                 </p>
                               </div>
                             </div>
