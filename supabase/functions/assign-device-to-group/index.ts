@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -98,6 +99,58 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+    // First, verify that both device and group exist
+    console.log('🔍 Verifying device and group exist...')
+    
+    const [deviceCheck, groupCheck] = await Promise.all([
+      supabase.from('devices').select('id').eq('id', formattedDeviceId).maybeSingle(),
+      supabase.from('device_groups').select('id').eq('id', formattedGroupId).maybeSingle()
+    ]);
+
+    if (deviceCheck.error) {
+      console.error('💔 Error checking device:', deviceCheck.error)
+      return new Response(
+        JSON.stringify({ error: 'Failed to verify device exists' }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    if (!deviceCheck.data) {
+      console.log('💔 Device not found:', formattedDeviceId)
+      return new Response(
+        JSON.stringify({ error: 'Device not found! 🔍' }),
+        { 
+          status: 404, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    if (groupCheck.error) {
+      console.error('💔 Error checking group:', groupCheck.error)
+      return new Response(
+        JSON.stringify({ error: 'Failed to verify group exists' }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    if (!groupCheck.data) {
+      console.log('💔 Group not found:', formattedGroupId)
+      return new Response(
+        JSON.stringify({ error: 'Group not found! 🔍' }),
+        { 
+          status: 404, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
 
     console.log('🌸 Checking if assignment already exists...')
     
