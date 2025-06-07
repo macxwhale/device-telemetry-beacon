@@ -151,17 +151,16 @@ export const useAssignDeviceToGroup = () => {
   
   return useMutation({
     mutationFn: async ({ deviceId, groupId }: { deviceId: string; groupId: string }) => {
-      // Format IDs to proper UUID format before sending
-      const formattedDeviceId = ensureUUID(deviceId, 'Device ID');
+      // Use the device ID as-is (it might be android_id-uuid format)
+      // Only format the group ID to proper UUID format
       const formattedGroupId = ensureUUID(groupId, 'Group ID');
       
-      console.log(`🌈 Calling Edge Function for device ${formattedDeviceId} to group ${formattedGroupId}`);
-      console.log('🌈 Calling Edge Function...');
+      console.log(`🌈 Calling Edge Function for device ${deviceId} to group ${formattedGroupId}`);
       
       try {
         const { data, error } = await supabase.functions.invoke('assign-device-to-group', {
           body: { 
-            deviceId: formattedDeviceId, 
+            deviceId: deviceId, // Send as-is, let Edge Function handle validation
             groupId: formattedGroupId 
           }
         });
@@ -194,7 +193,7 @@ export const useAssignDeviceToGroup = () => {
       console.error(`💔 Failed to assign device ${variables.deviceId} to group ${variables.groupId}:`, error);
       toast({
         title: "Assignment Failed 😞",
-        description: "Oops! Let's try again 🌼",
+        description: error.message || "Oops! Let's try again 🌼",
         variant: "destructive",
       });
     }

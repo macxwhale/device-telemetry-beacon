@@ -1,5 +1,5 @@
 
-import { isValidUUID, formatToUUID } from '@/lib/uuid-utils';
+import { isValidUUID, formatToUUID, isValidDeviceId } from '@/lib/uuid-utils';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -22,18 +22,13 @@ export class DeviceAssignmentValidator {
       warnings: []
     };
 
-    // Validate device ID
+    // Validate device ID (accepts both UUID and hybrid android_id-uuid format)
     if (!data.deviceId) {
       result.errors.push('Device ID is required');
       result.isValid = false;
-    } else {
-      const formattedDeviceId = formatToUUID(data.deviceId);
-      if (!isValidUUID(formattedDeviceId)) {
-        result.errors.push(`Invalid device ID format: ${data.deviceId}`);
-        result.isValid = false;
-      } else if (formattedDeviceId !== data.deviceId) {
-        result.warnings.push(`Device ID will be formatted: ${data.deviceId} → ${formattedDeviceId}`);
-      }
+    } else if (!isValidDeviceId(data.deviceId)) {
+      result.errors.push(`Invalid device ID format: ${data.deviceId}. Expected UUID or android_id-uuid format.`);
+      result.isValid = false;
     }
 
     // Validate group ID
@@ -73,6 +68,13 @@ export class DeviceAssignmentValidator {
         deviceExists: true,
         groupExists: true
       },
+      // Hybrid device ID format (android_id-uuid)
+      {
+        deviceId: '110151380690111-18bd997a-d674-4afe-a05c-4fa964a7f5fc',
+        groupId: '987fcdeb-51a2-43d1-9876-123456789abc',
+        deviceExists: true,
+        groupExists: true
+      },
       // Invalid UUID formats
       {
         deviceId: 'invalid-uuid',
@@ -80,9 +82,9 @@ export class DeviceAssignmentValidator {
         deviceExists: true,
         groupExists: true
       },
-      // Missing hyphens (should be auto-formatted)
+      // Missing hyphens (should be auto-formatted for group)
       {
-        deviceId: '123e4567e89b12d3a456426614174000',
+        deviceId: '123e4567-e89b-12d3-a456-426614174000',
         groupId: '987fcdeb51a243d19876123456789abc',
         deviceExists: true,
         groupExists: true

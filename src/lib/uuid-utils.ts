@@ -1,3 +1,4 @@
+
 export function isValidUUID(uuid: string): boolean {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   return uuidRegex.test(uuid);
@@ -27,4 +28,24 @@ export function ensureUUID(id: string, context?: string): string {
     console.warn(`⚠️ Invalid UUID format for ${context || 'ID'}: ${id}`);
   }
   return formatted;
+}
+
+// New function to handle hybrid device IDs (android_id-uuid format)
+export function extractDeviceUUID(deviceId: string): string {
+  // Check if it's a hybrid format (android_id-uuid)
+  const hybridMatch = deviceId.match(/^[0-9a-f]+-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
+  if (hybridMatch) {
+    return hybridMatch[1]; // Return just the UUID part
+  }
+  
+  // If it's already a UUID or can be formatted as one, use existing logic
+  return formatToUUID(deviceId);
+}
+
+export function isValidDeviceId(deviceId: string): boolean {
+  // Accept either pure UUIDs or hybrid android_id-uuid format
+  const hybridPattern = /^[0-9a-f]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  
+  return hybridPattern.test(deviceId) || uuidPattern.test(deviceId);
 }

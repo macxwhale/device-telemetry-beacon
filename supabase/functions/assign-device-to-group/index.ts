@@ -14,6 +14,14 @@ function isValidUUID(uuid: string): boolean {
   return uuidRegex.test(uuid);
 }
 
+// Helper function to validate device ID (supports hybrid android_id-uuid format)
+function isValidDeviceId(deviceId: string): boolean {
+  const hybridPattern = /^[0-9a-f]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  
+  return hybridPattern.test(deviceId) || uuidPattern.test(deviceId);
+}
+
 // Helper function to format string to UUID if it looks like one
 function formatToUUID(str: string): string {
   // Remove any existing hyphens first
@@ -57,21 +65,15 @@ serve(async (req) => {
       )
     }
 
-    // Format and validate UUIDs
-    const formattedDeviceId = formatToUUID(deviceId);
-    const formattedGroupId = formatToUUID(groupId);
-
-    console.log('✨ Formatted UUIDs:', { 
-      original: { deviceId, groupId },
-      formatted: { deviceId: formattedDeviceId, groupId: formattedGroupId }
-    });
-
-    if (!isValidUUID(formattedDeviceId)) {
-      console.log('💔 Invalid device ID format:', formattedDeviceId)
+    // Validate device ID format (accepts hybrid android_id-uuid format)
+    if (!isValidDeviceId(deviceId)) {
+      console.log('💔 Invalid device ID format:', deviceId)
       return new Response(
         JSON.stringify({ 
-          error: 'Device ID must be a valid UUID format! 🌈',
-          example: '123e4567-e89b-12d3-a456-426614174000'
+          error: 'Device ID must be a valid UUID or android_id-uuid format! 🌈',
+          received: deviceId,
+          example_uuid: '123e4567-e89b-12d3-a456-426614174000',
+          example_hybrid: '110151380690111-18bd997a-d674-4afe-a05c-4fa964a7f5fc'
         }),
         { 
           status: 400, 
@@ -80,11 +82,18 @@ serve(async (req) => {
       )
     }
 
+    // Format and validate group ID as UUID
+    const formattedGroupId = formatToUUID(groupId);
+    console.log('✨ Device ID (accepted as-is):', deviceId);
+    console.log('✨ Formatted Group ID:', formattedGroupId);
+
     if (!isValidUUID(formattedGroupId)) {
       console.log('💔 Invalid group ID format:', formattedGroupId)
       return new Response(
         JSON.stringify({ 
           error: 'Group ID must be a valid UUID format! 🌈',
+          received: groupId,
+          formatted: formattedGroupId,
           example: '123e4567-e89b-12d3-a456-426614174000'
         }),
         { 
@@ -104,14 +113,14 @@ serve(async (req) => {
     console.log('🔍 Verifying device and group exist...')
     
     const [deviceCheck, groupCheck] = await Promise.all([
-      supabase.from('devices').select('id').eq('id', formattedDeviceId).maybeSingle(),
+      supabase.from('devices').select('id').eq('android_id', deviceId).maybeSingle(),
       supabase.from('device_groups').select('id').eq('id', formattedGroupId).maybeSingle()
     ]);
 
     if (deviceCheck.error) {
       console.error('💔 Error checking device:', deviceCheck.error)
       return new Response(
-        JSON.stringify({ error: 'Failed to verify device exists' }),
+        JSON.stringify({ error: 'Failed to verify device exists', details: deviceCheck.error.message }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -120,9 +129,13 @@ serve(async (req) => {
     }
 
     if (!deviceCheck.data) {
-      console.log('💔 Device not found:', formattedDeviceId)
+      console.log('💔 Device not found with android_id:', deviceId)
       return new Response(
-        JSON.stringify({ error: 'Device not found! 🔍' }),
+        JSON.stringify({ 
+          error: 'Device not found! 🔍',
+          searched_android_id: deviceId,
+          hint: 'Make sure the device exists in the devices table'
+        }),
         { 
           status: 404, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -133,7 +146,7 @@ serve(async (req) => {
     if (groupCheck.error) {
       console.error('💔 Error checking group:', groupCheck.error)
       return new Response(
-        JSON.stringify({ error: 'Failed to verify group exists' }),
+        JSON.stringify({ error: 'Failed to verify group exists', details: groupCheck.error.message }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -144,7 +157,10 @@ serve(async (req) => {
     if (!groupCheck.data) {
       console.log('💔 Group not found:', formattedGroupId)
       return new Response(
-        JSON.stringify({ error: 'Group not found! 🔍' }),
+        JSON.stringify({ 
+          error: 'Group not found! 🔍',
+          searched_group_id: formattedGroupId
+        }),
         { 
           status: 404, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -154,18 +170,18 @@ serve(async (req) => {
 
     console.log('🌸 Checking if assignment already exists...')
     
-    // Check if assignment already exists using formatted UUIDs
+    // Check if assignment already exists using the device's UUID and group UUID
     const { data: existing, error: checkError } = await supabase
       .from('device_group_memberships')
       .select('id')
-      .eq('device_id', formattedDeviceId)
+      .eq('device_id', deviceCheck.data.id)
       .eq('group_id', formattedGroupId)
       .maybeSingle()
 
     if (checkError) {
       console.error('💔 Error checking existing assignment:', checkError)
       return new Response(
-        JSON.stringify({ error: 'Failed to check existing assignment' }),
+        JSON.stringify({ error: 'Failed to check existing assignment', details: checkError.message }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -189,11 +205,11 @@ serve(async (req) => {
 
     console.log('🚀 Creating new assignment in database...')
     
-    // Create new assignment using formatted UUIDs
+    // Create new assignment using the device's UUID and group UUID
     const { data, error } = await supabase
       .from('device_group_memberships')
       .insert({ 
-        device_id: formattedDeviceId, 
+        device_id: deviceCheck.data.id, 
         group_id: formattedGroupId 
       })
       .select()
@@ -202,7 +218,11 @@ serve(async (req) => {
     if (error) {
       console.error('💔 Assignment database error:', error)
       return new Response(
-        JSON.stringify({ error: 'DB assignment failed! 🫂', details: error.message }),
+        JSON.stringify({ 
+          error: 'DB assignment failed! 🫂', 
+          details: error.message,
+          hint: 'Check if device_group_memberships table exists and has proper constraints'
+        }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -211,13 +231,15 @@ serve(async (req) => {
     }
 
     console.log('✅ Assignment database operation successful:', data)
-    console.log('📦 DB Result:', data)
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: 'Device assigned to group successfully! 🎉',
-        data 
+        data,
+        device_uuid: deviceCheck.data.id,
+        device_android_id: deviceId,
+        group_id: formattedGroupId
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -229,7 +251,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: 'Edge Function failed!', 
-        details: error.message 
+        details: error.message,
+        stack: error.stack 
       }),
       { 
         status: 500, 
