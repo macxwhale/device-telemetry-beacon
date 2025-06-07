@@ -80,10 +80,10 @@ export const DeviceGroupDetailDialog = ({
   // Get devices assigned to this group using the new hook
   const assignedDevices = groupDevices;
 
-  // Get available devices (not in this group) - filter by Supabase UUIDs
+  // Get available devices (not in this group) - filter by Supabase UUIDs and use device.id
   const assignedDeviceIds = new Set(assignedDevices.map(device => device.id));
   const availableDevices = allDevices.filter(device => {
-    // Ensure we're working with Supabase UUIDs
+    // Ensure we're working with Supabase UUIDs and use device.id for comparison
     if (!isSupabaseUUID(device.id)) {
       console.warn('⚠️ Device has invalid Supabase UUID:', device.id);
       return false;
@@ -144,10 +144,10 @@ export const DeviceGroupDetailDialog = ({
     }
 
     console.log(`🌈 Button clicked! Starting assignment of ${selectedDevices.length} devices to group ${group.id}`);
-    console.log('Device IDs to assign:', selectedDevices);
+    console.log('Device IDs to assign (using device.id):', selectedDevices);
     console.log('Group ID:', group.id);
 
-    // Validate all selected device IDs are Supabase UUIDs
+    // Validate all selected device IDs are Supabase UUIDs (these should be device.id values)
     const invalidDevices = selectedDevices.filter(deviceId => !isSupabaseUUID(deviceId));
     if (invalidDevices.length > 0) {
       console.error('❌ Invalid device ID formats:', invalidDevices);
@@ -160,7 +160,7 @@ export const DeviceGroupDetailDialog = ({
     }
 
     try {
-      // Assign each selected device sequentially with retry logic
+      // Assign each selected device sequentially using device.id
       for (const deviceId of selectedDevices) {
         console.log(`🌸 Assigning device ${deviceId} to group ${group.id}`);
         
@@ -170,7 +170,7 @@ export const DeviceGroupDetailDialog = ({
         while (retryCount <= maxRetries) {
           try {
             await assignDevice.mutateAsync({
-              deviceId, // Supabase UUID
+              deviceId, // This is now device.id (Supabase UUID)
               groupId: group.id // Supabase UUID
             });
             console.log(`✅ Successfully assigned device ${deviceId}`);
@@ -208,7 +208,7 @@ export const DeviceGroupDetailDialog = ({
   const handleRemoveDevice = async (deviceId: string) => {
     if (!group) return;
 
-    // Validate IDs are Supabase UUIDs
+    // Validate IDs are Supabase UUIDs - deviceId should be device.id
     if (!isSupabaseUUID(deviceId) || !isSupabaseUUID(group.id)) {
       console.error('❌ Invalid ID format - Device:', deviceId, 'Group:', group.id);
       toast({
@@ -223,7 +223,7 @@ export const DeviceGroupDetailDialog = ({
 
     try {
       await removeDevice.mutateAsync({
-        deviceId, // Supabase UUID
+        deviceId, // Using device.id (Supabase UUID)
         groupId: group.id // Supabase UUID
       });
       
@@ -344,7 +344,7 @@ export const DeviceGroupDetailDialog = ({
                 </CardContent>
               </Card>
 
-              {/* Assign New Devices */}
+              {/* Assign New Devices - Updated to use device.id */}
               {availableDevices.length > 0 && (
                 <Card>
                   <CardHeader>
@@ -361,13 +361,13 @@ export const DeviceGroupDetailDialog = ({
                                 console.log(`🌈 Checkbox changed for device ${device.id}: ${checked}`);
                                 if (checked) {
                                   setSelectedDevices(prev => {
-                                    const newSelection = [...prev, device.id];
+                                    const newSelection = [...prev, device.id]; // Using device.id
                                     console.log('New selection:', newSelection);
                                     return newSelection;
                                   });
                                 } else {
                                   setSelectedDevices(prev => {
-                                    const newSelection = prev.filter(id => id !== device.id);
+                                    const newSelection = prev.filter(id => id !== device.id); // Using device.id
                                     console.log('New selection after removal:', newSelection);
                                     return newSelection;
                                   });
@@ -402,7 +402,7 @@ export const DeviceGroupDetailDialog = ({
               )}
             </div>
 
-            {/* Assigned Devices */}
+            {/* Assigned Devices - Updated to use device.id */}
             <div>
               <Card className="h-full">
                 <CardHeader>
@@ -442,7 +442,7 @@ export const DeviceGroupDetailDialog = ({
                                 size="sm"
                                 variant="ghost"
                                 className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                onClick={() => handleRemoveDevice(device.id)}
+                                onClick={() => handleRemoveDevice(device.id)} // Using device.id
                                 disabled={removeDevice.isPending}
                               >
                                 <X className="h-4 w-4" />

@@ -75,11 +75,12 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Verify that both device and group exist using Supabase UUIDs
+    // Verify that both device and group exist using device.id (Supabase UUID)
     console.log('🔍 Verifying device and group exist...')
     
     const [deviceCheck, groupCheck] = await Promise.all([
-      supabase.from('devices').select('id, android_id').eq('id', deviceId).maybeSingle(),
+      // Use device.id for lookup instead of android_id
+      supabase.from('devices').select('id, android_id, device_name').eq('id', deviceId).maybeSingle(),
       supabase.from('device_groups').select('id, name').eq('id', groupId).maybeSingle()
     ]);
 
@@ -103,7 +104,7 @@ serve(async (req) => {
         JSON.stringify({ 
           error: 'Device not found',
           searched_device_id: deviceId,
-          hint: 'Ensure you are using the Supabase UUID, not the Android ID'
+          hint: 'Ensure you are using the devices.id (Supabase UUID), not the android_id'
         }),
         { 
           status: 404, 
@@ -142,11 +143,11 @@ serve(async (req) => {
 
     console.log('🌸 Checking if assignment already exists...')
     
-    // Check if assignment already exists using Supabase UUIDs
+    // Check if assignment already exists using device.id (Supabase UUID)
     const { data: existing, error: checkError } = await supabase
       .from('device_group_memberships')
       .select('id')
-      .eq('device_id', deviceId)
+      .eq('device_id', deviceId) // Using device.id
       .eq('group_id', groupId)
       .maybeSingle()
 
@@ -182,11 +183,11 @@ serve(async (req) => {
 
     console.log('🚀 Creating new assignment in database...')
     
-    // Create new assignment using Supabase UUIDs
+    // Create new assignment using device.id (Supabase UUID)
     const { data, error } = await supabase
       .from('device_group_memberships')
       .insert({ 
-        device_id: deviceId, 
+        device_id: deviceId, // Using device.id (Supabase UUID)
         group_id: groupId 
       })
       .select()
@@ -216,7 +217,8 @@ serve(async (req) => {
         data,
         deviceUuid: deviceId,
         groupUuid: groupId,
-        device_android_id: deviceCheck.data.android_id,
+        device_name: deviceCheck.data.device_name,
+        device_android_id: deviceCheck.data.android_id, // Include for reference
         group_name: groupCheck.data.name
       }),
       { 
