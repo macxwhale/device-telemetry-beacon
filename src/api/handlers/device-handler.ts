@@ -1,4 +1,3 @@
-
 // Handlers for device data operations
 
 import { supabase } from "../../integrations/supabase/client";
@@ -11,6 +10,8 @@ import { safelyGetNestedProperty } from "../utils/json-utils";
  */
 export async function getAllDevicesFromApiImplementation(): Promise<DeviceStatus[]> {
   try {
+    console.log('🔍 getAllDevicesFromApiImplementation: Starting device fetch...');
+    
     // Get offline threshold from database
     const offlineThreshold = await getOfflineThreshold();
     console.log(`Using offline threshold of ${offlineThreshold} minutes`);
@@ -32,16 +33,21 @@ export async function getAllDevicesFromApiImplementation(): Promise<DeviceStatus
       `);
       
     if (error) {
-      console.error("Error getting devices from database:", error);
+      console.error("❌ Error getting devices from database:", error);
       return [];
     }
     
     if (!devices || devices.length === 0) {
+      console.log("📱 No devices found in database");
       return [];
     }
     
+    console.log(`📱 Found ${devices.length} devices in database`);
+    
     // For each device, get the latest telemetry data
     const result: DeviceStatus[] = await Promise.all(devices.map(async (device) => {
+      console.log(`🔍 Processing device: ${device.device_name} (ID: ${device.id}, Android ID: ${device.android_id})`);
+      
       const telemetryData = await getLatestDeviceTelemetry(device.id);
       
       // Get IP address from all possible sources with priority order
@@ -68,8 +74,10 @@ export async function getAllDevicesFromApiImplementation(): Promise<DeviceStatus
       console.log(`Device ${device.android_id}: last seen ${device.last_seen}, time diff: ${timeSinceLastSeen}ms, threshold: ${offlineThresholdMs}ms, online: ${isOnline}`);
       
       // Convert database record to DeviceStatus format
-      return {
-        id: device.android_id,
+      // IMPORTANT: Use device.id (Supabase UUID) as the primary identifier
+      const deviceStatus: DeviceStatus = {
+        id: device.id, // ✅ Using Supabase UUID as primary identifier
+        android_id: device.android_id, // Keep for reference
         name: device.device_name || "Unknown Device",
         model: device.model || "Unknown Model",
         manufacturer: device.manufacturer || "Unknown Manufacturer",
@@ -83,13 +91,20 @@ export async function getAllDevicesFromApiImplementation(): Promise<DeviceStatus
         isOnline: isOnline,
         telemetry: telemetryData
       };
+      
+      console.log(`✅ Processed device: ${deviceStatus.name} with ID: ${deviceStatus.id} and Android ID: ${deviceStatus.android_id}`);
+      
+      return deviceStatus;
     }));
     
-    console.log(`Processed ${result.length} devices, online: ${result.filter(d => d.isOnline).length}, offline: ${result.filter(d => !d.isOnline).length}`);
+    console.log(`✅ Processed ${result.length} devices total:`);
+    console.log(`   - Online: ${result.filter(d => d.isOnline).length}`);
+    console.log(`   - Offline: ${result.filter(d => !d.isOnline).length}`);
+    console.log(`   - Sample device IDs: ${result.slice(0, 3).map(d => `${d.name}: ${d.id}`).join(', ')}`);
     
     return result;
   } catch (error) {
-    console.error("Error in getAllDevicesFromApiImplementation:", error);
+    console.error("💔 Error in getAllDevicesFromApiImplementation:", error);
     return [];
   }
 }
@@ -102,6 +117,8 @@ async function getLatestDeviceTelemetry(deviceId: string): Promise<any> {
   let latestDeviceTelemetry = null;
   let latestTelemetryHistory = null;
   
+  console.log(`🔍 Getting telemetry for device ID: ${deviceId}`);
+  
   // Try to get data from device_telemetry table first
   try {
     const { data: deviceTelemetry, error: deviceTelemetryError } = await supabase
@@ -113,12 +130,13 @@ async function getLatestDeviceTelemetry(deviceId: string): Promise<any> {
       .maybeSingle();
       
     if (deviceTelemetryError) {
-      console.warn(`Error getting device_telemetry for device ${deviceId}:`, deviceTelemetryError);
+      console.warn(`⚠️ Error getting device_telemetry for device ${deviceId}:`, deviceTelemetryError);
     } else if (deviceTelemetry) {
       latestDeviceTelemetry = deviceTelemetry;
+      console.log(`✅ Found device_telemetry data for device ${deviceId}`);
     }
   } catch (error) {
-    console.warn(`Failed to query device_telemetry for device ${deviceId}:`, error);
+    console.warn(`⚠️ Failed to query device_telemetry for device ${deviceId}:`, error);
   }
   
   // Get latest telemetry record from history table
@@ -131,9 +149,10 @@ async function getLatestDeviceTelemetry(deviceId: string): Promise<any> {
     .maybeSingle();
     
   if (telemetryError) {
-    console.error(`Error getting telemetry for device ${deviceId}:`, telemetryError);
+    console.error(`❌ Error getting telemetry_history for device ${deviceId}:`, telemetryError);
   } else if (telemetryRecords) {
     latestTelemetryHistory = telemetryRecords;
+    console.log(`✅ Found telemetry_history data for device ${deviceId}`);
   }
   
   // Use the most recent data from either source
@@ -143,7 +162,8 @@ async function getLatestDeviceTelemetry(deviceId: string): Promise<any> {
     const telemetryHistoryTime = new Date(latestTelemetryHistory.timestamp).getTime();
     
     if (deviceTelemetryTime >= telemetryHistoryTime) {
-      // Use structured device_telemetry data
+      console.log(`📊 Using device_telemetry data for device ${deviceId} (more recent)`);
+      // ... keep existing code (structured device_telemetry data mapping)
       telemetryData = {
         device_info: {
           device_name: latestDeviceTelemetry.device_name,
@@ -195,11 +215,13 @@ async function getLatestDeviceTelemetry(deviceId: string): Promise<any> {
         os_type: latestDeviceTelemetry.os_type
       };
     } else {
+      console.log(`📊 Using telemetry_history data for device ${deviceId} (more recent)`);
       // Use JSONB telemetry_history data
       telemetryData = latestTelemetryHistory.telemetry_data;
     }
   } else if (latestDeviceTelemetry) {
-    // Only have device_telemetry data
+    console.log(`📊 Using device_telemetry data for device ${deviceId} (only source)`);
+    // ... keep existing code (only have device_telemetry data)
     telemetryData = {
       device_info: {
         device_name: latestDeviceTelemetry.device_name,
@@ -251,8 +273,11 @@ async function getLatestDeviceTelemetry(deviceId: string): Promise<any> {
       os_type: latestDeviceTelemetry.os_type
     };
   } else if (latestTelemetryHistory) {
+    console.log(`📊 Using telemetry_history data for device ${deviceId} (only source)`);
     // Only have telemetry_history data
     telemetryData = latestTelemetryHistory.telemetry_data;
+  } else {
+    console.log(`⚠️ No telemetry data found for device ${deviceId}`);
   }
   
   return telemetryData;

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -62,6 +63,12 @@ export const DeviceGroupDetailDialog = ({
 
   useEffect(() => {
     if (group) {
+      console.log('🔄 Group changed, setting up dialog for group:', {
+        groupId: group.id,
+        groupName: group.name,
+        isValidGroupId: isSupabaseUUID(group.id)
+      });
+      
       // Validate group ID is a Supabase UUID
       if (!isSupabaseUUID(group.id)) {
         console.error('❌ Invalid group ID format:', group.id);
@@ -73,40 +80,121 @@ export const DeviceGroupDetailDialog = ({
       setSelectedDevices([]);
       
       // Refetch data when group changes
+      console.log('🔄 Refetching memberships and group devices...');
       refetchMemberships();
       refetchGroupDevices();
     }
   }, [group, refetchMemberships, refetchGroupDevices]);
 
-  // Get devices assigned to this group using the new hook
-  const assignedDevices = groupDevices;
-
-  // Get available devices (not in this group) - filter by Supabase UUIDs and use device.id
-  const assignedDeviceIds = new Set(assignedDevices.map(device => device.id));
-  const availableDevices = allDevices.filter(device => {
-    // Ensure we're working with Supabase UUIDs and use device.id for comparison
-    if (!isSupabaseUUID(device.id)) {
-      console.warn('⚠️ Device has invalid Supabase UUID:', device.id);
-      return false;
-    }
-    return !assignedDeviceIds.has(device.id);
+  // Comprehensive logging for device data analysis
+  console.log('=== DEVICE GROUP DIALOG DEBUG START ===');
+  console.log('📊 Current State:', {
+    isOpen,
+    groupId: group?.id,
+    groupName: group?.name,
+    selectedDevices: selectedDevices.length,
+    isEditing
   });
 
-  console.log('🔍 Group Detail Dialog Debug Info:');
-  console.log('Group ID:', group?.id);
-  console.log('All devices:', allDevices.length);
+  console.log('📱 ALL DEVICES ANALYSIS:');
+  console.log('Total devices from query:', allDevices.length);
   console.log('Devices loading:', devicesLoading);
   console.log('Devices error:', devicesError);
-  console.log('Group devices:', groupDevices.length);
+  
+  if (allDevices.length > 0) {
+    console.log('First 3 devices structure:', allDevices.slice(0, 3).map(d => ({
+      id: d.id,
+      android_id: d.android_id || 'NO_ANDROID_ID',
+      name: d.name,
+      isValidId: isSupabaseUUID(d.id),
+      hasAndroidId: !!d.android_id,
+      idType: typeof d.id,
+      androidIdType: typeof d.android_id
+    })));
+  }
+
+  console.log('🔗 GROUP DEVICES ANALYSIS:');
+  console.log('Group devices count:', groupDevices.length);
+  if (groupDevices.length > 0) {
+    console.log('Group devices structure:', groupDevices.map(d => ({
+      id: d.id,
+      android_id: d.android_id || 'NO_ANDROID_ID',
+      name: d.name,
+      isValidId: isSupabaseUUID(d.id),
+      membership_id: d.membership_id
+    })));
+  }
+
+  console.log('🔗 MEMBERSHIPS ANALYSIS:');
+  console.log('Total memberships:', memberships.length);
+  if (memberships.length > 0) {
+    console.log('Sample memberships:', memberships.slice(0, 3).map(m => ({
+      id: m.id,
+      device_id: m.device_id,
+      group_id: m.group_id,
+      isValidDeviceId: isSupabaseUUID(m.device_id),
+      isValidGroupId: isSupabaseUUID(m.group_id)
+    })));
+  }
+
+  // Get devices assigned to this group
+  const assignedDevices = groupDevices;
+  console.log('📍 ASSIGNED DEVICES:', assignedDevices.length);
+
+  // Create a set of assigned device IDs for filtering
+  const assignedDeviceIds = new Set(assignedDevices.map(device => {
+    console.log('🔍 Processing assigned device:', {
+      id: device.id,
+      android_id: device.android_id,
+      name: device.name,
+      usingId: device.id
+    });
+    return device.id; // Use the Supabase UUID
+  }));
+
+  console.log('📋 ASSIGNED DEVICE IDS SET:', Array.from(assignedDeviceIds));
+
+  // Filter available devices (not assigned to this group)
+  const availableDevices = allDevices.filter(device => {
+    const isValidUUID = isSupabaseUUID(device.id);
+    const isNotAssigned = !assignedDeviceIds.has(device.id);
+    
+    console.log('🔍 Filtering device:', {
+      id: device.id,
+      android_id: device.android_id,
+      name: device.name,
+      isValidUUID,
+      isNotAssigned,
+      willBeIncluded: isValidUUID && isNotAssigned
+    });
+    
+    if (!isValidUUID) {
+      console.warn('⚠️ Device has invalid Supabase UUID:', {
+        id: device.id,
+        android_id: device.android_id,
+        name: device.name
+      });
+      return false;
+    }
+    
+    return isNotAssigned;
+  });
+
+  console.log('✅ AVAILABLE DEVICES FINAL:', {
+    count: availableDevices.length,
+    devices: availableDevices.map(d => ({
+      id: d.id,
+      name: d.name,
+      android_id: d.android_id
+    }))
+  });
+
+  console.log('🎯 FILTERING SUMMARY:');
+  console.log('Total devices:', allDevices.length);
   console.log('Assigned devices:', assignedDevices.length);
   console.log('Available devices:', availableDevices.length);
-  console.log('Selected devices:', selectedDevices);
-  
-  // Enhanced debugging for device filtering
-  console.log('📊 Detailed Device Analysis:');
-  console.log('All devices details:', allDevices.map(d => ({ id: d.id, name: d.name, isValidUUID: isSupabaseUUID(d.id) })));
-  console.log('Assigned device IDs:', Array.from(assignedDeviceIds));
-  console.log('Available devices details:', availableDevices.map(d => ({ id: d.id, name: d.name })));
+  console.log('Selected devices:', selectedDevices.length);
+  console.log('=== DEVICE GROUP DIALOG DEBUG END ===');
 
   const colorOptions = [
     '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'
@@ -156,7 +244,7 @@ export const DeviceGroupDetailDialog = ({
     console.log('Device IDs to assign (using device.id):', selectedDevices);
     console.log('Group ID:', group.id);
 
-    // Validate all selected device IDs are Supabase UUIDs (these should be device.id values)
+    // Validate all selected device IDs are Supabase UUIDs
     const invalidDevices = selectedDevices.filter(deviceId => !isSupabaseUUID(deviceId));
     if (invalidDevices.length > 0) {
       console.error('❌ Invalid device ID formats:', invalidDevices);
@@ -169,7 +257,7 @@ export const DeviceGroupDetailDialog = ({
     }
 
     try {
-      // Assign each selected device sequentially using device.id
+      // Assign each selected device sequentially
       for (const deviceId of selectedDevices) {
         console.log(`🌸 Assigning device ${deviceId} to group ${group.id}`);
         
@@ -179,7 +267,7 @@ export const DeviceGroupDetailDialog = ({
         while (retryCount <= maxRetries) {
           try {
             await assignDevice.mutateAsync({
-              deviceId, // This is now device.id (Supabase UUID)
+              deviceId, // This is device.id (Supabase UUID)
               groupId: group.id // Supabase UUID
             });
             console.log(`✅ Successfully assigned device ${deviceId}`);
@@ -217,7 +305,7 @@ export const DeviceGroupDetailDialog = ({
   const handleRemoveDevice = async (deviceId: string) => {
     if (!group) return;
 
-    // Validate IDs are Supabase UUIDs - deviceId should be device.id
+    // Validate IDs are Supabase UUIDs
     if (!isSupabaseUUID(deviceId) || !isSupabaseUUID(group.id)) {
       console.error('❌ Invalid ID format - Device:', deviceId, 'Group:', group.id);
       toast({
@@ -376,11 +464,19 @@ export const DeviceGroupDetailDialog = ({
                     </div>
                   ) : (
                     <div>
-                      <div className="mb-4 p-3 bg-muted rounded text-sm">
-                        <strong>Debug Info:</strong>
-                        <br />Total devices: {allDevices.length}
-                        <br />Assigned to group: {assignedDevices.length}
-                        <br />Available: {availableDevices.length}
+                      {/* Enhanced Debug Info for UI */}
+                      <div className="mb-4 p-3 bg-muted rounded text-sm space-y-1">
+                        <strong>🔍 Debug Info:</strong>
+                        <div>Total devices in system: {allDevices.length}</div>
+                        <div>Devices assigned to this group: {assignedDevices.length}</div>
+                        <div>Available devices for assignment: {availableDevices.length}</div>
+                        <div>Currently selected: {selectedDevices.length}</div>
+                        <div>Group ID valid: {group?.id ? isSupabaseUUID(group.id) ? '✅' : '❌' : 'N/A'}</div>
+                        <div>Devices loading: {devicesLoading ? '🔄' : '✅'}</div>
+                        <div>Has devices error: {devicesError ? '❌' : '✅'}</div>
+                        {allDevices.length > 0 && (
+                          <div>First device ID format: {isSupabaseUUID(allDevices[0].id) ? '✅ Valid UUID' : '❌ Invalid UUID'}</div>
+                        )}
                       </div>
                       
                       {availableDevices.length === 0 ? (
@@ -393,6 +489,11 @@ export const DeviceGroupDetailDialog = ({
                               : "All devices are already assigned to this group"
                             }
                           </p>
+                          {allDevices.length > 0 && assignedDevices.length === allDevices.length && (
+                            <p className="text-xs mt-1 text-yellow-600">
+                              All {allDevices.length} devices are assigned to this group
+                            </p>
+                          )}
                         </div>
                       ) : (
                         <div className="space-y-3">
@@ -402,16 +503,16 @@ export const DeviceGroupDetailDialog = ({
                                 <Checkbox
                                   checked={selectedDevices.includes(device.id)}
                                   onCheckedChange={(checked) => {
-                                    console.log(`🌈 Checkbox changed for device ${device.id}: ${checked}`);
+                                    console.log(`🌈 Checkbox changed for device ${device.id} (${device.name}): ${checked}`);
                                     if (checked) {
                                       setSelectedDevices(prev => {
-                                        const newSelection = [...prev, device.id]; // Using device.id
+                                        const newSelection = [...prev, device.id];
                                         console.log('New selection:', newSelection);
                                         return newSelection;
                                       });
                                     } else {
                                       setSelectedDevices(prev => {
-                                        const newSelection = prev.filter(id => id !== device.id); // Using device.id
+                                        const newSelection = prev.filter(id => id !== device.id);
                                         console.log('New selection after removal:', newSelection);
                                         return newSelection;
                                       });
@@ -421,7 +522,10 @@ export const DeviceGroupDetailDialog = ({
                                 <div className="flex-1">
                                   <p className="font-medium">{device.name}</p>
                                   <p className="text-sm text-muted-foreground">{device.model}</p>
-                                  <p className="text-xs text-muted-foreground">UUID: {device.id}</p>
+                                  <p className="text-xs text-muted-foreground">ID: {device.id}</p>
+                                  {device.android_id && (
+                                    <p className="text-xs text-muted-foreground">Android ID: {device.android_id}</p>
+                                  )}
                                 </div>
                                 <Badge variant={device.isOnline ? "default" : "secondary"}>
                                   {device.isOnline ? 'Online' : 'Offline'}
@@ -437,7 +541,7 @@ export const DeviceGroupDetailDialog = ({
                               className="w-full"
                             >
                               <Plus className="h-4 w-4 mr-2" />
-                              {assignDevice.isPending ? '💛 Assigning...' : `🎉 Assign ${selectedDevices.length} Device(s)`}
+                              {assignDevice.isPending ? '🔄 Assigning...' : `🎉 Assign ${selectedDevices.length} Device(s)`}
                             </Button>
                           )}
                         </div>
@@ -448,7 +552,7 @@ export const DeviceGroupDetailDialog = ({
               </Card>
             </div>
 
-            {/* Assigned Devices - Updated to use device.id */}
+            {/* Assigned Devices */}
             <div>
               <Card className="h-full">
                 <CardHeader>
@@ -473,11 +577,13 @@ export const DeviceGroupDetailDialog = ({
                                   {device.manufacturer} {device.model}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  UUID: {device.id}
+                                  ID: {device.id}
                                 </p>
-                                <p className="text-xs text-muted-foreground">
-                                  Android ID: {device.android_id}
-                                </p>
+                                {device.android_id && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Android ID: {device.android_id}
+                                  </p>
+                                )}
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -488,7 +594,7 @@ export const DeviceGroupDetailDialog = ({
                                 size="sm"
                                 variant="ghost"
                                 className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                onClick={() => handleRemoveDevice(device.id)} // Using device.id
+                                onClick={() => handleRemoveDevice(device.id)}
                                 disabled={removeDevice.isPending}
                               >
                                 <X className="h-4 w-4" />
