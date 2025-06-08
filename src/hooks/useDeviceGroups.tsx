@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DeviceGroup, DeviceGroupMembership } from '@/types/groups';
 import { DeviceAssignmentRequest, validateDeviceAssignment, isSupabaseUUID } from '@/types/device-ids';
+import { DeviceStatus } from '@/types/telemetry';
 import { toast } from '@/hooks/use-toast';
 
 export const useDeviceGroups = () => {
@@ -54,7 +55,7 @@ export const useDeviceGroupMemberships = (deviceId?: string) => {
 export const useGroupDevices = (groupId?: string) => {
   return useQuery({
     queryKey: ['group-devices', groupId],
-    queryFn: async () => {
+    queryFn: async (): Promise<DeviceStatus[]> => {
       if (!groupId) return [];
       
       // Validate group ID is a proper Supabase UUID
@@ -88,16 +89,23 @@ export const useGroupDevices = (groupId?: string) => {
       
       console.log(`✅ Found ${data?.length || 0} devices for group ${groupId}`);
       
-      // Transform the data and use the proper Supabase UUID (devices.id)
-      const devices = data?.map(membership => ({
+      // Transform the data and create complete DeviceStatus objects
+      const devices: DeviceStatus[] = data?.map(membership => ({
         id: membership.devices.id, // This is the Supabase UUID we should use
         android_id: membership.devices.android_id, // Keep for reference but don't use for assignments
         name: membership.devices.device_name || 'Unknown Device',
         manufacturer: membership.devices.manufacturer || 'Unknown',
         model: membership.devices.model || 'Unknown',
-        last_seen: membership.devices.last_seen,
+        os_version: 'Unknown', // Default value for missing property
+        last_seen: membership.devices.last_seen ? new Date(membership.devices.last_seen).getTime() : 0,
+        battery_level: 0, // Default value for missing property
+        battery_status: 'Unknown', // Default value for missing property
+        network_type: 'Unknown', // Default value for missing property
+        ip_address: '0.0.0.0', // Default value for missing property
+        uptime_millis: 0, // Default value for missing property
         isOnline: membership.devices.last_seen ? 
           (Date.now() - new Date(membership.devices.last_seen).getTime()) < 5 * 60 * 1000 : false,
+        telemetry: null, // Default value for missing property
         membership_id: membership.id
       })) || [];
       
