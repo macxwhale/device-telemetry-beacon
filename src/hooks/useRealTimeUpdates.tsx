@@ -21,9 +21,9 @@ export const useRealTimeUpdates = ({
     const updateData = () => {
       const now = Date.now();
       
-      // Prevent too frequent updates (minimum 60 seconds between updates)
+      // Prevent too frequent automatic updates (minimum 60 seconds between automatic updates)
       if (now - lastUpdateRef.current < 60000) {
-        console.log("Skipping update - too frequent");
+        console.log("Skipping automatic update - too frequent");
         return;
       }
       
@@ -31,6 +31,9 @@ export const useRealTimeUpdates = ({
       
       // Invalidate and refetch devices query
       queryClient.invalidateQueries({ queryKey: ['devices'] });
+      queryClient.invalidateQueries({ queryKey: ['device-groups'] });
+      queryClient.invalidateQueries({ queryKey: ['device-group-memberships'] });
+      queryClient.invalidateQueries({ queryKey: ['group-devices'] });
       console.log("Real-time update triggered");
     };
 
@@ -57,18 +60,18 @@ export const useRealTimeUpdates = ({
     };
   }, [enabled, interval, queryClient]);
 
-  // Manual refresh function with rate limiting
+  // Manual refresh function - always works regardless of rate limiting
   const refresh = () => {
-    const now = Date.now();
-    if (now - lastUpdateRef.current >= 5000) { // Allow manual refresh every 5 seconds (reduced from 10)
-      lastUpdateRef.current = now;
-      queryClient.invalidateQueries({ queryKey: ['devices'] });
-      console.log("Manual refresh triggered");
-      return true;
-    } else {
-      console.log("Manual refresh rate limited");
-      return false;
-    }
+    console.log("Manual refresh triggered");
+    lastUpdateRef.current = Date.now();
+    
+    // Invalidate all relevant queries for a complete refresh
+    queryClient.invalidateQueries({ queryKey: ['devices'] });
+    queryClient.invalidateQueries({ queryKey: ['device-groups'] });
+    queryClient.invalidateQueries({ queryKey: ['device-group-memberships'] });
+    queryClient.invalidateQueries({ queryKey: ['group-devices'] });
+    
+    return true;
   };
 
   return { refresh };

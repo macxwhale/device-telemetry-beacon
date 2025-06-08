@@ -1,4 +1,3 @@
-
 import { useEffect, memo, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 import { DeviceStats } from "@/components/dashboard/DeviceStats";
@@ -21,8 +20,9 @@ const Index = memo(() => {
   const handleRefresh = useCallback(async () => {
     console.log("🔄 Dashboard refresh button clicked");
     try {
-      await refetch();
+      // Force immediate refresh without rate limiting
       refresh();
+      await refetch();
       console.log("✅ Dashboard refresh completed");
     } catch (error) {
       console.error("❌ Dashboard refresh failed:", error);
