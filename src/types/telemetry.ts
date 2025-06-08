@@ -77,6 +77,7 @@ export interface TelemetryData {
 
 export interface DeviceStatus {
   id: string;
+  android_id?: string; // Added this property
   name: string;
   model: string;
   manufacturer: string;
