@@ -90,6 +90,7 @@ export interface DeviceStatus {
   uptime_millis: number;
   isOnline: boolean;
   telemetry: TelemetryData | null;
+  membership_id?: string; // Added this property for group memberships
 }
 
 export interface DeviceHistory {
