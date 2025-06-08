@@ -1,23 +1,8 @@
 
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { 
   Users, 
-  Settings, 
-  Trash2, 
-  Save, 
-  Plus, 
-  X,
-  Smartphone,
-  Calendar,
   AlertCircle
 } from 'lucide-react';
 import { DeviceGroup } from '@/types/groups';
@@ -30,10 +15,11 @@ import {
   useRemoveDeviceFromGroup,
   useGroupDevices 
 } from '@/hooks/useDeviceGroups';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { toast } from '@/hooks/use-toast';
+import { GroupInformationCard } from './GroupInformationCard';
+import { DeviceAssignmentCard } from './DeviceAssignmentCard';
+import { AssignedDevicesCard } from './AssignedDevicesCard';
 
 interface DeviceGroupDetailDialogProps {
   group: DeviceGroup | null;
@@ -125,80 +111,15 @@ export const DeviceGroupDetailDialog = ({
     })));
   }
 
-  console.log('🔗 MEMBERSHIPS ANALYSIS:');
-  console.log('Total memberships:', memberships.length);
-  if (memberships.length > 0) {
-    console.log('Sample memberships:', memberships.slice(0, 3).map(m => ({
-      id: m.id,
-      device_id: m.device_id,
-      group_id: m.group_id,
-      isValidDeviceId: isSupabaseUUID(m.device_id),
-      isValidGroupId: isSupabaseUUID(m.group_id)
-    })));
-  }
-
   // Get devices assigned to this group
   const assignedDevices = groupDevices;
   console.log('📍 ASSIGNED DEVICES:', assignedDevices.length);
 
-  // Create a set of assigned device IDs for filtering
-  const assignedDeviceIds = new Set(assignedDevices.map(device => {
-    console.log('🔍 Processing assigned device:', {
-      id: device.id,
-      android_id: device.android_id,
-      name: device.name,
-      usingId: device.id
-    });
-    return device.id; // Use the Supabase UUID
-  }));
-
-  console.log('📋 ASSIGNED DEVICE IDS SET:', Array.from(assignedDeviceIds));
-
-  // Filter available devices (not assigned to this group)
-  const availableDevices = allDevices.filter(device => {
-    const isValidUUID = isSupabaseUUID(device.id);
-    const isNotAssigned = !assignedDeviceIds.has(device.id);
-    
-    console.log('🔍 Filtering device:', {
-      id: device.id,
-      android_id: device.android_id,
-      name: device.name,
-      isValidUUID,
-      isNotAssigned,
-      willBeIncluded: isValidUUID && isNotAssigned
-    });
-    
-    if (!isValidUUID) {
-      console.warn('⚠️ Device has invalid Supabase UUID:', {
-        id: device.id,
-        android_id: device.android_id,
-        name: device.name
-      });
-      return false;
-    }
-    
-    return isNotAssigned;
-  });
-
-  console.log('✅ AVAILABLE DEVICES FINAL:', {
-    count: availableDevices.length,
-    devices: availableDevices.map(d => ({
-      id: d.id,
-      name: d.name,
-      android_id: d.android_id
-    }))
-  });
-
   console.log('🎯 FILTERING SUMMARY:');
   console.log('Total devices:', allDevices.length);
   console.log('Assigned devices:', assignedDevices.length);
-  console.log('Available devices:', availableDevices.length);
   console.log('Selected devices:', selectedDevices.length);
   console.log('=== DEVICE GROUP DIALOG DEBUG END ===');
-
-  const colorOptions = [
-    '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'
-  ];
 
   const handleSave = async () => {
     if (!editedGroup) return;
@@ -357,256 +278,37 @@ export const DeviceGroupDetailDialog = ({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
             {/* Group Details */}
             <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center justify-between">
-                    Group Information
-                    <div className="flex gap-2">
-                      {isEditing ? (
-                        <>
-                          <Button size="sm" onClick={handleSave}>
-                            <Save className="h-4 w-4 mr-1" />
-                            Save
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => {
-                            setEditedGroup({ ...group });
-                            setIsEditing(false);
-                          }}>
-                            Cancel
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
-                            <Settings className="h-4 w-4 mr-1" />
-                            Edit
-                          </Button>
-                          <Button size="sm" variant="destructive" onClick={() => setShowDeleteDialog(true)}>
-                            <Trash2 className="h-4 w-4 mr-1" />
-                            Delete
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="name">Group Name</Label>
-                    <Input
-                      id="name"
-                      value={editedGroup.name}
-                      onChange={(e) => setEditedGroup(prev => prev ? { ...prev, name: e.target.value } : null)}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      value={editedGroup.description || ''}
-                      onChange={(e) => setEditedGroup(prev => prev ? { ...prev, description: e.target.value } : null)}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label>Color</Label>
-                    <div className="flex gap-2 mt-2">
-                      {colorOptions.map((color) => (
-                        <button
-                          key={color}
-                          className={`w-8 h-8 rounded-full border-2 ${
-                            editedGroup.color === color ? 'border-gray-800' : 'border-gray-300'
-                          } ${!isEditing ? 'cursor-default' : 'cursor-pointer'}`}
-                          style={{ backgroundColor: color }}
-                          onClick={() => isEditing && setEditedGroup(prev => prev ? { ...prev, color } : null)}
-                          disabled={!isEditing}
-                        />
-                      ))}
-                    </div>
-                  </div>
+              <GroupInformationCard
+                group={group}
+                editedGroup={editedGroup}
+                setEditedGroup={setEditedGroup}
+                isEditing={isEditing}
+                setIsEditing={setIsEditing}
+                assignedDevicesCount={assignedDevices.length}
+                onSave={handleSave}
+                onDelete={() => setShowDeleteDialog(true)}
+              />
 
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-4 w-4" />
-                      Created: {new Date(group.created_at).toLocaleDateString()}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Smartphone className="h-4 w-4" />
-                      {assignedDevices.length} devices
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Assign New Devices - Always show this section */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Assign Devices</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {devicesLoading ? (
-                    <div className="flex items-center justify-center py-8">
-                      <div className="text-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                        <p className="text-sm text-muted-foreground">Loading devices...</p>
-                      </div>
-                    </div>
-                  ) : devicesError ? (
-                    <div className="flex items-center justify-center py-8">
-                      <div className="text-center">
-                        <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
-                        <p className="text-sm text-destructive">Failed to load devices</p>
-                        <p className="text-xs text-muted-foreground">{devicesError.message}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      {/* Enhanced Debug Info for UI */}
-                      <div className="mb-4 p-3 bg-muted rounded text-sm space-y-1">
-                        <strong>🔍 Debug Info:</strong>
-                        <div>Total devices in system: {allDevices.length}</div>
-                        <div>Devices assigned to this group: {assignedDevices.length}</div>
-                        <div>Available devices for assignment: {availableDevices.length}</div>
-                        <div>Currently selected: {selectedDevices.length}</div>
-                        <div>Group ID valid: {group?.id ? isSupabaseUUID(group.id) ? '✅' : '❌' : 'N/A'}</div>
-                        <div>Devices loading: {devicesLoading ? '🔄' : '✅'}</div>
-                        <div>Has devices error: {devicesError ? '❌' : '✅'}</div>
-                        {allDevices.length > 0 && (
-                          <div>First device ID format: {isSupabaseUUID(allDevices[0].id) ? '✅ Valid UUID' : '❌ Invalid UUID'}</div>
-                        )}
-                      </div>
-                      
-                      {availableDevices.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <Smartphone className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p>No available devices to assign</p>
-                          <p className="text-xs mt-1">
-                            {allDevices.length === 0 
-                              ? "No devices found in your system" 
-                              : "All devices are already assigned to this group"
-                            }
-                          </p>
-                          {allDevices.length > 0 && assignedDevices.length === allDevices.length && (
-                            <p className="text-xs mt-1 text-yellow-600">
-                              All {allDevices.length} devices are assigned to this group
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <ScrollArea className="h-40">
-                            {availableDevices.map((device) => (
-                              <div key={device.id} className="flex items-center space-x-2 p-2">
-                                <Checkbox
-                                  checked={selectedDevices.includes(device.id)}
-                                  onCheckedChange={(checked) => {
-                                    console.log(`🌈 Checkbox changed for device ${device.id} (${device.name}): ${checked}`);
-                                    if (checked) {
-                                      setSelectedDevices(prev => {
-                                        const newSelection = [...prev, device.id];
-                                        console.log('New selection:', newSelection);
-                                        return newSelection;
-                                      });
-                                    } else {
-                                      setSelectedDevices(prev => {
-                                        const newSelection = prev.filter(id => id !== device.id);
-                                        console.log('New selection after removal:', newSelection);
-                                        return newSelection;
-                                      });
-                                    }
-                                  }}
-                                />
-                                <div className="flex-1">
-                                  <p className="font-medium">{device.name}</p>
-                                  <p className="text-sm text-muted-foreground">{device.model}</p>
-                                  <p className="text-xs text-muted-foreground">ID: {device.id}</p>
-                                  {device.android_id && (
-                                    <p className="text-xs text-muted-foreground">Android ID: {device.android_id}</p>
-                                  )}
-                                </div>
-                                <Badge variant={device.isOnline ? "default" : "secondary"}>
-                                  {device.isOnline ? 'Online' : 'Offline'}
-                                </Badge>
-                              </div>
-                            ))}
-                          </ScrollArea>
-                          
-                          {selectedDevices.length > 0 && (
-                            <Button 
-                              onClick={handleAssignDevices}
-                              disabled={assignDevice.isPending}
-                              className="w-full"
-                            >
-                              <Plus className="h-4 w-4 mr-2" />
-                              {assignDevice.isPending ? '🔄 Assigning...' : `🎉 Assign ${selectedDevices.length} Device(s)`}
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <DeviceAssignmentCard
+                group={group}
+                allDevices={allDevices}
+                assignedDevices={assignedDevices}
+                devicesLoading={devicesLoading}
+                devicesError={devicesError}
+                selectedDevices={selectedDevices}
+                setSelectedDevices={setSelectedDevices}
+                onAssignDevices={handleAssignDevices}
+                assignDevicesPending={assignDevice.isPending}
+              />
             </div>
 
             {/* Assigned Devices */}
             <div>
-              <Card className="h-full">
-                <CardHeader>
-                  <CardTitle className="text-lg">Assigned Devices ({assignedDevices.length})</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-96">
-                    {assignedDevices.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Smartphone className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>No devices assigned to this group</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {assignedDevices.map((device) => (
-                          <div key={device.id} className="flex items-center justify-between p-3 border rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <Smartphone className="h-5 w-5 text-muted-foreground" />
-                              <div>
-                                <p className="font-medium">{device.name}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  {device.manufacturer} {device.model}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  ID: {device.id}
-                                </p>
-                                {device.android_id && (
-                                  <p className="text-xs text-muted-foreground">
-                                    Android ID: {device.android_id}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Badge variant={device.isOnline ? "default" : "secondary"}>
-                                {device.isOnline ? 'Online' : 'Offline'}
-                              </Badge>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                onClick={() => handleRemoveDevice(device.id)}
-                                disabled={removeDevice.isPending}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </ScrollArea>
-                </CardContent>
-              </Card>
+              <AssignedDevicesCard
+                assignedDevices={assignedDevices}
+                onRemoveDevice={handleRemoveDevice}
+                removeDevicePending={removeDevice.isPending}
+              />
             </div>
           </div>
         </DialogContent>
