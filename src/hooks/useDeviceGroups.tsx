@@ -2,9 +2,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DeviceGroup, DeviceGroupMembership } from '@/types/groups';
-import { DeviceAssignmentRequest, validateDeviceAssignment, isSupabaseUUID } from '@/types/device-ids';
+import { DeviceAssignmentRequest } from '@/types/device-ids';
 import { DeviceStatus } from '@/types/telemetry';
 import { toast } from '@/hooks/use-toast';
+import { DeviceAssignmentService } from '@/services/deviceAssignmentService';
 
 export const useDeviceGroups = () => {
   return useQuery({
@@ -42,76 +43,21 @@ export const useDeviceGroupMemberships = (deviceId?: string) => {
       }
       
       console.log('✅ Fetched memberships:', data?.length || 0, 'records');
-      console.log('📋 Membership data:', data);
-      
       return data || [];
     },
-    staleTime: 0, // Always refetch to ensure fresh data
+    staleTime: 0,
     refetchOnWindowFocus: true
   });
 };
 
-// Updated hook to use device.id (Supabase UUID) instead of android_id
 export const useGroupDevices = (groupId?: string) => {
   return useQuery({
     queryKey: ['group-devices', groupId],
     queryFn: async (): Promise<DeviceStatus[]> => {
       if (!groupId) return [];
-      
-      // Validate group ID is a proper Supabase UUID
-      if (!isSupabaseUUID(groupId)) {
-        console.error('❌ Invalid group ID format:', groupId);
-        throw new Error('Group ID must be a valid Supabase UUID');
-      }
-      
-      console.log(`🔍 Fetching devices for group ${groupId}...`);
-      
-      // Get memberships for this group and join with device data using device.id
-      const { data, error } = await supabase
-        .from('device_group_memberships')
-        .select(`
-          *,
-          devices (
-            id,
-            android_id,
-            device_name,
-            manufacturer,
-            model,
-            last_seen
-          )
-        `)
-        .eq('group_id', groupId);
-      
-      if (error) {
-        console.error('💔 Error fetching group devices:', error);
-        throw error;
-      }
-      
-      console.log(`✅ Found ${data?.length || 0} devices for group ${groupId}`);
-      
-      // Transform the data and create complete DeviceStatus objects
-      const devices: DeviceStatus[] = data?.map(membership => ({
-        id: membership.devices.id, // This is the Supabase UUID we should use
-        android_id: membership.devices.android_id, // Keep for reference but don't use for assignments
-        name: membership.devices.device_name || 'Unknown Device',
-        manufacturer: membership.devices.manufacturer || 'Unknown',
-        model: membership.devices.model || 'Unknown',
-        os_version: 'Unknown', // Default value for missing property
-        last_seen: membership.devices.last_seen ? new Date(membership.devices.last_seen).getTime() : 0,
-        battery_level: 0, // Default value for missing property
-        battery_status: 'Unknown', // Default value for missing property
-        network_type: 'Unknown', // Default value for missing property
-        ip_address: '0.0.0.0', // Default value for missing property
-        uptime_millis: 0, // Default value for missing property
-        isOnline: membership.devices.last_seen ? 
-          (Date.now() - new Date(membership.devices.last_seen).getTime()) < 5 * 60 * 1000 : false,
-        telemetry: null, // Default value for missing property
-        membership_id: membership.id
-      })) || [];
-      
-      return devices;
+      return DeviceAssignmentService.getGroupDevices(groupId);
     },
-    enabled: !!groupId && isSupabaseUUID(groupId),
+    enabled: !!groupId,
     staleTime: 0,
     refetchOnWindowFocus: true
   });
@@ -192,13 +138,11 @@ export const useDeleteDeviceGroup = () => {
   
   return useMutation({
     mutationFn: async (groupId: string) => {
-      // First remove all memberships
       await supabase
         .from('device_group_memberships')
         .delete()
         .eq('group_id', groupId);
       
-      // Then delete the group
       const { error } = await supabase
         .from('device_groups')
         .delete()
@@ -226,47 +170,16 @@ export const useDeleteDeviceGroup = () => {
   });
 };
 
-// Updated to use device.id (Supabase UUID) for assignments
 export const useAssignDeviceToGroup = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ deviceId, groupId }: DeviceAssignmentRequest) => {
-      console.log(`🔍 Starting assignment validation for device ${deviceId} to group ${groupId}`);
-      
-      // Validate request using type guards - deviceId should be the Supabase UUID
-      const errors = validateDeviceAssignment({ deviceId, groupId });
-      if (errors.length > 0) {
-        console.error('❌ Validation errors:', errors);
-        throw new Error(`Validation failed: ${errors.join(', ')}`);
-      }
-      
-      console.log('✅ ID validation passed, calling Edge Function...');
-      
-      try {
-        const { data, error } = await supabase.functions.invoke('assign-device-to-group', {
-          body: { 
-            deviceId: deviceId, // Send device.id (Supabase UUID)
-            groupId: groupId   // Send group.id (Supabase UUID)
-          }
-        });
-
-        if (error) {
-          console.error('💔 Edge Function error:', error);
-          throw new Error(error.message || 'Edge Function call failed');
-        }
-
-        console.log('✅ Edge Function response:', data);
-        return data;
-      } catch (error) {
-        console.error('💔 Failed to call Edge Function:', error);
-        throw error;
-      }
+      return DeviceAssignmentService.assignDeviceToGroup(deviceId, groupId);
     },
     onSuccess: (data, variables) => {
       console.log(`🎉 Successfully assigned device ${variables.deviceId} to group ${variables.groupId}`);
       
-      // Invalidate all relevant queries to refresh the UI
       queryClient.invalidateQueries({ queryKey: ['device-group-memberships'] });
       queryClient.invalidateQueries({ queryKey: ['device-groups'] });
       queryClient.invalidateQueries({ queryKey: ['group-devices'] });
@@ -292,31 +205,11 @@ export const useRemoveDeviceFromGroup = () => {
   
   return useMutation({
     mutationFn: async ({ deviceId, groupId }: DeviceAssignmentRequest) => {
-      // Validate IDs are Supabase UUIDs - deviceId should be device.id
-      const errors = validateDeviceAssignment({ deviceId, groupId });
-      if (errors.length > 0) {
-        throw new Error(`Validation failed: ${errors.join(', ')}`);
-      }
-      
-      console.log(`🗑️ Removing device ${deviceId} from group ${groupId}`);
-      
-      const { error } = await supabase
-        .from('device_group_memberships')
-        .delete()
-        .eq('device_id', deviceId) // Using device.id (Supabase UUID)
-        .eq('group_id', groupId);  // Using group.id (Supabase UUID)
-      
-      if (error) {
-        console.error('💔 Removal error:', error);
-        throw error;
-      }
-      
-      console.log('✅ Removal successful');
+      return DeviceAssignmentService.removeDeviceFromGroup(deviceId, groupId);
     },
     onSuccess: (data, variables) => {
       console.log(`🎉 Successfully removed device ${variables.deviceId} from group ${variables.groupId}`);
       
-      // Invalidate all relevant queries
       queryClient.invalidateQueries({ queryKey: ['device-group-memberships'] });
       queryClient.invalidateQueries({ queryKey: ['device-groups'] });
       queryClient.invalidateQueries({ queryKey: ['group-devices'] });
