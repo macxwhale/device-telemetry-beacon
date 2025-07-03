@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DeviceGroup, DeviceGroupMembership } from '@/types/groups';
@@ -182,7 +183,7 @@ export const useAssignDeviceToGroup = () => {
     mutationFn: async ({ deviceId, groupId }: DeviceAssignmentRequest) => {
       const result = await DeviceAssignmentService.assignDeviceToGroup(deviceId, groupId);
       if (!result.success) {
-        throw result.error;
+        throw new Error(result.error.message);
       }
       return result.data;
     },
@@ -218,7 +219,7 @@ export const useRemoveDeviceFromGroup = () => {
     mutationFn: async ({ deviceId, groupId }: DeviceAssignmentRequest) => {
       const result = await DeviceAssignmentService.removeDeviceFromGroup(deviceId, groupId);
       if (!result.success) {
-        throw result.error;
+        throw new Error(result.error.message);
       }
     },
     onSuccess: (data, variables) => {

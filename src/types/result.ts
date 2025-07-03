@@ -47,12 +47,20 @@ export function mapResult<T, U, E = AppError>(
   result: Result<T, E>,
   fn: (data: T) => U
 ): Result<U, E> {
-  return result.success ? Ok(fn(result.data)) : { success: false, error: result.error };
+  if (result.success) {
+    return Ok(fn(result.data));
+  } else {
+    return { success: false, error: result.error };
+  }
 }
 
 export function flatMapResult<T, U, E = AppError>(
   result: Result<T, E>,
   fn: (data: T) => Result<U, E>
 ): Result<U, E> {
-  return result.success ? fn(result.data) : { success: false, error: result.error };
+  if (result.success) {
+    return fn(result.data);
+  } else {
+    return { success: false, error: result.error };
+  }
 }
