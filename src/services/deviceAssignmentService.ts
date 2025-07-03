@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { DeviceStatus } from '@/types/telemetry';
 import { Result, Ok, Err, AppError } from '@/types/result';
@@ -18,7 +17,7 @@ export class DeviceAssignmentService {
   /**
    * Validates device and group IDs for assignment
    */
-  static validateAssignmentRequest(deviceId: string, groupId: string): Result<void> {
+  static validateAssignmentRequest(deviceId: string, groupId: string): Result<{ validDeviceId: DeviceId; validGroupId: GroupId }> {
     const validDeviceId = createDeviceId(deviceId);
     const validGroupId = createGroupId(groupId);
 
@@ -30,7 +29,7 @@ export class DeviceAssignmentService {
       return Err(AppError.validation('Group ID must be a valid UUID', { groupId }));
     }
 
-    return Ok(undefined);
+    return Ok({ validDeviceId, validGroupId });
   }
 
   /**
@@ -45,8 +44,7 @@ export class DeviceAssignmentService {
       return validationResult;
     }
 
-    const validDeviceId = createDeviceId(deviceId)!;
-    const validGroupId = createGroupId(groupId)!;
+    const { validDeviceId, validGroupId } = validationResult.data;
 
     try {
       const { data, error } = await supabase.functions.invoke('assign-device-to-group', {
@@ -81,8 +79,7 @@ export class DeviceAssignmentService {
       return validationResult;
     }
 
-    const validDeviceId = createDeviceId(deviceId)!;
-    const validGroupId = createGroupId(groupId)!;
+    const { validDeviceId, validGroupId } = validationResult.data;
 
     console.log(`🗑️ Removing device ${deviceId} from group ${groupId}`);
 
