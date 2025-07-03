@@ -18,7 +18,7 @@ export class DeviceAssignmentService {
   /**
    * Validates device and group IDs for assignment
    */
-  static validateAssignmentRequest(deviceId: string, groupId: string): Result<{ deviceId: DeviceId; groupId: GroupId }> {
+  static validateAssignmentRequest(deviceId: string, groupId: string): Result<void> {
     const validDeviceId = createDeviceId(deviceId);
     const validGroupId = createGroupId(groupId);
 
@@ -30,7 +30,7 @@ export class DeviceAssignmentService {
       return Err(AppError.validation('Group ID must be a valid UUID', { groupId }));
     }
 
-    return Ok({ deviceId: validDeviceId, groupId: validGroupId });
+    return Ok(undefined);
   }
 
   /**
@@ -45,7 +45,8 @@ export class DeviceAssignmentService {
       return validationResult;
     }
 
-    const { deviceId: validDeviceId, groupId: validGroupId } = validationResult.data;
+    const validDeviceId = createDeviceId(deviceId)!;
+    const validGroupId = createGroupId(groupId)!;
 
     try {
       const { data, error } = await supabase.functions.invoke('assign-device-to-group', {
@@ -80,7 +81,8 @@ export class DeviceAssignmentService {
       return validationResult;
     }
 
-    const { deviceId: validDeviceId, groupId: validGroupId } = validationResult.data;
+    const validDeviceId = createDeviceId(deviceId)!;
+    const validGroupId = createGroupId(groupId)!;
 
     console.log(`🗑️ Removing device ${deviceId} from group ${groupId}`);
 
