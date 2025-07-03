@@ -61,7 +61,7 @@ export function mapResult<T, U, E>(
   if (isOk(result)) {
     return Ok(fn(result.data));
   } else {
-    return result as Result<U, E>;
+    return result;
   }
 }
 
@@ -72,7 +72,6 @@ export function flatMapResult<T, U, E>(
   if (isOk(result)) {
     return fn(result.data);
   } else {
-    return result as Result<U, E>;
+    return result;
   }
 }
-
