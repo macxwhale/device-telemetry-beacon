@@ -24,7 +24,7 @@ export const useDeviceGroupDialog = ({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedDevices, setSelectedDevices] = useState<string[]>([]);
 
-  const handleSave = async (saveFunction: () => Promise<void>) => {
+  const handleSave = async () => {
     if (!editedGroup) return;
     
     try {
@@ -35,7 +35,7 @@ export const useDeviceGroupDialog = ({
     }
   };
 
-  const handleDelete = async (deleteFunction: () => Promise<void>) => {
+  const handleDelete = async () => {
     if (!group) return;
     
     try {

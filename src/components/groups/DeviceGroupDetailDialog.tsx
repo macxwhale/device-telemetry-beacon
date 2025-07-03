@@ -91,7 +91,7 @@ export const DeviceGroupDetailDialog = ({
                 isEditing={isEditing}
                 setIsEditing={setIsEditing}
                 assignedDevicesCount={assignedDevices.length}
-                onSave={() => handleSave(handleSave)}
+                onSave={handleSave}
                 onDelete={() => setShowDeleteDialog(true)}
               />
 
@@ -132,7 +132,7 @@ export const DeviceGroupDetailDialog = ({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => handleDelete(handleDelete)}
+              onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete Group
