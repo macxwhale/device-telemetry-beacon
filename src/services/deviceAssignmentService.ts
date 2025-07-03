@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { DeviceStatus } from '@/types/telemetry';
 import { Result, Ok, Err, AppError } from '@/types/result';
@@ -17,7 +18,7 @@ export class DeviceAssignmentService {
   /**
    * Validates device and group IDs for assignment
    */
-  static validateAssignmentRequest(deviceId: string, groupId: string): Result<{ validDeviceId: DeviceId; validGroupId: GroupId }> {
+  private static validateAssignmentRequest(deviceId: string, groupId: string): Result<{ validDeviceId: DeviceId; validGroupId: GroupId }> {
     const validDeviceId = createDeviceId(deviceId);
     const validGroupId = createGroupId(groupId);
 

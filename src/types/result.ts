@@ -43,16 +43,16 @@ export class AppError extends Error {
 export const Ok = <T>(data: T): Result<T> => ({ success: true, data });
 export const Err = <E = AppError>(error: E): Result<never, E> => ({ success: false, error });
 
-export function mapResult<T, U>(
-  result: Result<T>,
+export function mapResult<T, U, E = AppError>(
+  result: Result<T, E>,
   fn: (data: T) => U
-): Result<U> {
+): Result<U, E> {
   return result.success ? Ok(fn(result.data)) : result;
 }
 
-export function flatMapResult<T, U>(
-  result: Result<T>,
-  fn: (data: T) => Result<U>
-): Result<U> {
+export function flatMapResult<T, U, E = AppError>(
+  result: Result<T, E>,
+  fn: (data: T) => Result<U, E>
+): Result<U, E> {
   return result.success ? fn(result.data) : result;
 }
