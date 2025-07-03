@@ -5,6 +5,7 @@ import { DeviceAssignmentRequest } from '@/types/device-ids';
 import { DeviceStatus } from '@/types/telemetry';
 import { toast } from '@/hooks/use-toast';
 import { DeviceAssignmentService } from '@/services/deviceAssignmentService';
+import { isOk } from '@/types/result';
 
 export const useDeviceGroups = () => {
   return useQuery({
@@ -56,7 +57,7 @@ export const useGroupDevices = (groupId?: string) => {
       if (!groupId) return [];
       
       const result = await DeviceAssignmentService.getGroupDevices(groupId);
-      if (!result.success) {
+      if (!isOk(result)) {
         throw new Error(result.error.message);
       }
       
@@ -181,7 +182,7 @@ export const useAssignDeviceToGroup = () => {
   return useMutation({
     mutationFn: async ({ deviceId, groupId }: DeviceAssignmentRequest) => {
       const result = await DeviceAssignmentService.assignDeviceToGroup(deviceId, groupId);
-      if (!result.success) {
+      if (!isOk(result)) {
         throw new Error(result.error.message);
       }
       return result.data;
@@ -217,7 +218,7 @@ export const useRemoveDeviceFromGroup = () => {
   return useMutation({
     mutationFn: async ({ deviceId, groupId }: DeviceAssignmentRequest) => {
       const result = await DeviceAssignmentService.removeDeviceFromGroup(deviceId, groupId);
-      if (!result.success) {
+      if (!isOk(result)) {
         throw new Error(result.error.message);
       }
     },

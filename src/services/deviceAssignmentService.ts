@@ -1,7 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { DeviceStatus } from '@/types/telemetry';
-import { Result, Ok, Err, AppError } from '@/types/result';
+import { Result, Ok, Err, AppError, isOk } from '@/types/result';
 import { DeviceId, GroupId, createDeviceId, createGroupId, unwrapId } from '@/types/branded-types';
 
 export interface AssignmentResult {
@@ -41,7 +41,7 @@ export class DeviceAssignmentService {
 
     // Validate IDs
     const validationResult = this.validateIds(deviceId, groupId);
-    if (!validationResult.success) {
+    if (!isOk(validationResult)) {
       return Err(validationResult.error);
     }
 
@@ -76,7 +76,7 @@ export class DeviceAssignmentService {
    */
   static async removeDeviceFromGroup(deviceId: string, groupId: string): Promise<Result<void>> {
     const validationResult = this.validateIds(deviceId, groupId);
-    if (!validationResult.success) {
+    if (!isOk(validationResult)) {
       return Err(validationResult.error);
     }
 

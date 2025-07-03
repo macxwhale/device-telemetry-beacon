@@ -43,11 +43,21 @@ export class AppError extends Error {
 export const Ok = <T>(data: T): Result<T> => ({ success: true, data });
 export const Err = <E = AppError>(error: E): Result<never, E> => ({ success: false, error });
 
+// Type guard to check if Result is successful
+export function isOk<T, E>(result: Result<T, E>): result is { success: true; data: T } {
+  return result.success;
+}
+
+// Type guard to check if Result is an error
+export function isErr<T, E>(result: Result<T, E>): result is { success: false; error: E } {
+  return !result.success;
+}
+
 export function mapResult<T, U, E>(
   result: Result<T, E>,
   fn: (data: T) => U
 ): Result<U, E> {
-  if (result.success) {
+  if (isOk(result)) {
     return Ok(fn(result.data));
   } else {
     return { success: false, error: result.error };
@@ -58,7 +68,7 @@ export function flatMapResult<T, U, E>(
   result: Result<T, E>,
   fn: (data: T) => Result<U, E>
 ): Result<U, E> {
-  if (result.success) {
+  if (isOk(result)) {
     return fn(result.data);
   } else {
     return { success: false, error: result.error };
