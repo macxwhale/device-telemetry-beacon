@@ -18,7 +18,7 @@ export class DeviceAssignmentService {
   /**
    * Validates device and group IDs for assignment
    */
-  private static validateAssignmentRequest(deviceId: string, groupId: string): Result<{ validDeviceId: DeviceId; validGroupId: GroupId }> {
+  private static validateIds(deviceId: string, groupId: string): Result<{ validDeviceId: DeviceId; validGroupId: GroupId }> {
     const validDeviceId = createDeviceId(deviceId);
     const validGroupId = createGroupId(groupId);
 
@@ -39,10 +39,10 @@ export class DeviceAssignmentService {
   static async assignDeviceToGroup(deviceId: string, groupId: string): Promise<Result<AssignmentResult>> {
     console.log(`🔍 Starting device assignment: ${deviceId} -> ${groupId}`);
 
-    // Validate IDs using Result pattern
-    const validationResult = this.validateAssignmentRequest(deviceId, groupId);
+    // Validate IDs
+    const validationResult = this.validateIds(deviceId, groupId);
     if (!validationResult.success) {
-      return validationResult;
+      return Err(validationResult.error);
     }
 
     const { validDeviceId, validGroupId } = validationResult.data;
@@ -75,9 +75,9 @@ export class DeviceAssignmentService {
    * Removes a device from a group
    */
   static async removeDeviceFromGroup(deviceId: string, groupId: string): Promise<Result<void>> {
-    const validationResult = this.validateAssignmentRequest(deviceId, groupId);
+    const validationResult = this.validateIds(deviceId, groupId);
     if (!validationResult.success) {
-      return validationResult;
+      return Err(validationResult.error);
     }
 
     const { validDeviceId, validGroupId } = validationResult.data;
