@@ -55,7 +55,13 @@ export const useGroupDevices = (groupId?: string) => {
     queryKey: ['group-devices', groupId],
     queryFn: async (): Promise<DeviceStatus[]> => {
       if (!groupId) return [];
-      return DeviceAssignmentService.getGroupDevices(groupId);
+      
+      const result = await DeviceAssignmentService.getGroupDevices(groupId);
+      if (!result.success) {
+        throw new Error(result.error.message);
+      }
+      
+      return result.data;
     },
     enabled: !!groupId,
     staleTime: 0,
@@ -175,7 +181,11 @@ export const useAssignDeviceToGroup = () => {
   
   return useMutation({
     mutationFn: async ({ deviceId, groupId }: DeviceAssignmentRequest) => {
-      return DeviceAssignmentService.assignDeviceToGroup(deviceId, groupId);
+      const result = await DeviceAssignmentService.assignDeviceToGroup(deviceId, groupId);
+      if (!result.success) {
+        throw result.error;
+      }
+      return result.data;
     },
     onSuccess: (data, variables) => {
       console.log(`🎉 Successfully assigned device ${variables.deviceId} to group ${variables.groupId}`);
@@ -191,9 +201,11 @@ export const useAssignDeviceToGroup = () => {
     },
     onError: (error, variables) => {
       console.error(`💔 Failed to assign device ${variables.deviceId} to group ${variables.groupId}:`, error);
+      
+      const errorMessage = error instanceof Error ? error.message : "Failed to assign device to group.";
       toast({
         title: "Assignment Failed 😞",
-        description: error.message || "Failed to assign device to group.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -205,7 +217,10 @@ export const useRemoveDeviceFromGroup = () => {
   
   return useMutation({
     mutationFn: async ({ deviceId, groupId }: DeviceAssignmentRequest) => {
-      return DeviceAssignmentService.removeDeviceFromGroup(deviceId, groupId);
+      const result = await DeviceAssignmentService.removeDeviceFromGroup(deviceId, groupId);
+      if (!result.success) {
+        throw result.error;
+      }
     },
     onSuccess: (data, variables) => {
       console.log(`🎉 Successfully removed device ${variables.deviceId} from group ${variables.groupId}`);
@@ -221,9 +236,11 @@ export const useRemoveDeviceFromGroup = () => {
     },
     onError: (error, variables) => {
       console.error(`💔 Failed to remove device ${variables.deviceId} from group ${variables.groupId}:`, error);
+      
+      const errorMessage = error instanceof Error ? error.message : "Failed to remove device from group.";
       toast({
         title: "Removal Failed 😞",
-        description: error.message || "Failed to remove device from group.",
+        description: errorMessage,
         variant: "destructive",
       });
     }

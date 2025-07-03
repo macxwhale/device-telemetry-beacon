@@ -1,10 +1,9 @@
+import { isValidUUID as baseIsValidUUID, createDeviceId, createGroupId } from '@/types/branded-types';
 
-export function isValidUUID(uuid: string): boolean {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(uuid);
-}
+// Re-export the base validation function
+export const isValidUUID = baseIsValidUUID;
 
-// Alias for consistency with new type system
+// Alias for backward compatibility
 export const isSupabaseUUID = isValidUUID;
 
 export function formatToUUID(str: string): string {
@@ -33,12 +32,11 @@ export function ensureUUID(id: string, context?: string): string {
   return formatted;
 }
 
-// Legacy functions - kept for backward compatibility but marked as deprecated
 /**
- * @deprecated Use isSupabaseUUID instead for consistency
+ * @deprecated Use branded types from @/types/branded-types instead
  */
 export function extractDeviceUUID(deviceId: string): string {
-  console.warn('⚠️ extractDeviceUUID is deprecated. Use Supabase UUIDs directly.');
+  console.warn('⚠️ extractDeviceUUID is deprecated. Use branded DeviceId type instead.');
   
   // Check if it's a hybrid format (android_id-uuid)
   const hybridMatch = deviceId.match(/^[0-9a-f]+-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
@@ -51,10 +49,10 @@ export function extractDeviceUUID(deviceId: string): string {
 }
 
 /**
- * @deprecated Use isSupabaseUUID instead for consistency
+ * @deprecated Use createDeviceId or createGroupId from @/types/branded-types instead
  */
 export function isValidDeviceId(deviceId: string): boolean {
-  console.warn('⚠️ isValidDeviceId is deprecated. Use isSupabaseUUID for standard validation.');
+  console.warn('⚠️ isValidDeviceId is deprecated. Use branded type validation instead.');
   
   // Accept either pure UUIDs or hybrid android_id-uuid format
   const hybridPattern = /^[0-9a-f]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

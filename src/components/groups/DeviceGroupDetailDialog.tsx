@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Users } from 'lucide-react';
 import { DeviceGroup } from '@/types/groups';
-import { DeviceStatus } from '@/types/telemetry';
 import { useDevicesQuery } from '@/hooks/useDevicesQuery';
 import { 
   useDeviceGroupMemberships, 
@@ -12,10 +11,10 @@ import {
   useGroupDevices 
 } from '@/hooks/useDeviceGroups';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { toast } from '@/hooks/use-toast';
 import { GroupInformationCard } from './GroupInformationCard';
 import { DeviceAssignmentCard } from './DeviceAssignmentCard';
 import { AssignedDevicesCard } from './AssignedDevicesCard';
+import { useDeviceGroupDialog } from './hooks/useDeviceGroupDialog';
 
 interface DeviceGroupDetailDialogProps {
   group: DeviceGroup | null;
@@ -32,10 +31,20 @@ export const DeviceGroupDetailDialog = ({
   onUpdate,
   onDelete
 }: DeviceGroupDetailDialogProps) => {
-  const [editedGroup, setEditedGroup] = useState<DeviceGroup | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedDevices, setSelectedDevices] = useState<string[]>([]);
+  const {
+    editedGroup,
+    setEditedGroup,
+    isEditing,
+    setIsEditing,
+    showDeleteDialog,
+    setShowDeleteDialog,
+    selectedDevices,
+    setSelectedDevices,
+    handleSave,
+    handleDelete,
+    handleAssignDevices,
+    handleRemoveDevice
+  } = useDeviceGroupDialog({ group, onUpdate, onDelete, onClose });
 
   const { data: allDevices = [], isLoading: devicesLoading, error: devicesError } = useDevicesQuery();
   const { refetch: refetchMemberships } = useDeviceGroupMemberships();
@@ -54,87 +63,7 @@ export const DeviceGroupDetailDialog = ({
       refetchMemberships();
       refetchGroupDevices();
     }
-  }, [group, refetchMemberships, refetchGroupDevices]);
-
-  const handleSave = async () => {
-    if (!editedGroup) return;
-    
-    try {
-      await onUpdate(editedGroup);
-      setIsEditing(false);
-    } catch (error) {
-      console.error('Failed to update group:', error);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!group) return;
-    
-    try {
-      await onDelete(group.id);
-      setShowDeleteDialog(false);
-      onClose();
-    } catch (error) {
-      console.error('Failed to delete group:', error);
-    }
-  };
-
-  const handleAssignDevices = async () => {
-    if (!group || selectedDevices.length === 0) {
-      console.log('🚫 Cannot assign devices: no group or no devices selected');
-      return;
-    }
-
-    console.log(`🌈 Starting assignment of ${selectedDevices.length} devices to group ${group.id}`);
-
-    try {
-      // Assign each selected device
-      for (const deviceId of selectedDevices) {
-        console.log(`🌸 Assigning device ${deviceId} to group ${group.id}`);
-        
-        await assignDevice.mutateAsync({
-          deviceId,
-          groupId: group.id
-        });
-      }
-      
-      console.log('🎉 All devices assigned successfully!');
-      
-      // Clear selection and refresh data
-      setSelectedDevices([]);
-      await Promise.all([
-        refetchMemberships(),
-        refetchGroupDevices()
-      ]);
-      
-    } catch (error) {
-      console.error('💔 Failed to assign devices:', error);
-    }
-  };
-
-  const handleRemoveDevice = async (deviceId: string) => {
-    if (!group) return;
-
-    console.log(`🗑️ Removing device ${deviceId} from group ${group.id}`);
-
-    try {
-      await removeDevice.mutateAsync({
-        deviceId,
-        groupId: group.id
-      });
-      
-      console.log('✅ Device removed successfully');
-      
-      // Refresh data
-      await Promise.all([
-        refetchMemberships(),
-        refetchGroupDevices()
-      ]);
-      
-    } catch (error) {
-      console.error('💔 Failed to remove device:', error);
-    }
-  };
+  }, [group, refetchMemberships, refetchGroupDevices, setEditedGroup, setIsEditing, setSelectedDevices]);
 
   if (!group || !editedGroup) return null;
 
@@ -162,7 +91,7 @@ export const DeviceGroupDetailDialog = ({
                 isEditing={isEditing}
                 setIsEditing={setIsEditing}
                 assignedDevicesCount={assignedDevices.length}
-                onSave={handleSave}
+                onSave={() => handleSave(handleSave)}
                 onDelete={() => setShowDeleteDialog(true)}
               />
 
@@ -174,7 +103,7 @@ export const DeviceGroupDetailDialog = ({
                 devicesError={devicesError}
                 selectedDevices={selectedDevices}
                 setSelectedDevices={setSelectedDevices}
-                onAssignDevices={handleAssignDevices}
+                onAssignDevices={() => handleAssignDevices(assignDevice, refetchMemberships, refetchGroupDevices)}
                 assignDevicesPending={assignDevice.isPending}
               />
             </div>
@@ -183,7 +112,7 @@ export const DeviceGroupDetailDialog = ({
             <div>
               <AssignedDevicesCard
                 assignedDevices={assignedDevices}
-                onRemoveDevice={handleRemoveDevice}
+                onRemoveDevice={(deviceId) => handleRemoveDevice(deviceId, removeDevice, refetchMemberships, refetchGroupDevices)}
                 removeDevicePending={removeDevice.isPending}
               />
             </div>
@@ -203,7 +132,7 @@ export const DeviceGroupDetailDialog = ({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDelete}
+              onClick={() => handleDelete(handleDelete)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete Group
