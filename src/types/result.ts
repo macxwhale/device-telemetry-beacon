@@ -1,5 +1,4 @@
 
-
 /**
  * Result pattern for consistent error handling across the application
  * Based on Rust's Result type and functional programming principles
@@ -61,7 +60,7 @@ export function mapResult<T, U, E>(
   if (isOk(result)) {
     return Ok(fn(result.data));
   } else {
-    return result;
+    return { success: false, error: result.error };
   }
 }
 
@@ -72,6 +71,6 @@ export function flatMapResult<T, U, E>(
   if (isOk(result)) {
     return fn(result.data);
   } else {
-    return result;
+    return { success: false, error: result.error };
   }
 }
