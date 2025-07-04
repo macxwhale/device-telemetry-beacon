@@ -60,7 +60,7 @@ export function mapResult<T, U, E>(
   if (isOk(result)) {
     return Ok(fn(result.data));
   } else {
-    return result as Result<U, E>;
+    return { success: false, error: result.error };
   }
 }
 
@@ -71,6 +71,6 @@ export function flatMapResult<T, U, E>(
   if (isOk(result)) {
     return fn(result.data);
   } else {
-    return result as Result<U, E>;
+    return { success: false, error: result.error };
   }
 }
