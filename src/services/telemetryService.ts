@@ -1,18 +1,22 @@
 import { DeviceStatus, DeviceHistory } from "@/types/telemetry";
 import { getAllDevicesFromApi, deleteDeviceFromApi } from "@/api/api-interface";
+import { monitor } from "@/lib/monitoring";
 
 // Get all device information
+@monitor('telemetry_get_all_devices')
 export const getAllDevices = async (): Promise<DeviceStatus[]> => {
   return getAllDevicesFromApi();
 };
 
 // Get device by ID
+@monitor('telemetry_get_device_by_id')
 export const getDeviceById = async (id: string): Promise<DeviceStatus | null> => {
   const devices = await getAllDevices();
   return devices.find(device => device.id === id) || null;
 };
 
 // Delete device and all related data
+@monitor('telemetry_delete_device')
 export const deleteDevice = async (id: string): Promise<{success: boolean; message: string}> => {
   console.log(`TelemetryService: Deleting device ${id}`);
   try {
@@ -29,6 +33,7 @@ export const deleteDevice = async (id: string): Promise<{success: boolean; messa
 };
 
 // Get device history - simplified to keep under 50 lines
+@monitor('telemetry_get_device_history')
 export const getDeviceHistory = async (deviceId: string): Promise<DeviceHistory[]> => {
   const device = await getDeviceById(deviceId);
   if (!device || !device.telemetry) return [];

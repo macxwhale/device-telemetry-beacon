@@ -103,10 +103,10 @@ export function unwrapOrElse<T, E extends ErrorConstraint>(
 }
 
 // New: Combine multiple results with proper error aggregation
-export function combineResults<T extends readonly unknown[], E extends ErrorConstraint>(
-  results: readonly [...{ [K in keyof T]: Result<T[K], E> }]
-): Result<T, E[]> {
-  const errors: E[] = [];
+export function combineResults<T extends readonly unknown[]>(
+  results: readonly [...{ [K in keyof T]: Result<T[K], ErrorConstraint> }]
+): Result<T, ErrorConstraint[]> {
+  const errors: ErrorConstraint[] = [];
   const values: unknown[] = [];
 
   for (const result of results) {
@@ -118,7 +118,7 @@ export function combineResults<T extends readonly unknown[], E extends ErrorCons
   }
 
   if (errors.length > 0) {
-    return Err(errors as E[]);
+    return { success: false, error: errors as ErrorConstraint[] };
   }
 
   return Ok(values as T);
