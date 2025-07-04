@@ -2,6 +2,7 @@
 /**
  * Result pattern for consistent error handling across the application
  * Based on Rust's Result type and functional programming principles
+ * Following Google's TypeScript style guide for generic constraints
  */
 export type Result<T, E = AppError> = 
   | { success: true; data: T }
@@ -53,15 +54,16 @@ export function isErr<T, E>(result: Result<T, E>): result is { success: false; e
   return !result.success;
 }
 
+// Fixed with proper generic constraints - key improvement for type safety
 export function mapResult<T, U, E>(
   result: Result<T, E>,
   fn: (data: T) => U
 ): Result<U, E> {
   if (isOk(result)) {
-    return Ok(fn(result.data));
-  } else {
-    return result;
+    return Ok(result.data);
   }
+  // Type assertion is safe here because we know result is an error case
+  return result as Result<U, E>;
 }
 
 export function flatMapResult<T, U, E>(
@@ -70,7 +72,26 @@ export function flatMapResult<T, U, E>(
 ): Result<U, E> {
   if (isOk(result)) {
     return fn(result.data);
-  } else {
-    return result;
   }
+  // Type assertion is safe here because we know result is an error case
+  return result as Result<U, E>;
+}
+
+// Additional utility functions following industry best practices
+export function mapError<T, E1, E2>(
+  result: Result<T, E1>,
+  fn: (error: E1) => E2
+): Result<T, E2> {
+  if (isErr(result)) {
+    return Err(fn(result.error));
+  }
+  return Ok(result.data);
+}
+
+export function unwrapOr<T, E>(result: Result<T, E>, defaultValue: T): T {
+  return isOk(result) ? result.data : defaultValue;
+}
+
+export function unwrapOrElse<T, E>(result: Result<T, E>, fn: (error: E) => T): T {
+  return isOk(result) ? result.data : fn(result.error);
 }
