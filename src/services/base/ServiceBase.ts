@@ -1,9 +1,10 @@
 
-import { Result } from '@/types/result';
+import { Result, ErrorConstraint } from '@/types/result';
 
 /**
- * Base interface for all services to ensure consistency
- * Based on domain-driven design principles
+ * Legacy service interface - preserved for backward compatibility
+ * New services should extend AbstractService from BaseService.ts
+ * @deprecated Use CrudService or ReadOnlyService from BaseService.ts instead
  */
 export interface ServiceBase<TEntity, TId> {
   findById(id: TId): Promise<Result<TEntity>>;
@@ -13,7 +14,8 @@ export interface ServiceBase<TEntity, TId> {
 }
 
 /**
- * Base interface for read-only services
+ * Legacy read-only service interface
+ * @deprecated Use ReadOnlyService from BaseService.ts instead
  */
 export interface ReadOnlyService<TEntity, TId> {
   findById(id: TId): Promise<Result<TEntity>>;
@@ -21,7 +23,8 @@ export interface ReadOnlyService<TEntity, TId> {
 }
 
 /**
- * Configuration for service operations
+ * Legacy service configuration
+ * @deprecated Use ServiceConfig from BaseService.ts instead
  */
 export interface ServiceConfig {
   retryAttempts?: number;
@@ -30,7 +33,8 @@ export interface ServiceConfig {
 }
 
 /**
- * Standard service response metadata
+ * Legacy service metadata
+ * @deprecated Use ServiceMetadata from BaseService.ts instead
  */
 export interface ServiceMetadata {
   timestamp: Date;

@@ -4,7 +4,11 @@
  * Based on Rust's Result type and functional programming principles
  * Following Google's TypeScript style guide for generic constraints
  */
-export type Result<T, E = AppError> = 
+
+// Constrained error type to ensure proper inheritance hierarchy
+export type ErrorConstraint = Error | AppError;
+
+export type Result<T, E extends ErrorConstraint = AppError> = 
   | { success: true; data: T }
   | { success: false; error: E };
 
@@ -40,45 +44,44 @@ export class AppError extends Error {
   }
 }
 
-// Utility functions for working with Results
-export const Ok = <T>(data: T): Result<T> => ({ success: true, data });
-export const Err = <E = AppError>(error: E): Result<never, E> => ({ success: false, error });
+// Utility functions for working with Results with proper generic constraints
+export const Ok = <T>(data: T): Result<T, never> => ({ success: true, data });
+export const Err = <E extends ErrorConstraint>(error: E): Result<never, E> => ({ success: false, error });
 
-// Type guard to check if Result is successful
-export function isOk<T, E>(result: Result<T, E>): result is { success: true; data: T } {
+// Type guards with strengthened constraints
+export function isOk<T, E extends ErrorConstraint>(result: Result<T, E>): result is { success: true; data: T } {
   return result.success;
 }
 
-// Type guard to check if Result is an error
-export function isErr<T, E>(result: Result<T, E>): result is { success: false; error: E } {
+export function isErr<T, E extends ErrorConstraint>(result: Result<T, E>): result is { success: false; error: E } {
   return !result.success;
 }
 
-// Fixed with proper generic constraints - key improvement for type safety
-export function mapResult<T, U, E>(
+// Fixed mapResult with proper generic bounds and type preservation
+export function mapResult<T, U, E extends ErrorConstraint>(
   result: Result<T, E>,
   fn: (data: T) => U
 ): Result<U, E> {
   if (isOk(result)) {
-    return Ok(result.data);
+    return Ok(fn(result.data));
   }
-  // Type assertion is safe here because we know result is an error case
+  // Preserve original error type through proper casting
   return result as Result<U, E>;
 }
 
-export function flatMapResult<T, U, E>(
+export function flatMapResult<T, U, E extends ErrorConstraint>(
   result: Result<T, E>,
   fn: (data: T) => Result<U, E>
 ): Result<U, E> {
   if (isOk(result)) {
     return fn(result.data);
   }
-  // Type assertion is safe here because we know result is an error case
+  // Preserve original error type through proper casting
   return result as Result<U, E>;
 }
 
-// Additional utility functions following industry best practices
-export function mapError<T, E1, E2>(
+// Enhanced utility functions with proper error type constraints
+export function mapError<T, E1 extends ErrorConstraint, E2 extends ErrorConstraint>(
   result: Result<T, E1>,
   fn: (error: E1) => E2
 ): Result<T, E2> {
@@ -88,10 +91,46 @@ export function mapError<T, E1, E2>(
   return Ok(result.data);
 }
 
-export function unwrapOr<T, E>(result: Result<T, E>, defaultValue: T): T {
+export function unwrapOr<T, E extends ErrorConstraint>(result: Result<T, E>, defaultValue: T): T {
   return isOk(result) ? result.data : defaultValue;
 }
 
-export function unwrapOrElse<T, E>(result: Result<T, E>, fn: (error: E) => T): T {
+export function unwrapOrElse<T, E extends ErrorConstraint>(
+  result: Result<T, E>, 
+  fn: (error: E) => T
+): T {
   return isOk(result) ? result.data : fn(result.error);
+}
+
+// New: Combine multiple results with proper error aggregation
+export function combineResults<T extends readonly unknown[], E extends ErrorConstraint>(
+  results: readonly [...{ [K in keyof T]: Result<T[K], E> }]
+): Result<T, E[]> {
+  const errors: E[] = [];
+  const values: unknown[] = [];
+
+  for (const result of results) {
+    if (isErr(result)) {
+      errors.push(result.error);
+    } else {
+      values.push(result.data);
+    }
+  }
+
+  if (errors.length > 0) {
+    return Err(errors as E[]);
+  }
+
+  return Ok(values as T);
+}
+
+// New: Chain multiple fallible operations
+export function chain<T, U, V, E extends ErrorConstraint>(
+  result: Result<T, E>,
+  ...operations: Array<(value: any) => Result<any, E>>
+): Result<V, E> {
+  return operations.reduce(
+    (acc, operation) => flatMapResult(acc, operation),
+    result
+  ) as Result<V, E>;
 }
