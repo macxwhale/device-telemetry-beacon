@@ -49,16 +49,16 @@ export const DeviceStats: FC<DeviceStatsProps> = memo(({ devices }) => {
   }, [devices]);
   
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
       {stats.map((stat) => (
         <Card key={stat.name}>
-          <CardHeader className="p-4 pb-2">
-            <CardTitle className="text-sm font-medium">{stat.name}</CardTitle>
+          <CardHeader className="p-3 sm:p-4 pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium truncate">{stat.name}</CardTitle>
           </CardHeader>
-          <CardContent className="p-4 pt-0">
+          <CardContent className="p-3 sm:p-4 pt-0">
             <div className="flex items-center justify-between">
-              <span className="text-2xl font-bold">{stat.value}</span>
-              <stat.icon className={`h-5 w-5 ${stat.color}`} />
+              <span className="text-xl sm:text-2xl font-bold">{stat.value}</span>
+              <stat.icon className={`h-4 w-4 sm:h-5 sm:w-5 shrink-0 ${stat.color}`} />
             </div>
           </CardContent>
         </Card>

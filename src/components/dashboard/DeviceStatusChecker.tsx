@@ -32,55 +32,55 @@ export const DeviceStatusChecker = () => {
   return (
     <Card className="w-full">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5" />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex-1">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Activity className="h-4 w-4 sm:h-5 sm:w-5" />
               Device Status Monitor
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs sm:text-sm">
               {lastCheck ? `Last checked: ${lastCheck.toLocaleTimeString()}` : 'Not checked yet'}
             </CardDescription>
           </div>
-          <DeviceMonitorButton variant="default" />
+          <DeviceMonitorButton variant="default" className="w-full sm:w-auto" />
         </div>
       </CardHeader>
       
       <CardContent className="pt-0">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           {/* Online Status */}
           <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${getStatusColor(onlineDevices, true)}`} />
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">{onlineDevices} Online</span>
-              <span className="text-xs text-muted-foreground">Active devices</span>
+            <div className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full shrink-0 ${getStatusColor(onlineDevices, true)}`} />
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs sm:text-sm font-medium truncate">{onlineDevices} Online</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground truncate">Active devices</span>
             </div>
           </div>
 
           {/* Offline Status */}
           <div className="flex items-center gap-2">
-            <AlertCircle className={`h-3 w-3 ${offlineDevices > 0 ? 'text-red-500' : 'text-gray-400'}`} />
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">{offlineDevices} Offline</span>
-              <span className="text-xs text-muted-foreground">Need attention</span>
+            <AlertCircle className={`h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0 ${offlineDevices > 0 ? 'text-red-500' : 'text-gray-400'}`} />
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs sm:text-sm font-medium truncate">{offlineDevices} Offline</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground truncate">Need attention</span>
             </div>
           </div>
 
           {/* Battery Status */}
           <div className="flex items-center gap-2">
-            <Battery className={`h-3 w-3 ${lowBatteryDevices > 0 ? 'text-orange-500' : 'text-gray-400'}`} />
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">{lowBatteryDevices} Low Battery</span>
-              <span className="text-xs text-muted-foreground">{'<20%'}</span>
+            <Battery className={`h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0 ${lowBatteryDevices > 0 ? 'text-orange-500' : 'text-gray-400'}`} />
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs sm:text-sm font-medium truncate">{lowBatteryDevices} Low Battery</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground truncate">{'<20%'}</span>
             </div>
           </div>
 
           {/* Security Status */}
           <div className="flex items-center gap-2">
-            <Shield className={`h-3 w-3 ${securityIssues > 0 ? 'text-red-500' : 'text-green-500'}`} />
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">{securityIssues} Security Issues</span>
-              <span className="text-xs text-muted-foreground">Rooted devices</span>
+            <Shield className={`h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0 ${securityIssues > 0 ? 'text-red-500' : 'text-green-500'}`} />
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs sm:text-sm font-medium truncate">{securityIssues} Security Issues</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground truncate">Rooted devices</span>
             </div>
           </div>
         </div>

@@ -35,11 +35,11 @@ const Index = memo(() => {
   
   return (
     <Layout>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Device Telemetry Dashboard</h1>
-        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isLoading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-          Refresh
+      <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold truncate">Device Telemetry Dashboard</h1>
+        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isLoading} className="shrink-0">
+          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''} sm:mr-2`} />
+          <span className="hidden sm:inline">Refresh</span>
         </Button>
       </div>
       
@@ -61,7 +61,7 @@ Index.displayName = 'Index';
 
 // Memoized dashboard content to prevent unnecessary re-renders
 const DashboardContent = memo(({ devices }: { devices: DeviceStatus[] }) => (
-  <div className="space-y-6">
+  <div className="space-y-4 sm:space-y-6">
     {/* Enhanced Device Status Monitor */}
     <DeviceStatusChecker />
     
@@ -83,8 +83,8 @@ const RecentDevices = memo(({ devices }: { devices: DeviceStatus[] }) => {
   
   return (
     <div>
-      <h2 className="text-lg font-medium mb-3">Recent Devices</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <h2 className="text-base sm:text-lg font-medium mb-3">Recent Devices</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
         {recentDevices.map(device => (
           <DeviceStatusCard key={device.id} device={device} />
         ))}

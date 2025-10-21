@@ -37,11 +37,11 @@ export const DeviceOverview: FC<DeviceOverviewProps> = ({ devices }) => {
   return (
     <Card className="col-span-full lg:col-span-2">
       <CardHeader>
-        <CardTitle>Device Overview</CardTitle>
+        <CardTitle className="text-base sm:text-lg md:text-xl">Device Overview</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col sm:flex-row items-center justify-around gap-4">
-        <div className="w-full sm:w-1/2 h-[250px]">
-          <p className="text-center text-sm font-medium mb-2">Status</p>
+        <div className="w-full sm:w-1/2 h-[200px] sm:h-[250px]">
+          <p className="text-center text-xs sm:text-sm font-medium mb-2">Status</p>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -63,8 +63,8 @@ export const DeviceOverview: FC<DeviceOverviewProps> = ({ devices }) => {
           </ResponsiveContainer>
         </div>
         
-        <div className="w-full sm:w-1/2 h-[250px]">
-          <p className="text-center text-sm font-medium mb-2">Device Types</p>
+        <div className="w-full sm:w-1/2 h-[200px] sm:h-[250px]">
+          <p className="text-center text-xs sm:text-sm font-medium mb-2">Device Types</p>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
