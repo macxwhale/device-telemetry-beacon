@@ -102,12 +102,12 @@ export function unwrapOrElse<T, E extends ErrorConstraint>(
   return isOk(result) ? result.data : fn(result.error);
 }
 
-// New: Combine multiple results with proper error aggregation
-export function combineResults<T extends readonly unknown[]>(
-  results: readonly [...{ [K in keyof T]: Result<T[K], ErrorConstraint> }]
-): Result<T, ErrorConstraint[]> {
+// Combine multiple results
+export function combineResults<T extends ErrorConstraint>(
+  results: Result<T>[]
+): Result<T[], AppError> {
   const errors: ErrorConstraint[] = [];
-  const values: unknown[] = [];
+  const values: T[] = [];
 
   for (const result of results) {
     if (isErr(result)) {
@@ -118,10 +118,14 @@ export function combineResults<T extends readonly unknown[]>(
   }
 
   if (errors.length > 0) {
-    return { success: false, error: errors as ErrorConstraint[] };
+    const firstError = errors[0];
+    const appError = firstError instanceof AppError 
+      ? firstError 
+      : new AppError(firstError.message, 'UNKNOWN_ERROR', 'medium');
+    return { success: false, error: appError };
   }
 
-  return Ok(values as T);
+  return { success: true, data: values };
 }
 
 // New: Chain multiple fallible operations

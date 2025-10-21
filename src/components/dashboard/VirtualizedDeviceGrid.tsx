@@ -33,7 +33,7 @@ export const VirtualizedDeviceGrid = ({
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 280, // Increased from 220 to prevent overlapping
+    estimateSize: () => window.innerWidth < 640 ? 320 : 280, // More space on mobile
     overscan: 2,
   });
 
@@ -58,7 +58,7 @@ export const VirtualizedDeviceGrid = ({
   return (
     <div
       ref={parentRef}
-      className="h-[600px] overflow-auto"
+      className="h-[500px] sm:h-[600px] overflow-auto"
       style={{ contain: 'strict' }}
     >
       <div

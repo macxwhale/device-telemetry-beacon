@@ -5,19 +5,19 @@ import { AppError, ErrorConstraint } from '@/types/result';
  * Service-specific error types following domain-driven design principles
  * Based on Google's error handling guidelines with proper inheritance
  */
-export class ServiceError extends AppError {
+export class ServiceError extends Error {
   constructor(
     message: string,
-    code: string,
+    public readonly code: string,
     public readonly service: string,
-    severity: 'low' | 'medium' | 'high' | 'critical' = 'medium',
-    context?: Record<string, unknown>
+    public readonly severity: 'low' | 'medium' | 'high' | 'critical' = 'medium',
+    public readonly context?: Record<string, unknown>
   ) {
-    super(message, code, severity, { ...context, service });
+    super(message);
     this.name = 'ServiceError';
   }
 
-  // Service-specific factory methods with proper parameter alignment
+  // Service-specific factory methods
   static database(service: string, message: string, context?: Record<string, unknown>): ServiceError {
     return new ServiceError(message, 'DATABASE_ERROR', service, 'critical', context);
   }
@@ -67,20 +67,19 @@ export class ServiceError extends AppError {
   }
 }
 
-// Type-safe error classification for better error handling
-export const isServiceError = (error: ErrorConstraint): error is ServiceError => {
+// Type-safe error classification
+export const isServiceError = (error: Error): error is ServiceError => {
   return error instanceof ServiceError;
 };
 
-export const isAppError = (error: ErrorConstraint): error is AppError => {
+export const isAppError = (error: Error): error is AppError => {
   return error instanceof AppError;
 };
 
-// Error severity helpers for consistent logging and monitoring
-export const getErrorSeverityLevel = (error: ErrorConstraint): number => {
-  if (!(error instanceof AppError)) return 1;
-  
-  switch (error.severity) {
+// Error severity helpers
+export const getErrorSeverityLevel = (error: ServiceError | AppError): number => {
+  const severity = error.severity;
+  switch (severity) {
     case 'low': return 1;
     case 'medium': return 2;
     case 'high': return 3;

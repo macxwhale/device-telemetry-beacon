@@ -17,8 +17,8 @@ export const Layout: FC<LayoutProps> = ({ children }) => {
           <div className="min-h-screen flex w-full">
             <TelemetrySidebar />
             <main className="flex-1 overflow-x-hidden">
-              <div className="container p-4 md:p-6">
-                <SidebarTrigger className="mb-4 md:hidden" />
+              <div className="container max-w-full px-2 py-3 sm:px-4 sm:py-4 md:px-6 md:py-6">
+                <SidebarTrigger className="mb-3 md:hidden" />
                 {children}
               </div>
             </main>
