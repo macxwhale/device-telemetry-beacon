@@ -17,6 +17,7 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log('SSH command request received');
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -24,6 +25,7 @@ Deno.serve(async (req) => {
 
     // Get request body
     const { deviceId, command }: SSHCommandRequest = await req.json();
+    console.log(`Processing SSH command for device: ${deviceId}, command: ${command}`);
 
     if (!deviceId || !command) {
       return new Response(

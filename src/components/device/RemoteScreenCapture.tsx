@@ -27,6 +27,7 @@ export function RemoteScreenCapture({ deviceId, hasSSHCredentials }: RemoteScree
   const captureScreen = async () => {
     setLoading(true);
     try {
+      console.log('Starting SSH command for device:', deviceId);
       const { data, error } = await supabase.functions.invoke('execute-ssh-command', {
         body: {
           deviceId,
@@ -34,9 +35,15 @@ export function RemoteScreenCapture({ deviceId, hasSSHCredentials }: RemoteScree
         },
       });
 
-      if (error) throw error;
+      console.log('SSH command response:', { data, error });
+
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw error;
+      }
 
       if (data.success && data.type === 'image') {
+        console.log('Screenshot captured successfully');
         setScreenshot(data.output);
         setShowScreenshot(true);
         toast({
@@ -44,6 +51,7 @@ export function RemoteScreenCapture({ deviceId, hasSSHCredentials }: RemoteScree
           description: "SSH connection successful, screenshot ready to view",
         });
       } else if (data.error) {
+        console.error('SSH command failed:', data.error);
         throw new Error(data.error);
       }
     } catch (error) {
