@@ -5,16 +5,19 @@ import { getDeviceById, getDeviceHistory } from "@/services/telemetryService";
 import { DeviceHeader } from "@/components/device/DeviceHeader";
 import { DeviceDetails } from "@/components/device/DeviceDetails";
 import { DeviceCharts } from "@/components/device/DeviceCharts";
+import { RemoteScreenCapture } from "@/components/device/RemoteScreenCapture";
 import { DeviceHistory, DeviceStatus } from "@/types/telemetry";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
 import { useDevices } from "@/contexts/DeviceContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const DeviceDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const [device, setDevice] = useState<DeviceStatus | null>(null);
   const [history, setHistory] = useState<DeviceHistory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasSSHCredentials, setHasSSHCredentials] = useState(false);
   const { refreshDevices } = useDevices();
   
   const fetchDeviceData = async () => {
@@ -31,6 +34,15 @@ const DeviceDetailPage = () => {
       }
       
       setHistory(deviceHistory);
+      
+      // Check if SSH credentials are configured
+      const { data: deviceInfo } = await supabase
+        .from('devices')
+        .select('ssh_username, ssh_password')
+        .eq('id', id)
+        .single();
+      
+      setHasSSHCredentials(!!(deviceInfo?.ssh_username && deviceInfo?.ssh_password));
     } catch (error) {
       toast({
         title: "Error",
@@ -88,6 +100,12 @@ const DeviceDetailPage = () => {
       {device.telemetry ? (
         <>
           <DeviceDetails telemetry={device.telemetry} />
+          <div className="mt-6">
+            <RemoteScreenCapture 
+              deviceId={device.id} 
+              hasSSHCredentials={hasSSHCredentials}
+            />
+          </div>
           {history.length > 0 && <DeviceCharts history={history} />}
         </>
       ) : (
