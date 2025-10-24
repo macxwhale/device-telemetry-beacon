@@ -39,6 +39,10 @@ export function RemoteScreenCapture({ deviceId, hasSSHCredentials }: RemoteScree
       if (data.success && data.type === 'image') {
         setScreenshot(data.output);
         setShowScreenshot(true);
+        toast({
+          title: "Screenshot captured",
+          description: "SSH connection successful, screenshot ready to view",
+        });
       } else if (data.error) {
         throw new Error(data.error);
       }
